@@ -1,0 +1,92 @@
+# the default config case is default_config.yaml
+
+topics:
+  /fire/smoke/warning: "烟火预警"
+  /fallen/falling/warning: "跌倒预警"
+  /mouse/warning: "鼠患预警"
+  /violence/warning: "暴力预警"
+
+model_path:
+  /fallen/falling/warning: "models/detect/falldetect-11x.pt"
+  /fire/smoke/warning: "models/detect/fire_smoke_yolov10m_v2_epochs_250.pt"
+  /mouse/warning: "models/detect/mouse_yolov10l_epochs_250.pt"
+  /violence/warning: "models/detect/fight_yolov10m_199_epoch.pt"
+
+class_list:
+  /fallen/falling/warning: [0]
+  /fire/smoke/warning: [0, 1]
+  /mouse/warning: [0]
+  /violence/warning: [0]
+
+url_str_flag:
+  - old
+  - new
+
+call_url:
+  old: "write your content if need"
+  new: "write your content if need"
+
+get_video_stream_url:
+  url:
+    old: "write your content if need"
+    new: "write your content if need"
+  request_json:
+    old: 
+      uid: device_sn,
+      channelNo: "1"
+      protocol: "2"
+      encodeType: "H264"
+      expireTime: "86400"
+    new:
+      deviceSn: device_sn,
+      channelNo: "1"
+      protocol: "2"
+      encodeType: "H264"
+      expireTime: "86400"
+
+upload_url:
+  old: "write your content if need"
+  new: "write your content if need"
+
+warning_url:
+  old: "write your content if need"
+  new: "write your content if need"
+
+port_dict:
+  old: 8888
+  new: 9999
+
+conf:
+  default:
+    /fallen/falling/warning: 0.88
+    /fire/smoke/warning: 0.80
+    /mouse/warning: 0.9
+    /violence/warning: 0.97
+  BD3202818:
+    /fallen/falling/warning: 0.88
+    /fire/smoke/warning: 0.80
+    /mouse/warning: 0.9
+    /violence/warning: 0.97
+  BD0632136:
+    /fallen/falling/warning: 0.88
+    /fire/smoke/warning: 0.9
+    /mouse/warning: 0.9
+    /violence/warning: 0.92
+
+sql:
+  old:
+    host: "write your content if need"
+    port: "write your content if need"
+    username: "write your content if need"
+    password: "write your content if need"
+    database: "write your content if need"
+    table: "write your content if need"
+  new:
+    host: "write your content if need"
+    port: "write your content if need"
+    username: "write your content if need"
+    password: "write your content if need"
+    database: "write your content if need"
+    table: "write your content if need"
+
+warning_gap: 9
