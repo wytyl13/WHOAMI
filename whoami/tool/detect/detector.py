@@ -49,8 +49,15 @@ class Detector(BaseModel, ABC):
         if hasattr(self, 'logger'):  # 检查是否已经初始化
             return
         
-    def __str__(self):
-        return f"{self.__class__.__name__} -- name: {self.name}, model_path: {self.model_path}, class_list: {self.class_list}, conf: {self.conf}"
+    @abstractmethod
+    def tostring(self):
+        return {
+            "name": self.name,
+            "model_path": self.model_path, 
+            "class_list": self.class_list, 
+            "conf": self.conf, 
+        }
+    
     
     def _valid_model(self):
         if self.model is None and self.model_path is None:

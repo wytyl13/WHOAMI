@@ -42,10 +42,20 @@ class SxDetectorWarning(DetectorWarning):
         self._valid_variable(url_str_flag, device_sn, stream_url, topic_name)
         if hasattr(self, 'logger'):  # 检查是否已经初始化
             return
-        
-    def __str__(self):
-        return f"{self.__class__.__name__} --- config_path: {self.config_path}, pre_warning_time: {self.pre_warning_time}, warning_gap: {self.warning_gap}, url_str_flag: {self.url_str_flag}, device_sn: {self.device_sn}, topic_name: {self.topic_name}"
     
+    def tostring(self):
+        return {
+            "name": self.name,
+            "config_path": self.config_path, 
+            "pre_warning_time": self.pre_warning_time, 
+            "warning_gap": self.warning_gap, 
+            "warning_infomation": self.warning_infomation, 
+            "url_str_flag": self.url_str_flag,
+            "device_sn": self.device_sn,
+            "stream_url": self.stream_url,
+            "topic_name": self.topic_name
+        }
+       
     def _valid_variable(self, url_str_flag, device_sn, stream_url, topic_name):
         """valid and init all variable in SxDetectorWarning"""
         self.url_str_flag = url_str_flag

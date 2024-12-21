@@ -32,6 +32,7 @@ from whoami.utils.log import Logger
 from whoami.utils.utils import Utils
 from whoami.tool.detect.sx_detector_warning import SxDetectorWarning
 from whoami.tool.detect.ultralitics_detector import UltraliticsDetector
+from whoami.configs.detector_config import DetectorConfig 
 
 utils = Utils()
 
@@ -41,7 +42,8 @@ ROOT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 
 # @ray.remote # faild to use ray to implemented the multi threads. because the pydantic version.
 class SxVideoStreamDetector(VideoStreamDetector):
-    url_str_flag: Optional[str] = None
+    # 注意：如果子类的特有属性在父类的构造函数中被使用了，应用无效，因为父类的构造函数在子类的构造函数之前执行
+    # 解决办法是在子类的构造函数中将该属性初始化在调用父类构造函数之前
     
     def __init__(
         self, 
@@ -54,28 +56,53 @@ class SxVideoStreamDetector(VideoStreamDetector):
         config_path: Optional[str] = None,
         topic_name: Optional[str] = None
     ):
+        """notice, all valid function will not influence the init value in construct function"""
+        """notice, the special attribution url_str_flag for child class SxVideoStreamDetector must init before the super function."""
+        """because we have overwrite the method get_sql_connection and call it in the construction function of father class VideoStreamDetector"""
+        """if not do like this, will fail to use the url_str_flag value in the construction of child class SxVideoStreamDetector."""
+        """but i have failed to do that, so we should reset the correspond attribution in the construction of child class."""
         super().__init__(
             name=name, 
             detector_warning=detector_warning, 
             device_sn=device_sn, 
             stream_url=stream_url, 
+            url_str_flag=url_str_flag,
             detector=detector,
             config_path=config_path,
             topic_name=topic_name
         )
-        """notice, all valid function will not influence the init value in construct function"""
-        self.url_str_flag = url_str_flag if url_str_flag is not None else self.url_str_flag
+        # self.url_str_flag = url_str_flag if url_str_flag is not None else self.url_str_flag
+        # if you init the special attribution for child class. you should consider whether overwrite some method.
+        # self.sql_connection = self.get_sql_connection() if url_str_flag is not None else self.sql_connection
+        # self.detector_warning = self._valid_detector_warning()
         if hasattr(self, 'logger'):  # 检查是否已经初始化
             return
     
-    def __str__(self):
-        return f"{self.__class__.__name__} --- name: {self.name}, detector_warning: {self.detector_warning}, device_sn: {self.device_sn}, detector: {self.detector}, stream_url: {self.stream_url}, config_path: {self.config_path}, sql_connection: {self.sql_connection}, topic_name: {self.topic_name}, url_str_flag: {self.url_str_flag}"
+    def set_device_sn(self, device_sn):
+        self.device_sn = device_sn
+        self._valid_detector_warning()
+        
+    def set_topic_name(self, topic_name):
+        self.topic_name = topic_name
+        self._valid_detector_variable_init()
+    
+    def tostring(self):
+        return {
+            "name": self.name,
+            "detector_warning": self.detector_warning.tostring(), 
+            "device_sn": self.device_sn, 
+            "detector": self.detector.tostring(), 
+            "stream_url": self.stream_url, 
+            "config_path": self.config_path, 
+            "sql_connection": self.sql_connection, 
+            "topic_name": self.topic_name, 
+            "url_str_flag": self.url_str_flag
+        }
     
     def _init_detector(self, model_path):
         """init detector implemented by inherited class."""
         return UltraliticsDetector(model_path=model_path)
     
-       
     @model_validator(mode="before")
     @classmethod
     def _valid_before(cls, values):
@@ -97,17 +124,17 @@ class SxVideoStreamDetector(VideoStreamDetector):
         """but the init value in model_validator after will not overwrite the init value in construct function."""
         """use the default config file url_str_flag, if you want customer, pass the variable in construct function."""
         try:
-            config = utils.read_yaml(data.config_path)
+            config = DetectorConfig.from_file(data.config_path).__dict__
             if "url_str_flag" not in data or not data.url_str_flag:
                 data.url_str_flag = config["url_str_flag"][0]
         except Exception as e:
             raise ValueError("fail to init the url_str_flag variable! you can pass it in your construct function!")
         return data
     
-    def _valid_detector_warning(self, detector_warning):
+    def _valid_detector_warning(self, detector_warning: DetectorWarning = None):
         """init detector warning implemented by inherited class."""
         self.detector_warning = detector_warning if detector_warning is not None else self.detector_warning
-        if self.detector_warning is None:
+        if self.detector_warning is None or self.device_sn is not None or self.topic_name is not None or self.stream_url is not None or self.url_str_flag is not None:
             self.detector_warning = SxDetectorWarning(
                 self.config_path, 
                 self.url_str_flag,
@@ -116,7 +143,6 @@ class SxVideoStreamDetector(VideoStreamDetector):
                 self.topic_name
             )
         return True
-        
     
     def get_sql_connection(self):
         try:
