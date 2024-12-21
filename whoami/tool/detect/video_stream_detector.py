@@ -27,8 +27,8 @@ from whoami.tool.detect.detector_warning import DetectorWarning
 from whoami.tool.detect.detector import Detector
 from whoami.utils.log import Logger
 from whoami.utils.utils import Utils
+from whoami.configs.detector_config import DetectorConfig
 
-utils = Utils()
 ROOT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 PROGRAM_ROOT_DIRECTORY = os.path.abspath(os.path.join(ROOT_DIRECTORY, "../../"))
 
@@ -38,6 +38,7 @@ class VideoStreamDetector(BaseModel, ABC):
     device_sn: Optional[str] = None
     detector: Optional[Detector] = None
     stream_url: Optional[str] = None
+    url_str_flag: Optional[str] = None
     config_path: Optional[str] = None
     config: Optional[dict] = None
     sql_connection: any = None
@@ -55,6 +56,7 @@ class VideoStreamDetector(BaseModel, ABC):
         device_sn: Optional[str] = None,
         detector: Optional[Detector] = None,
         stream_url: Optional[str] = None,
+        url_str_flag: Optional[str] = None,
         config_path: Optional[str] = None,
         topic_name: Optional[str] = None,
     ):
@@ -63,24 +65,37 @@ class VideoStreamDetector(BaseModel, ABC):
            detector_warning=detector_warning, 
            device_sn=device_sn, 
            stream_url=stream_url, 
+           url_str_flag=url_str_flag,
            config_path=config_path, 
            detector=detector,
            topic_name=topic_name,
         )
+        self.url_str_flag = url_str_flag
+        # 注意如果以下初始化方法中使用了子类的构造函数中的变量，那么将达不到你想要的效果
+        # 因为父类的构造函数会在子类的构造函数之前执行。解决办法：在子类的构造函数中初始化
+        # 最终的解决办法是不再在子类中定义该特殊变量，因为他需要再父类的init构造函数中用到
         self._valid_init(config_path, topic_name, detector)
         self._valid_detector_warning(detector_warning)
+    
+    
+    def set_device_sn(self, device_sn):
+        self.device_sn = device_sn
+        self._valid_detector_warning()
         
+    def set_topic_name(self, topic_name):
+        self.topic_name = topic_name
+        self._valid_detector_variable_init()
+    
+       
     def get_video_stream_url(self, device_sn: Optional[str] = None):
         """
         if you want to get video stream url by requesting one post api, you
         should overwrite this method. or you will fail to process this class.
         """
         pass
-    
         
-    def __str__(self):
-        return f"{self.__class__.__name__} --- name: {self.name}, detector_warning: {self.detector_warning}, device_sn: {self.device_sn}, detector: {self.detector}, stream_url: {self.stream_url}, config_path: {self.config_path}, sql_connection: {self.sql_connection}, topic_name: {self.topic_name}"
-    
+    # def __str__(self):
+    #     return f"{self.__class__.__name__} --- name: {self.name}, detector_warning: {self.detector_warning}, device_sn: {self.device_sn}, detector: {self.detector}, stream_url: {self.stream_url}, config_path: {self.config_path}, sql_connection: {self.sql_connection}, topic_name: {self.topic_name}"
     
     def _valid_init(self, config_path, topic_name, detector):
         """notice the valid init order"""
@@ -104,7 +119,7 @@ class VideoStreamDetector(BaseModel, ABC):
     
     def _valid_config_init(self, config_path):
         self.config_path = config_path if config_path is not None else self.config_path
-        self.config = utils.read_yaml(self.config_path) if self.config_path is not None else self.config
+        self.config = DetectorConfig.from_file(self.config_path).__dict__ if self.config_path is not None else self.config
         return True
     
     def _valid_topic_name_init(self, topic_name):
@@ -112,7 +127,7 @@ class VideoStreamDetector(BaseModel, ABC):
         if self.topic_name is None:
             raise ValueError("topic must not be null!")
     
-    def _valid_detector_variable_init(self, detector):
+    def _valid_detector_variable_init(self, detector: Detector = None):
         """vaild and init the variable class_list and conf in detector class."""
         """conf can not be null, must less than 1.0 and greater than 0.0"""
         """class_list can be none, none means it is an empty list: []"""
@@ -177,23 +192,42 @@ class VideoStreamDetector(BaseModel, ABC):
             value["name"] = cls.__name__
         return value
     
+    @abstractmethod
+    def tostring(self):
+        return {
+            "name": self.name,
+            "detector_warning": self.detector_warning, 
+            "device_sn": self.device_sn, 
+            "detector": self.detector, 
+            "stream_url": self.stream_url, 
+            "config_path": self.config_path, 
+            "sql_connection": self.sql_connection, 
+            "topic_name": self.topic_name, 
+            "url_str_flag": self.url_str_flag
+        }
+    
     @model_validator(mode="before")
     @classmethod
     def set_logger_if_empty(cls, value):
+        """before意味着该验证逻辑会在所有属性初始化之前执行，当然也会在init函数之前执行"""
+        """也就是意味着这个验证逻辑会在读取硬编码之前"""
+        """before __str__"""
         if "logger" not in value or not value["logger"]:
             value["logger"] = Logger(cls.__name__)
         return value
     
-    @model_validator(mode="before")
+    @model_validator(mode="after")
     @classmethod
-    def _valid_device_sn_stream_url(cls, values):
-        if values["device_sn"] is None and values["stream_url"] is None:
+    def _valid_device_sn_stream_url(cls, data: any):
+        """after意味着该验证逻辑会在所有属性初始化以后但是在init函数之前执行"""
+        """after __str__"""
+        if data.device_sn is None and data.stream_url is None:
             error_info = 'Either device_sn or stream_url must be provided!'
             raise ValueError(error_info)
-        if values["stream_url"] is None and not cls._check_function_code('get_video_stream_url'):
+        if data.stream_url is None and not cls._check_function_code('get_video_stream_url'):
             error_info = 'Either stream_url attribution or get_video_stream_url method must be provided!'
             raise ValueError(error_info)
-        return values
+        return data
     
     @model_validator(mode="after")
     @classmethod
@@ -238,6 +272,9 @@ class VideoStreamDetector(BaseModel, ABC):
         return data
 
     def get_sql_connection(self):
+        """overwrite the sql method, notice if the sql method based on the special attribution of child class. you should 
+        reset the sql after change the special attribution.
+        """
         pass
 
     

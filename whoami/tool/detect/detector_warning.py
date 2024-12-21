@@ -21,9 +21,8 @@ import os
 import time
 
 from whoami.utils.log import Logger
-from whoami.utils.utils import Utils
+from whoami.configs.detector_config import DetectorConfig
 
-utils = Utils()
 ROOT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 
 class DetectorWarning(BaseModel, ABC):
@@ -52,17 +51,24 @@ class DetectorWarning(BaseModel, ABC):
         )
         self.config_path = config_path if config_path is not None else self.config_path
         self.warning_gap = warning_gap if warning_gap is not None else self.warning_gap
-        self.config = utils.read_yaml(self.config_path) if self.config_path is not None else self.config
+        self.config = DetectorConfig.from_file(self.config_path).__dict__ if self.config_path is not None else self.config
         if 'warning_gap' not in self.config and self.warning_gap is None:
             raise ValueError("warning_gap must not be null!")
         if self.warning_gap is None:
             self.warning_gap = self.config['warning_gap']
         if hasattr(self, 'logger'):  # 检查是否已经初始化
             return
-    
-    def __str__(self):
-        return f"{self.__class__.__name__} --- config_path: {self.config_path}, pre_warning_time: {self.pre_warning_time}, warning_gap: {self.warning_gap}, url_str_flag: {self.url_str_flag}"
-     
+            
+    @abstractmethod
+    def tostring(self):
+        return {
+            "name": self.name,
+            "config_path": self.config_path, 
+            "pre_warning_time": self.pre_warning_time, 
+            "warning_gap": self.warning_gap, 
+            "warning_infomation": self.warning_infomation, 
+        }
+        
     @model_validator(mode="before")
     @classmethod
     def set_name_if_empty(cls, values):

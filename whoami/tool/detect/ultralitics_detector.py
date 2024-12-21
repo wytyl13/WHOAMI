@@ -37,6 +37,15 @@ class UltraliticsDetector(Detector):
         super().__init__(name=name, model=model, model_path=model_path, class_list=class_list, conf=conf)
         if hasattr(self, 'logger'):  # 检查是否已经初始化
             return
+        
+    def tostring(self):
+        return {
+            "name": self.name,
+            "model_path": self.model_path, 
+            "class_list": self.class_list, 
+            "conf": self.conf, 
+        }    
+    
     @model_validator(mode="after")
     @classmethod
     def valid_model_model_path(cls, data: any):
