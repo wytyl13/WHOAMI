@@ -86,6 +86,13 @@ class VideoStreamDetector(BaseModel, ABC):
         self.topic_name = topic_name
         self._valid_detector_variable_init()
     
+<<<<<<< HEAD
+=======
+    def set_url_str_flag(self, url_str_flag):
+        self.url_str_flag = url_str_flag
+        self._valid_sql_connection_init()
+        self._valid_detector_warning()
+>>>>>>> github_whoami
        
     def get_video_stream_url(self, device_sn: Optional[str] = None):
         """
@@ -275,12 +282,14 @@ class VideoStreamDetector(BaseModel, ABC):
         reset the sql after change the special attribution.
         """
         pass
-
     
     def check_sql_video_stream_status(self):
         pass
     
     def update_sql_video_stream_status(self):
+        pass
+    
+    def truncate_sql_table(self):
         pass
     
     @abstractmethod
@@ -296,7 +305,7 @@ class VideoStreamDetector(BaseModel, ABC):
         """set the warning information based on the predict result implemented by inherited class."""
 
     def process(self):
-        self.logger.info(self.detector)
+        # self.logger.info(self.detector)
         # common logical code. 
         # init stream url
         # need not to handle this exception, if happend, stop the process directly.
