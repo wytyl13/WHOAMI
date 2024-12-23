@@ -1,0 +1,1 @@
+/work/soft/miniconda3/envs/detect/bin/python: Error while finding module specification for 'whoami.scripts.detect.scripts' (ModuleNotFoundError: No module named 'whoami')
