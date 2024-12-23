@@ -350,7 +350,7 @@ class VideoStreamDetector(BaseModel, ABC):
                     self.stream_url = self.stream_url if self.stream_url else self.get_video_stream_url()
                     return recursive_process()
                 current_time = time.perf_counter()
-                if current_time - last_sample_time >= (10 / 100):
+                if current_time - last_sample_time >= (0.5 / 100):
                     task_id = self.stream_url + topic
                     self.logger.info(f"{task_id} is running!")
 
