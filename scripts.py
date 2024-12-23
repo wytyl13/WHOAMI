@@ -9,6 +9,7 @@ import asyncio
 # from ai_search.configs.llm_config import LLMConfig
 from whoami.tool.detect.ultralitics_detector import UltraliticsDetector
 from whoami.tool.detect.sx_video_stream_detector import SxVideoStreamDetector
+from whoami.configs.detector_config import DetectorConfig
 # from ai_search.tool.detect.sx_detector_warning import SxDetectorWarning
 #1 async def test():
 #     llm = OllamLLM(LLMConfig.from_file(Path("/home/weiyutao/.metagpt/config2.yaml")))
@@ -20,10 +21,15 @@ from whoami.tool.detect.sx_video_stream_detector import SxVideoStreamDetector
 #     print(content)
 
 if __name__ == '__main__':
-    model_path = '/work/ai/object_detect_warning/models/yolov10m_20000_fire_epoch_250.pt'
+
+    config = DetectorConfig.from_file("/work/ai/WHOAMI/whoami/tool/detect/default_config.yaml")
+    print(config)
+
+    
+    # model_path = '/work/ai/object_detect_warning/models/yolov10m_20000_fire_epoch_250.pt'
     # yolo = UltraliticsDetector(model_path=model_path)
-    video_stream_detector = SxVideoStreamDetector(device_sn='BD3202818', topic_name='/fire/smoke/warning', url_str_flag='old')
-    print(video_stream_detector.process())
+    # video_stream_detector = SxVideoStreamDetector(device_sn='BD3202818', topic_name='/fire/smoke/warning', url_str_flag='old')
+    # print(video_stream_detector.process())
     # print(yolo.name)
     # print(yolo.model.info())
     # image_path = '/work/ai/object_detect_warning/data/12月17日(12).jpg'

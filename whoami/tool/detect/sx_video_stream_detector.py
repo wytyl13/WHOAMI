@@ -78,7 +78,13 @@ class SxVideoStreamDetector(VideoStreamDetector):
         if hasattr(self, 'logger'):  # 检查是否已经初始化
             return
     
-
+    def set_device_sn(self, device_sn):
+        self.device_sn = device_sn
+        self._valid_detector_warning()
+        
+    def set_topic_name(self, topic_name):
+        self.topic_name = topic_name
+        self._valid_detector_variable_init()
     
     def tostring(self):
         return {

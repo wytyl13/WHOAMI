@@ -258,7 +258,6 @@ class VideoStreamDetector(BaseModel, ABC):
         else:
             return True
     
-    
     @model_validator(mode="before")
     @classmethod
     @abstractmethod

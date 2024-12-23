@@ -82,7 +82,6 @@ async def warning_fastapi(request_data: RequestData):
             return R.fail(f"topic: {topic}错误！应该属于：{TOPIC_LIST}")
         
     sx_video_stream_detector.set_device_sn(device_sn)
-    # sx_video_stream_detector.set_url_str_flag(url_str_flag)
 
     logger.info(sx_video_stream_detector.tostring())
     topic_list = [topic + "?" + TOPIC_DICT[topic] for topic in topic_list]
@@ -121,13 +120,11 @@ async def warning_fastapi(request_data: RequestData):
             return R.fail(f"topic: {topic_name}错误！应该属于：{TOPIC_LIST}")
         sx_video_stream_detector_thread = SxVideoStreamDetector(device_sn=device_sn, url_str_flag=url_str_flag, topic_name=topic_name)
         print(f"------------------开启任务：{sx_video_stream_detector_thread.topic_name}")
-        # logger.info(sx_video_stream_detector)
         thread = threading.Thread(target=background_run,
                         args=(sx_video_stream_detector_thread,))
         thread.start()
         threads[thread_id] = thread
     return R.success(f"视频流解析成功{video_stream_url}！开始后台执行！")
-
 
 @app.on_event("shutdown")
 def shutdown_event():
