@@ -86,13 +86,10 @@ class VideoStreamDetector(BaseModel, ABC):
         self.topic_name = topic_name
         self._valid_detector_variable_init()
     
-<<<<<<< HEAD
-=======
     def set_url_str_flag(self, url_str_flag):
         self.url_str_flag = url_str_flag
         self._valid_sql_connection_init()
         self._valid_detector_warning()
->>>>>>> github_whoami
        
     def get_video_stream_url(self, device_sn: Optional[str] = None):
         """

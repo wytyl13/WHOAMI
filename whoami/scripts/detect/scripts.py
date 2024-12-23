@@ -28,11 +28,7 @@ logger = Logger('warning_fastapi')
 url_str_flag = 'new'
 
 threads = {}
-<<<<<<< HEAD
-sx_video_stream_detector = SxVideoStreamDetector(device_sn='', url_str_flag=url_str_flag, topic_name=default_topic_list[0])
-=======
 sx_video_stream_detector = None
->>>>>>> github_whoami
 
 @dataclass
 class RequestData:
@@ -86,10 +82,6 @@ async def warning_fastapi(request_data: RequestData):
             return R.fail(f"topic: {topic}错误！应该属于：{TOPIC_LIST}")
         
     sx_video_stream_detector.set_device_sn(device_sn)
-<<<<<<< HEAD
-=======
-    # sx_video_stream_detector.set_url_str_flag(url_str_flag)
->>>>>>> github_whoami
 
     logger.info(sx_video_stream_detector.tostring())
     topic_list = [topic + "?" + TOPIC_DICT[topic] for topic in topic_list]
@@ -126,13 +118,8 @@ async def warning_fastapi(request_data: RequestData):
         thread_id = device_sn + topic
         if topic_name not in TOPIC_DICT:
             return R.fail(f"topic: {topic_name}错误！应该属于：{TOPIC_LIST}")
-<<<<<<< HEAD
-        sx_video_stream_detector.set_topic_name(topic_name)
-=======
         sx_video_stream_detector_thread = SxVideoStreamDetector(device_sn=device_sn, url_str_flag=url_str_flag, topic_name=topic_name)
         print(f"------------------开启任务：{sx_video_stream_detector_thread.topic_name}")
->>>>>>> github_whoami
-        # logger.info(sx_video_stream_detector)
         thread = threading.Thread(target=background_run,
                         args=(sx_video_stream_detector_thread,))
         thread.start()
