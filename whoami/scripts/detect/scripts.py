@@ -126,7 +126,6 @@ async def warning_fastapi(request_data: RequestData):
         threads[thread_id] = thread
     return R.success(f"视频流解析成功{video_stream_url}！开始后台执行！")
 
-
 @app.on_event("shutdown")
 def shutdown_event():
     print("Shutting down application...")
