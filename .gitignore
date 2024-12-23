@@ -1,8 +1,4 @@
 whoami/models
 whoami/tool/detect/default_config.yaml
-<<<<<<< HEAD
-problems.txt
-=======
 *.txt
 whoami/logs
->>>>>>> github_whoami
