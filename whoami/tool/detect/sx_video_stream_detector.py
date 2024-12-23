@@ -204,6 +204,19 @@ class SxVideoStreamDetector(VideoStreamDetector):
                 raise ValueError(error_info) from e
         return True
     
+    def truncate_sql_table(self):
+        with self.sql_connection() as db:
+            try:
+                truncate_sql = "TRUNCATE TABLE webcam_ai_config;"
+                db.execute(text(truncate_sql))
+                db.commit()
+            except Exception as e:
+                db.rollback()        
+                error_info = "fail to truncate the webcam_ai_config table!"
+                self.logger.error(error_info)
+                raise ValueError(error_info) from e
+        return True, f"successfully truncate the webcam_ai_config table"
+    
     def get_real_topic_list(self):
         """get real topic list implemented by inherited class"""
         # check the real time topic list
@@ -242,6 +255,7 @@ class SxVideoStreamDetector(VideoStreamDetector):
         request_json = get_video_stream_url["request_json"][self.url_str_flag]
         request_json[next(iter(request_json))] = self.device_sn
         
+        print(type(self.logger))
         self.logger.info(f"request_json: {request_json}")
         self.logger.info(f"request_url: {url}")
         result = requests.post(url, json=request_json)

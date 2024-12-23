@@ -4,6 +4,12 @@ import os
 import ctypes
 import threading
 import uvicorn
+import argparse
+import time
+import copy
+import signal
+import sys
+from typing import Dict
 
 from whoami.tool.detect.sx_video_stream_detector import SxVideoStreamDetector
 from whoami.utils.log import Logger
@@ -16,13 +22,13 @@ CONFIG_PATH = os.path.abspath(os.path.join(ROOT_DIRECTORY, "../../tool/detect/de
 
 CONFIG = DetectorConfig.from_file(CONFIG_PATH).__dict__
 TOPIC_DICT = CONFIG['topics']
-default_topic_list = ['/fire/smoke/warning']
+default_topic_list = ['/fallen/falling/warning']
 app = FastAPI()
 logger = Logger('warning_fastapi')
 url_str_flag = 'new'
 
 threads = {}
-sx_video_stream_detector = SxVideoStreamDetector(device_sn='', url_str_flag=url_str_flag, topic_name=default_topic_list[0])
+sx_video_stream_detector = None
 
 @dataclass
 class RequestData:
@@ -50,6 +56,12 @@ def stop_thread(thread):
     """Stop a thread by raising an exception in it."""
     _async_raise(thread.ident, SystemExit)
 
+def stop_all_thread():
+    values = [value for value in threads.values()]
+    for value in values:
+        print(value)
+        _async_raise(value.ident, SystemExit)
+
 def background_run(sx_video_stream_detector: SxVideoStreamDetector):
     return sx_video_stream_detector.process()
 
@@ -70,6 +82,7 @@ async def warning_fastapi(request_data: RequestData):
             return R.fail(f"topic: {topic}错误！应该属于：{TOPIC_LIST}")
         
     sx_video_stream_detector.set_device_sn(device_sn)
+    # sx_video_stream_detector.set_url_str_flag(url_str_flag)
 
     logger.info(sx_video_stream_detector.tostring())
     topic_list = [topic + "?" + TOPIC_DICT[topic] for topic in topic_list]
@@ -106,19 +119,33 @@ async def warning_fastapi(request_data: RequestData):
         thread_id = device_sn + topic
         if topic_name not in TOPIC_DICT:
             return R.fail(f"topic: {topic_name}错误！应该属于：{TOPIC_LIST}")
-        sx_video_stream_detector.set_topic_name(topic_name)
+        sx_video_stream_detector_thread = SxVideoStreamDetector(device_sn=device_sn, url_str_flag=url_str_flag, topic_name=topic_name)
+        print(f"------------------开启任务：{sx_video_stream_detector_thread.topic_name}")
         # logger.info(sx_video_stream_detector)
         thread = threading.Thread(target=background_run,
-                        args=(sx_video_stream_detector,))
+                        args=(sx_video_stream_detector_thread,))
         thread.start()
         threads[thread_id] = thread
     return R.success(f"视频流解析成功{video_stream_url}！开始后台执行！")
+
+
+@app.on_event("shutdown")
+def shutdown_event():
+    print("Shutting down application...")
+    stop_all_thread()
+    print("All threads stopped.")
 
 @app.get('/list_all_topic')
 async def list_all_topic():
     return R.success(TOPIC_DICT)
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--url', type=str, default='new', help='the default url_str_flag!')
+    args = parser.parse_args()
+    url_str_flag = args.url
+    sx_video_stream_detector = SxVideoStreamDetector(device_sn='', url_str_flag=url_str_flag, topic_name=default_topic_list[0])
+    sx_video_stream_detector.truncate_sql_table()
     uvicorn.run(app, host='0.0.0.0', port=CONFIG["port_dict"][url_str_flag])
     
 

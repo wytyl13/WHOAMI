@@ -14,12 +14,28 @@
 import functools
 import logging
 import colorlog
+import threading
 
 class Logger(object):
+    
+    _instances = {}
+    _lock = threading.Lock()
+    def __new__(cls, name: str=None, timezone: str = 'Asia/Shanghai'):
+        name = 'PaddleSpeech' if not name else name
+        
+        with cls._lock:
+            if name not in cls._instances:
+                instance = super().__new__(cls)
+                cls._instances[name] = instance
+            return cls._instances[name]
+    
     def __init__(self, name: str=None, timezone: str = 'Asia/Shanghai'):
         name = 'PaddleSpeech' if not name else name
-        self.logger = logging.getLogger(name)
         
+        if hasattr(self, 'logger'):
+            return
+        
+        self.logger = logging.getLogger(name)
         log_config = {
             'DEBUG': 10,
             'INFO': 20,
@@ -30,6 +46,7 @@ class Logger(object):
             'CRITICAL': 50,
             'EXCEPTION': 100,
         }
+        
         for key, level in log_config.items():
             logging.addLevelName(level, key)
             if key == 'EXCEPTION':
