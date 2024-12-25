@@ -123,12 +123,14 @@ class SxVideoStreamDetector(VideoStreamDetector):
         """but i have found this valid will exec before __init__ function."""
         """but the init value in model_validator after will not overwrite the init value in construct function."""
         """use the default config file url_str_flag, if you want customer, pass the variable in construct function."""
+        """this validator is not useful."""
+        # print(data.config_path)
         try:
-            config = DetectorConfig.from_file(data.config_path).__dict__
+            # config = DetectorConfig.from_file(data.config_path).__dict__
             if "url_str_flag" not in data or not data.url_str_flag:
-                data.url_str_flag = config["url_str_flag"][0]
+                data.url_str_flag = 'new'
         except Exception as e:
-            raise ValueError("fail to init the url_str_flag variable! you can pass it in your construct function!")
+            raise ValueError("fail to init the url_str_flag variable! you can pass it in your construct function! if you have passed it but failed, you can check whether the default config yaml exists!")
         return data
     
     def _valid_detector_warning(self, detector_warning: DetectorWarning = None):

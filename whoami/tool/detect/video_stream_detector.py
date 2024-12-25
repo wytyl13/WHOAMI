@@ -70,7 +70,7 @@ class VideoStreamDetector(BaseModel, ABC):
            detector=detector,
            topic_name=topic_name,
         )
-        self.url_str_flag = url_str_flag
+        # self.url_str_flag = url_str_flag
         # 注意如果以下初始化方法中使用了子类的构造函数中的变量，那么将达不到你想要的效果
         # 因为父类的构造函数会在子类的构造函数之前执行。解决办法：在子类的构造函数中初始化
         # 最终的解决办法是不再在子类中定义该特殊变量，因为他需要再父类的init构造函数中用到
@@ -241,7 +241,7 @@ class VideoStreamDetector(BaseModel, ABC):
         """but i have found this valid will exec before __init__ function."""
         """but the init value in model_validator after will not overwrite the init value in construct function."""
         if "config_path" not in data or not data.config_path:
-            data.config_path = os.path.join(ROOT_DIRECTORY, 'default_config.yaml')
+            data.config_path = os.path.join(ROOT_DIRECTORY, '../../configs/yaml/detect_config_case.yaml')
         return data
     
     @classmethod

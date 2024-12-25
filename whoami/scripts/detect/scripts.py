@@ -1,3 +1,11 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+@Time    : 2024/12/23 17:48
+@Author  : weiyutao
+@File    : scripts.py
+"""
+
 from dataclasses import dataclass, field
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form, BackgroundTasks
 import os
@@ -18,7 +26,7 @@ from whoami.utils.utils import Utils
 from whoami.configs.detector_config import DetectorConfig
 
 ROOT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
-CONFIG_PATH = os.path.abspath(os.path.join(ROOT_DIRECTORY, "../../tool/detect/default_config.yaml"))
+CONFIG_PATH = os.path.abspath(os.path.join(ROOT_DIRECTORY, "detect_config.yaml"))
 
 CONFIG = DetectorConfig.from_file(CONFIG_PATH).__dict__
 TOPIC_DICT = CONFIG['topics']
@@ -118,7 +126,8 @@ async def warning_fastapi(request_data: RequestData):
         thread_id = device_sn + topic
         if topic_name not in TOPIC_DICT:
             return R.fail(f"topic: {topic_name}错误！应该属于：{TOPIC_LIST}")
-        sx_video_stream_detector_thread = SxVideoStreamDetector(device_sn=device_sn, url_str_flag=url_str_flag, topic_name=topic_name)
+        sx_video_stream_detector_thread = SxVideoStreamDetector(device_sn=device_sn, url_str_flag=url_str_flag, topic_name=topic_name, config_path=CONFIG_PATH)
+        logger.info(sx_video_stream_detector_thread.tostring())
         print(f"------------------开启任务：{sx_video_stream_detector_thread.topic_name}")
         thread = threading.Thread(target=background_run,
                         args=(sx_video_stream_detector_thread,))
@@ -141,7 +150,7 @@ if __name__ == '__main__':
     parser.add_argument('--url', type=str, default='new', help='the default url_str_flag!')
     args = parser.parse_args()
     url_str_flag = args.url
-    sx_video_stream_detector = SxVideoStreamDetector(device_sn='', url_str_flag=url_str_flag, topic_name=default_topic_list[0])
+    sx_video_stream_detector = SxVideoStreamDetector(device_sn='', url_str_flag=url_str_flag, topic_name=default_topic_list[0], config_path=CONFIG_PATH)
     sx_video_stream_detector.truncate_sql_table()
     uvicorn.run(app, host='0.0.0.0', port=CONFIG["port_dict"][url_str_flag])
     

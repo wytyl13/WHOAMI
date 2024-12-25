@@ -1,3 +1,10 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+@Time    : 2024/12/23 17:47
+@Author  : weiyutao
+@File    : google_search.py
+"""
 import requests
 import logging
 import json

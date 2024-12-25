@@ -1,3 +1,10 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+@Time    : 2024/12/23 17:48
+@Author  : weiyutao
+@File    : R.py
+"""
 import time
 import json
 

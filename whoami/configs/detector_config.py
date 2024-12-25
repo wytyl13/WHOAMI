@@ -15,7 +15,7 @@ import argparse
 from whoami.utils.yaml_model import YamlModel
 from whoami.utils.log import Logger
 ROOT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
-CONFIG_PATH = os.path.abspath(os.path.join(ROOT_DIRECTORY, "../tool/detect/default_config_case.yaml"))
+CONFIG_PATH = os.path.abspath(os.path.join(ROOT_DIRECTORY, "yaml/detect_config_case.yaml"))
 
 logger = Logger('DetectorConfig')
 
@@ -37,7 +37,7 @@ class DetectorConfig(YamlModel):
             
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--file_path', type=str, default=CONFIG_PATH, help='the default config path!')
+    parser.add_argument('--file_path', type=str, default=CONFIG_PATH, help='the detect config case path!')
     args = parser.parse_args()
     detector_config = DetectorConfig.from_file().__dict__
     try:

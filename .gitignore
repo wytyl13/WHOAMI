@@ -1,4 +1,5 @@
 whoami/models
-whoami/tool/detect/default_config.yaml
 *.txt
 whoami/logs
+whoami/scripts/health_report/sql_config.yaml
+whoami/scripts/detect/detect_config.yaml

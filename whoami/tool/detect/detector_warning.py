@@ -91,7 +91,7 @@ class DetectorWarning(BaseModel, ABC):
         """but i have found this valid will exec before __init__ function."""
         """but the init value in model_validator after will not overwrite the init value in construct function."""
         if "config_path" not in data or not data.config_path:
-            data.config_path = os.path.join(ROOT_DIRECTORY, 'default_config.yaml')
+            data.config_path = os.path.join(ROOT_DIRECTORY, '../../configs/yaml/detect_config_case.yaml')
         return data
     
     @abstractmethod

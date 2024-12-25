@@ -1,3 +1,4 @@
+# detect conda environment
 ultralytics
 fastapi
 dataclasses
@@ -6,3 +7,4 @@ uvicorn
 requests
 sqlalchemy
 mysql-connector-python
+dill

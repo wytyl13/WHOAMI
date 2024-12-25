@@ -1,3 +1,4 @@
+# base conda environment
 readability-lxml
 trafilatura
 bs4
@@ -7,3 +8,14 @@ colorlog
 aiohttp
 openai
 simhash
+pydantic
+PyYAML
+sqlalchemy
+mysql-connector-python
+numpy==1.26.4
+matplotlib
+# torch
+--find-links https://download.pytorch.org/whl/cu118
+torch==2.2.0
+torchvision==0.17.0
+torchaudio==2.2.0
