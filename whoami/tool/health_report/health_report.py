@@ -83,23 +83,26 @@ class HealthReport(BaseProvider):
     def count_consecutive_zeros(self, data: Optional[Union[list, np.ndarray]] = None, max_consecutive_count: int = 300):
         try:
             data = np.asarray(data) if isinstance(data, list) else data
-            result = []
-            index_list = []
+            all_result = []
+            all_index_list = []
             count = 0
             for index, item in enumerate(data):
                 if item == 0:
                     count += 1
                 elif count > 0:  # 当遇到非0值且之前有统计到0时
-                    result.append(count)
-                    index_list.append(index)
+                    all_result.append(count)
+                    all_index_list.append(index)
                     count = 0
             # 处理最后一次情况
             if count > 0:
-                result.append(count)
-            result = [item for item in result if item > max_consecutive_count]
+                all_result.append(count)
+                all_index_list.append(index)
+            print(all_result)
+            filtered_results = [(item_result, item_index) for item_result, item_index in zip(all_result, all_index_list) if item_result > max_consecutive_count]
+            real_result, real_index_list = zip(*filtered_results) if filtered_results else ([], [])
         except Exception as e:
             raise ValueError('fail to exec the count_consecutive_zeros function!') from e
-        return result, index_list
+        return real_result, real_index_list
     
     def _in_out_bed(self, data: Optional[np.ndarray] = None):
         other_column = data[:, 2:-1]
@@ -133,7 +136,6 @@ class HealthReport(BaseProvider):
         deep_threshold = np.percentile(all_stds, 25)  # 25分位数作为深睡阈值
         
         return wake_threshold, deep_threshold
-    
     
     def convert_seconds_to_hhmm(self, seconds):
         # 计算小时
@@ -217,26 +219,24 @@ class HealthReport(BaseProvider):
         sleep_second = np.sum(stage_result != 3)
         
         waking_stage = np.where(stage_result == 3, 0, 1)
-        waking_list, waking_index_list = self.count_consecutive_zeros(waking_stage, 30)
-        waking_count = len(waking_list)
-        
-        print(waking_stage)
+        real_waking_result, real_waking_index = self.count_consecutive_zeros(waking_stage, 30)
+        waking_count = len(real_waking_result)
         
         # 夜醒时长，去除第一次入睡时长
-        first_waking_sleep_time = waking_list[0] if waking_stage[0] == 0 else 0
+        first_waking_sleep_time = real_waking_result[0] if waking_stage[0] == 0 else 0
         night_waking_second = waking_second - first_waking_sleep_time
 
         # 上床时间
         on_bed_time = create_time[0]
 
         # 入睡时间
-        sleep_time = create_time[waking_index_list[0] + 1] if waking_stage[0] == 0 else create_time[0]
+        sleep_time = create_time[real_waking_index[0] + 1] if waking_stage[0] == 0 else create_time[0]
 
         # 入睡时长，所有清醒时长平均值
         to_sleep_second = waking_second / waking_count
         
         # 醒来时间，最后一次清醒的时间
-        waking_time = create_time[waking_index_list[-1]]
+        waking_time = create_time[real_waking_index[-1]]
         
         result_data = {
             "总监测时长（秒）": len(breath_line),
@@ -250,9 +250,9 @@ class HealthReport(BaseProvider):
             "夜醒时长（小时）": self.convert_seconds_to_hhmm(night_waking_second),
             "入睡时长（秒）": self.convert_seconds_to_hhmm(to_sleep_second),
             "夜醒次数（次）": waking_count,
-            "上床时间（节点）": datetime.utcfromtimestamp((on_bed_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'),
-            "入睡时间（节点）": datetime.utcfromtimestamp((sleep_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'),
-            "醒来时间（节点）": datetime.utcfromtimestamp((waking_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'),
+            "上床时间（节点）": datetime.fromtimestamp((on_bed_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'),
+            "入睡时间（节点）": datetime.fromtimestamp((sleep_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'),
+            "醒来时间（节点）": datetime.fromtimestamp((waking_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'),
         }
         self.logger.info("-----------------------------------------------------------------------------------")
         self.logger.info(result_data)
@@ -269,27 +269,96 @@ class HealthReport(BaseProvider):
         # self.logger.info(f"醒来时间（节点）：{waking_time}")
         # self.logger.info("-----------------------------------------------------------------------------------")
         return result_data
-        
+    
+    def _mean_max_min(self, data: Optional[np.ndarray] = None):
+        try:
+            mean_ = np.mean(data)
+            max_ = np.max(data)
+            min_ = np.min(data)
+        except Exception as e:
+            raise ValueError('fail to exec mean max min function!') from e
+        return mean_, max_, min_
+    
+    def _cal_batch_body_move(self):
+        try:
+            all_batch_list = self.init_data(batch_size=60*30)
+            body_move_count_list = []
+            create_time_list = []
+            for index, batch in enumerate(all_batch_list):
+                batch_in_out_bed = batch[:, 0]
+                batch_create_time = batch[:, -1]
+                batch_state = batch[:, 6][batch_in_out_bed == 1]
+                batch_state_0_1 = np.where(batch_state == 0, 0, 1)
+                body_move_result, body_move_index = self.count_consecutive_zeros(batch_state_0_1, 0)
+                body_move_count = len(body_move_result)
+                body_move_count_list.append(body_move_count)
+                create_time_list.append(batch_create_time[-1])
+                if index == 0:
+                    body_move_count_list.append(0)
+                    create_time_list.append(batch_create_time[0])
+                # 只考虑第一次，最后一次肯定有结尾
+        except Exception as e:
+            raise ValueError('fail to exec cal batch body move!') from e
+        return body_move_count_list, create_time_list
     
     def process(self):
         # in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, create_time 
         all_data_list = self.init_data(batch_size=60*60*14)
         
         # 统计离床次数 -- 歧义：离床状态连续时间（暂定连续离床状态大于300秒定义为离床，小于300秒但是为离床状态的暂时划分到体动）
+        # 根据在离床状态统计离床次数
+        # 根据在离床状态统计起床时间、
+        # 起床时间为最晚离床状态
         in_out_bed = all_data_list[0][:, 0]
-        leave_count_list, leave_index_list = self.count_consecutive_zeros(in_out_bed)
+        all_create_time = all_data_list[0][:, -1]
+        real_leave_count_result, real_leave_index = self.count_consecutive_zeros(in_out_bed, 300)
+        leave_count = len(real_leave_count_result) - 1
+        leave_bed_time = all_create_time[real_leave_index[-1]]
         
-        # 基于在床数据统计睡眠分区
+        # 基于在床数据统计睡眠分区，并进一步计算得到上床时间、入睡时间、醒来时间、夜醒时长、睡眠时长、深睡时长、入睡时长
         in_bed_data = all_data_list[0][in_out_bed != 0]
         breath_line = in_bed_data[:, 2]
         heart_line = in_bed_data[:, 3]
         create_time = in_bed_data[:, -1]
-        result = self._sleep_state(breath_line, heart_line, create_time, 900)
+        sleep_result = self._sleep_state(breath_line, heart_line, create_time, 900)
         
-        # 上床时间、入睡时间、醒来时间、起床时间
-        # 上床时间为最开始在床状态时间
-        # 起床时间为最晚离床状态
-        return result
+        # 并入离床次数和离床时间 
+        sleep_result["leave_count"] = leave_count
+        sleep_result["leave_bed_time"] = datetime.fromtimestamp((leave_bed_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 根据在床数据分析呼吸率和心率数据
+        breath_bpm = in_bed_data[:, 4]
+        heart_bpm = in_bed_data[:, 5]
+        mean_breath_bpm, max_breath_bpm, min_breath_bpm = self._mean_max_min(breath_bpm)
+        mean_heart_bpm, max_heart_bpm, min_heart_bpm = self._mean_max_min(heart_bpm)
+        sleep_result["mean_breath_bpm"] = mean_breath_bpm
+        sleep_result["max_breath_bpm"] = max_breath_bpm
+        sleep_result["min_breath_bpm"] = min_breath_bpm
+        sleep_result["mean_heart_bpm"] = mean_heart_bpm
+        sleep_result["max_heart_bpm"] = max_heart_bpm
+        sleep_result["min_heart_bpm"] = min_heart_bpm
+        
+        # 根据在床数据分析体动数据state=0，需要分批次显示
+        body_move_count_list, create_time_list = self._cal_batch_body_move()
+        body_move_count = sum(body_move_count_list)
+        create_time_list.insert(0, all_create_time[0])
+        body_move_count_list.append(0)
+        create_time_list.append(all_create_time[-1])
+        sleep_result["body_move_count"] = body_move_count
+        sleep_result["body_move_image_x_y"] = [create_time_list, body_move_count_list]
+        
+        # 呼吸异常事件，有心率没有呼吸率，并且设置首尾数据
+        breath_exception = np.where((in_bed_data[:, 4] == 0) & (in_bed_data[:, 5] != 0), 0, 1)
+        real_breath_exception_result, real_breath_exception_index = self.count_consecutive_zeros(breath_exception, 0)
+        sleep_result["breath_exception_count"] = len(real_breath_exception_result)
+        # 设置首尾数据
+        real_breath_exception_result.insert(0, 0)
+        real_breath_exception_index.insert(0, all_create_time[0])
+        real_breath_exception_result.append(0)
+        real_breath_exception_index.append(all_create_time[-1])
+        sleep_result["breath_exception_image_x_y"] = [real_breath_exception_index, real_breath_exception_result]
+        
+        return sleep_result
 
 
         

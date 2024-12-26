@@ -18,6 +18,7 @@ SQL_CONFIG_PATH = os.path.join(ROOT_DIRECTORY, 'sql_config.yaml')
 if __name__ == '__main__':
     health_report = HealthReport(sql_config_path=SQL_CONFIG_PATH, query_date='2024-12-25', device_sn='13D7F349200080712111150807')
     result = health_report.process()
+    print(result)
     # print(result)
     # for t in time_list:
     #     print(datetime.utcfromtimestamp((t).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'))
