@@ -15,6 +15,7 @@ from typing import (
     Tuple,
     Union,
     overload,
+    Type
 )
 import os
 import numpy as np
@@ -22,12 +23,14 @@ from datetime import datetime, timedelta
 from torch.utils.data import DataLoader
 from scipy import stats
 from scipy.signal import find_peaks
+import json
 
 from whoami.configs.sql_config import SqlConfig
 from whoami.provider.sql_provider import SqlProvider
 from whoami.tool.health_report.sx_data_provider import SxDataProvider
 from whoami.provider.base_provider import BaseProvider
-
+from whoami.provider.base_ import ModelType
+from whoami.tool.health_report.sleep_indices import SleepIndices
 
 ROOT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 
@@ -37,6 +40,7 @@ class HealthReport(BaseProvider):
     data_provider: Optional[SxDataProvider] = None
     query_date: Optional[str] = None
     device_sn: Optional[str] = None
+    model: Type[ModelType] = SleepIndices
     
     def __init__(
         self, 
@@ -44,21 +48,24 @@ class HealthReport(BaseProvider):
         sql_config: Optional[SqlConfig] = None, 
         data_provider: Optional[SxDataProvider] = None,
         query_date: Optional[str] = None,
-        device_sn: Optional[str] = None
+        device_sn: Optional[str] = None,
+        model: Type[ModelType] = None
     ) -> None:
         super().__init__()
-        self._init_param(sql_config_path, sql_config, data_provider, query_date, device_sn)
+        self._init_param(sql_config_path, sql_config, data_provider, query_date, device_sn, model=model)
     
-    def _init_param(self, sql_config_path, sql_config, data_provider, query_date, device_sn):
+    def _init_param(self, sql_config_path, sql_config, data_provider, query_date, device_sn, model):
         self.sql_config_path = sql_config_path
         self.sql_config = sql_config
         self.data_provider = data_provider if data_provider is not None else self.data_provider
         self.query_date = query_date
         self.device_sn = device_sn
-        
+        self.model=model if model is not None else self.model
         if self.sql_config_path is None and self.sql_config is None and self.data_provider is None:
             raise ValueError('sql_config_path, sql_config, data_provider must not be none!')
         if self.data_provider is None:
+            if self.model is None:
+                raise ValueError('model must not be null!')
             if self.query_date is not None and self.device_sn is not None:
                 current_date = datetime.strptime(self.query_date, '%Y-%m-%d')
                 current_date_str = current_date.strftime('%Y-%m-%d')
@@ -66,9 +73,9 @@ class HealthReport(BaseProvider):
                 start = pre_date_str + ' 20:00:00'
                 end = current_date_str + ' 09:00:00'
                 sql_query = f"SELECT in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
-                self.data_provider = SxDataProvider(sql_config_path=sql_config_path, sql_config=sql_config, sql_query=sql_query)
+                self.data_provider = SxDataProvider(sql_config_path=self.sql_config_path, sql_config=self.sql_config, sql_query=sql_query, model=self.model)
             else:
-                self.data_provider = SxDataProvider(sql_config_path=sql_config_path, sql_config=sql_config)
+                self.data_provider = SxDataProvider(sql_config_path=self.sql_config_path, sql_config=self.sql_config, model=self.model)
 
     def init_data(self, batch_size: Optional[int] = 60*60*14):
         dataloader = DataLoader(self.data_provider, batch_size=batch_size, shuffle=False)
@@ -97,7 +104,6 @@ class HealthReport(BaseProvider):
             if count > 0:
                 all_result.append(count)
                 all_index_list.append(index)
-            print(all_result)
             filtered_results = [(item_result, item_index) for item_result, item_index in zip(all_result, all_index_list) if item_result > max_consecutive_count]
             real_result, real_index_list = zip(*filtered_results) if filtered_results else ([], [])
         except Exception as e:
@@ -139,14 +145,36 @@ class HealthReport(BaseProvider):
     
     def convert_seconds_to_hhmm(self, seconds):
         # 计算小时
-        hours = seconds // 3600
+        hours = int(seconds // 3600)
         # 计算剩余的秒数
         remaining_seconds = seconds % 3600
         # 计算分钟
-        minutes = remaining_seconds // 60
+        minutes = int(remaining_seconds // 60)
         # 计算剩余的秒数
-        remaining_seconds = remaining_seconds % 60
+        remaining_seconds = int(remaining_seconds % 60)
         return f"{hours}小时{minutes}分钟"
+    
+    def find_continuous_sequences(self, data: Optional[Union[list, np.ndarray]] = None):
+        if isinstance(data, np.ndarray):
+            data = data.tolist()
+        if not data:
+            return [], []
+        # 初始化结果列表
+        index_ranges = []
+        value_sequences = []
+        
+        start = 0
+        # 遍历列表找连续序列
+        for i in range(1, len(data)):
+            if data[i] != data[i-1]:
+                # 当发现不连续时，记录当前序列
+                index_ranges.append([start, i-1])
+                value_sequences.append(int(data[start]))
+                start = i
+        # 添加最后一个序列
+        index_ranges.append([start, len(data) - 1])
+        value_sequences.append(int(data[start]))
+        return [index_ranges, value_sequences]
     
     def _sleep_state(self, breath_line, heart_line, create_time, window_size: int = 300):
         """
@@ -214,9 +242,11 @@ class HealthReport(BaseProvider):
             return smoothed
         stage_result = smooth_stages(stages)
         
-        deep_sleep_second = np.sum(stage_result == 1)
-        waking_second = np.sum(stage_result == 3)
-        sleep_second = np.sum(stage_result != 3)
+        sleep_stage_image_x_y = self.find_continuous_sequences(stage_result)
+        
+        deep_sleep_second = int(np.sum(stage_result == 1))
+        waking_second = int(np.sum(stage_result == 3))
+        sleep_second = int(np.sum(stage_result != 3))
         
         waking_stage = np.where(stage_result == 3, 0, 1)
         real_waking_result, real_waking_index = self.count_consecutive_zeros(waking_stage, 30)
@@ -239,20 +269,22 @@ class HealthReport(BaseProvider):
         waking_time = create_time[real_waking_index[-1]]
         
         result_data = {
-            "总监测时长（秒）": len(breath_line),
-            "睡眠时长（秒）": sleep_second,
-            "深睡时长（秒）": deep_sleep_second,
-            "夜醒时长（秒）": night_waking_second,
-            "入睡时长（秒）": to_sleep_second,
-            "总监测时长（小时）": len(breath_line),
-            "睡眠时长（小时）": self.convert_seconds_to_hhmm(sleep_second),
-            "深睡时长（小时）": self.convert_seconds_to_hhmm(deep_sleep_second),
-            "夜醒时长（小时）": self.convert_seconds_to_hhmm(night_waking_second),
-            "入睡时长（秒）": self.convert_seconds_to_hhmm(to_sleep_second),
-            "夜醒次数（次）": waking_count,
-            "上床时间（节点）": datetime.fromtimestamp((on_bed_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'),
-            "入睡时间（节点）": datetime.fromtimestamp((sleep_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'),
-            "醒来时间（节点）": datetime.fromtimestamp((waking_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'),
+            "total_num_second_on_bed": len(breath_line), # 总在床时长（秒）
+            "sleep_second": sleep_second, # 睡眠时长（秒）
+            "deep_sleep_second": deep_sleep_second, # 深睡时长（秒）
+            "waking_second": night_waking_second, # 夜醒时长（秒）
+            "to_sleep_second": to_sleep_second, # 入睡时长（秒）
+            "total_num_hour_on_bed": self.convert_seconds_to_hhmm(len(breath_line)), # 总在床时长（小时）
+            "sleep_hour": self.convert_seconds_to_hhmm(sleep_second), # 睡眠时长（小时）
+            "deep_sleep_hour": self.convert_seconds_to_hhmm(deep_sleep_second), # 深睡时长（小时）
+            "waking_hour": self.convert_seconds_to_hhmm(night_waking_second), # 夜醒时长（小时）
+            "to_sleep_hour": self.convert_seconds_to_hhmm(to_sleep_second), # 入睡时长（小时）
+            "waking_count": waking_count, # 夜醒次数（次）
+            "on_bed_time": datetime.fromtimestamp((on_bed_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'), # 上床时间（节点）
+            "sleep_time": datetime.fromtimestamp((sleep_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'), # 入睡时间（节点）
+            "waking_time": datetime.fromtimestamp((waking_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'), # 醒来时间（节点）
+            "sleep_stage_image_x_y": sleep_stage_image_x_y, 
+            "sleep_efficiency": round(sleep_second / len(breath_line), 2) # 睡眠效率
         }
         self.logger.info("-----------------------------------------------------------------------------------")
         self.logger.info(result_data)
@@ -277,7 +309,7 @@ class HealthReport(BaseProvider):
             min_ = np.min(data)
         except Exception as e:
             raise ValueError('fail to exec mean max min function!') from e
-        return mean_, max_, min_
+        return round(float(mean_), 2), round(float(max_), 2), round(float(min_), 2)
     
     def _cal_batch_body_move(self):
         try:
@@ -292,10 +324,10 @@ class HealthReport(BaseProvider):
                 body_move_result, body_move_index = self.count_consecutive_zeros(batch_state_0_1, 0)
                 body_move_count = len(body_move_result)
                 body_move_count_list.append(body_move_count)
-                create_time_list.append(batch_create_time[-1])
+                create_time_list.append(int(batch_create_time[-1]))
                 if index == 0:
                     body_move_count_list.append(0)
-                    create_time_list.append(batch_create_time[0])
+                    create_time_list.append(int(batch_create_time[0]))
                 # 只考虑第一次，最后一次肯定有结尾
         except Exception as e:
             raise ValueError('fail to exec cal batch body move!') from e
@@ -323,42 +355,63 @@ class HealthReport(BaseProvider):
         sleep_result = self._sleep_state(breath_line, heart_line, create_time, 900)
         
         # 并入离床次数和离床时间 
-        sleep_result["leave_count"] = leave_count
-        sleep_result["leave_bed_time"] = datetime.fromtimestamp((leave_bed_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S')
+        sleep_result["leave_count"] = leave_count # 离床次数
+        sleep_result["leave_bed_time"] = datetime.fromtimestamp((leave_bed_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S') # 离床时间
+        
+        # 添加总监测时长
+        sleep_result["total_num_second"] = len(in_out_bed)
+        sleep_result["total_num_hour"] = self.convert_seconds_to_hhmm(len(in_out_bed))
+        sleep_result["query_date"] = self.query_date
+        sleep_result["save_file_path"] = "none"
+        sleep_result["device_sn"] = self.device_sn # 设备编号
         
         # 根据在床数据分析呼吸率和心率数据
         breath_bpm = in_bed_data[:, 4]
         heart_bpm = in_bed_data[:, 5]
-        mean_breath_bpm, max_breath_bpm, min_breath_bpm = self._mean_max_min(breath_bpm)
-        mean_heart_bpm, max_heart_bpm, min_heart_bpm = self._mean_max_min(heart_bpm)
-        sleep_result["mean_breath_bpm"] = mean_breath_bpm
-        sleep_result["max_breath_bpm"] = max_breath_bpm
-        sleep_result["min_breath_bpm"] = min_breath_bpm
-        sleep_result["mean_heart_bpm"] = mean_heart_bpm
-        sleep_result["max_heart_bpm"] = max_heart_bpm
-        sleep_result["min_heart_bpm"] = min_heart_bpm
+        average_breath_bpm, max_breath_bpm, min_breath_bpm = self._mean_max_min(breath_bpm)
+        average_heart_bpm, max_heart_bpm, min_heart_bpm = self._mean_max_min(heart_bpm)
+        sleep_result["average_breath_bpm"] = average_breath_bpm # 平均呼吸率
+        sleep_result["max_breath_bpm"] = max_breath_bpm # 最大呼吸率
+        sleep_result["min_breath_bpm"] = min_breath_bpm # 最小呼吸率
+        sleep_result["average_heart_bpm"] = average_heart_bpm # 平均心率
+        sleep_result["max_heart_bpm"] = max_heart_bpm # 最大心率
+        sleep_result["min_heart_bpm"] = min_heart_bpm # 最小心率
         
         # 根据在床数据分析体动数据state=0，需要分批次显示
         body_move_count_list, create_time_list = self._cal_batch_body_move()
         body_move_count = sum(body_move_count_list)
-        create_time_list.insert(0, all_create_time[0])
+        create_time_list.insert(0, int(all_create_time[0]))
         body_move_count_list.append(0)
-        create_time_list.append(all_create_time[-1])
-        sleep_result["body_move_count"] = body_move_count
-        sleep_result["body_move_image_x_y"] = [create_time_list, body_move_count_list]
+        create_time_list.append(int(all_create_time[-1]))
+        sleep_result["body_move_count"] = body_move_count # 体动次数
+        sleep_result["body_move_image_x_y"] = json.dumps([create_time_list, body_move_count_list]) # 体动绘图
         
         # 呼吸异常事件，有心率没有呼吸率，并且设置首尾数据
         breath_exception = np.where((in_bed_data[:, 4] == 0) & (in_bed_data[:, 5] != 0), 0, 1)
         real_breath_exception_result, real_breath_exception_index = self.count_consecutive_zeros(breath_exception, 0)
-        sleep_result["breath_exception_count"] = len(real_breath_exception_result)
+        sleep_result["breath_exception_count"] = len(real_breath_exception_result) # 呼吸异常次数
         # 设置首尾数据
         real_breath_exception_result.insert(0, 0)
-        real_breath_exception_index.insert(0, all_create_time[0])
+        real_breath_exception_index.insert(0, int(all_create_time[0]))
         real_breath_exception_result.append(0)
-        real_breath_exception_index.append(all_create_time[-1])
-        sleep_result["breath_exception_image_x_y"] = [real_breath_exception_index, real_breath_exception_result]
+        real_breath_exception_index.append(int(all_create_time[-1]))
+        sleep_result["breath_exception_image_x_y"] = json.dumps([real_breath_exception_index, real_breath_exception_result]) # 呼吸异常绘图
         
-        return sleep_result
+        # 在睡眠分区绘图数据的基础上考虑离床数据
+        leave_bed_list = self.find_continuous_sequences(in_out_bed)
+        leave_bed_list = [[int(all_create_time[index[0]]), int(all_create_time[index[1]])] for index in leave_bed_list[0] if index[1] - index[0] >= 300]
+        sleep_stage_image_x_y = sleep_result["sleep_stage_image_x_y"] # 睡眠分区绘图
+        sleep_stage_image_x_y[0] = [[int(create_time[index[0]]), int(create_time[index[1]])]for index in sleep_stage_image_x_y[0]]
+        sleep_stage_image_x_y[0].extend(leave_bed_list)
+        sleep_stage_image_x_y[1].extend([4] * len(leave_bed_list))
+        sleep_result["sleep_stage_image_x_y"] = json.dumps(sleep_stage_image_x_y)
+        self.logger.info("-----------------------------------------------------------------------------------")
+        self.logger.info(sleep_result)
+        self.logger.info("-----------------------------------------------------------------------------------")
+        
+        recode_ = self.data_provider.sql_provider.add_record(sleep_result)
+        
+        return recode_
 
 
         

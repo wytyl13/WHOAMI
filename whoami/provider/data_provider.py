@@ -17,12 +17,14 @@ from typing import (
     Tuple,
     Union,
     overload,
+    Type,
 )
+
 import torch
 from torch.utils.data import Dataset
 import numpy as np
 
-
+from whoami.provider.base_ import ModelType
 from whoami.utils.log import Logger
 from whoami.configs.sql_config import SqlConfig
 from whoami.provider.base_provider import BaseProvider
@@ -34,16 +36,18 @@ class DataProvider(BaseProvider, Dataset):
     data: Optional[np.ndarray] = None
     sql_provider: Optional[SqlProvider] = None
     sql_query: Optional[str] = None
+    model: Type[ModelType] = None
     def __init__(
         self, 
         sql_config_path: Optional[str] = None, 
         sql_config: Optional[SqlConfig] = None, 
         data: Optional[np.ndarray] = None,
         sql_provider: Optional[SqlProvider] = None,
-        sql_query: Optional[str] = None
+        sql_query: Optional[str] = None,
+        model: Type[ModelType] = None
     ) -> None:
         super().__init__()
-        self._init_param(sql_config_path, sql_config, data, sql_provider, sql_query)
+        self._init_param(sql_config_path, sql_config, data, sql_provider, sql_query, model)
     
     def _init_param(
         self, 
@@ -51,7 +55,8 @@ class DataProvider(BaseProvider, Dataset):
         sql_config: Optional[SqlConfig] = None, 
         data: Optional[np.ndarray] = None, 
         sql_provider: Optional[SqlProvider] = None,
-        sql_query: Optional[str] = None
+        sql_query: Optional[str] = None,
+        model: Type[ModelType] = None
     ):
         self.sql_config_path = sql_config_path
         self.sql_config = sql_config
@@ -60,7 +65,7 @@ class DataProvider(BaseProvider, Dataset):
         self.sql_provider = sql_provider
         self.sql_config = SqlConfig.from_file(self.sql_config_path) if self.sql_config is None and self.sql_config_path is not None else self.sql_config
 
-        self.sql_provider = SqlProvider(sql_config=self.sql_config) if self.sql_provider is None and self.sql_config is not None else self.sql_provider
+        self.sql_provider = SqlProvider(model=model, sql_config=self.sql_config) if self.sql_provider is None and self.sql_config is not None else self.sql_provider
 
         if self.sql_provider is None and self.data is None:
             raise ValueError("fail to init the data! sql_config, data, sql_provider and sql_config_path must not be null!")

@@ -15,6 +15,7 @@ from typing import (
     Tuple,
     Union,
     overload,
+    Type
 )
 import numpy as np
 import torch
@@ -22,6 +23,7 @@ import torch
 from whoami.provider.data_provider import DataProvider
 from whoami.configs.sql_config import SqlConfig
 from whoami.provider.sql_provider import SqlProvider
+from whoami.provider.base_ import ModelType
 
 class SxDataProvider(DataProvider):
     
@@ -31,14 +33,16 @@ class SxDataProvider(DataProvider):
         sql_config: Optional[SqlConfig] = None, 
         data: Optional[np.ndarray] = None,
         sql_provider: Optional[SqlProvider] = None,
-        sql_query: Optional[str] = "SELECT in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log WHERE device_sn='13D7F349200080712111150807' AND create_time >= '2024-11-13 20:00:00' AND create_time < '2024-11-14 10:00:00'"
+        sql_query: Optional[str] = "SELECT in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log WHERE device_sn='13D7F349200080712111150807' AND create_time >= '2024-11-13 20:00:00' AND create_time < '2024-11-14 10:00:00'",
+        model: Type[ModelType] = None
     ) -> None:
         super().__init__(
             sql_config_path=sql_config_path, 
             sql_config=sql_config,
             data=data,
             sql_provider=sql_provider,
-            sql_query=sql_query
+            sql_query=sql_query,
+            model=model
         )
     
     def get_data(self, query: Optional[str] = None):
