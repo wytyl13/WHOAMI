@@ -49,16 +49,18 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
         sql_config: Optional[SqlConfig] = None
     ) -> None:
         super().__init__()
-        self.model = model
-        self._init_param(sql_config_path, sql_config)
+        self._init_param(sql_config_path, sql_config, model)
     
-    def _init_param(self, sql_config_path: Optional[str] = None, sql_config: Optional[SqlConfig] = None):
+    def _init_param(self, sql_config_path: Optional[str] = None, sql_config: Optional[SqlConfig] = None, model : Type[ModelType] = None):
         self.sql_config_path = sql_config_path
         self.sql_config = sql_config
         self.sql_config = SqlConfig.from_file(self.sql_config_path) if self.sql_config is None and self.sql_config_path is not None else self.sql_config
         # if self.sql_config is None and self.data is None:
         #     raise ValueError("config config_path and data must not be null!")
         self.sql_connection = self.get_sql_connection() if self.sql_config is not None else self.sql_connection
+        self.model = model
+        if self.model is None:
+            raise ValueError("model must not be null!")
         
     def get_sql_connection(self):
         try:
@@ -77,6 +79,12 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
         except Exception as e:
             raise ValueError("fail to create the sql connector engine!") from e
         return SessionLocal
+    
+    def set_model(self, model: Type[ModelType] = None):
+        """reset model"""
+        if model is None:
+            raise ValueError('model must not be null!')
+        self.model = model
     
     @contextmanager
     def get_db_session(self):
@@ -150,7 +158,27 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 self.logger.error(error_info)
                 raise ValueError(error_info) from e
     
+    def get_record_by_condition(self, condition: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        with self.get_db_session() as session:
+            try:
+                # Start building the query
+                query = session.query(self.model).filter(self.model.deleted == False)
+
+                # Apply filters based on the provided condition
+                if condition:
+                    for key, value in condition.items():
+                        # Assuming that keys in condition match the model's attributes
+                        query = query.filter(getattr(self.model, key) == value)
+
+                records = query.all()
+                return [{key: value for key, value in record.__dict__.items() if key != '_sa_instance_state'} for record in records] if records else []
+            except Exception as e:
+                error_info = f"Failed to get records by condition: {condition}"
+                self.logger.error(error_info)
+                raise ValueError(error_info) from e
+    
     def exec_sql(self, query: Optional[str] = None):
+        """query words check data"""
         with self.sql_connection() as db:
             try:
                 result = db.execute(text(query)).fetchall()

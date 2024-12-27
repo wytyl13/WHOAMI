@@ -53,7 +53,7 @@ class SxDataProvider(DataProvider):
         # return super().get_item(index)
         
         data = self.data[index]
-        data_tensor = torch.tensor(data, dtype=torch.float32)
+        data_tensor = torch.tensor(data, dtype=torch.float64)
         return data_tensor
     
         """

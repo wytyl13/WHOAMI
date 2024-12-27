@@ -8,21 +8,81 @@
 import os
 import numpy as np
 from datetime import datetime
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form, BackgroundTasks
+from fastapi.staticfiles import StaticFiles
+import uvicorn
+from dataclasses import dataclass, field
+from pydantic import BaseModel, model_validator, ValidationError
+from typing import (
+    AsyncGenerator,
+    AsyncIterator,
+    Dict,
+    Iterator,
+    Optional,
+    Tuple,
+    Union,
+    overload,
+    Type,
+    Any
+)
+
 
 from whoami.tool.health_report.health_report import HealthReport
 from whoami.tool.health_report.sleep_indices import SleepIndices
+from whoami.utils.log import Logger
+from whoami.utils.R import R
+logger = Logger('health_report_fastapi')
+app = FastAPI()
 
 ROOT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 SQL_CONFIG_PATH = os.path.join(ROOT_DIRECTORY, 'sql_config.yaml')
 
+@dataclass
+class RequestData:
+    device_sn: Optional[Union[list, str]] = None
+    query_date: Optional[str] = None
 
+@app.post('/sleep_indices')
+async def sleep_indices(request_data: RequestData, background_tasks: BackgroundTasks):
+    logger.info(request_data)
+    try:
+        device_sn = request_data.device_sn
+        query_date = request_data.query_date
+    except Exception as e:
+        return R.fail(f"传参错误！{request_data}")
+
+    if not isinstance(device_sn, (list, str)) or not device_sn:
+        return R.fail(f"device_sn must be list or string! device_sn: {device_sn}")
+    
+    if query_date is None:
+        return R.fail(f"query date must not be null! query_date: {query_date}")
+    
+    # 定义一个后台任务函数
+    async def process_health_report(device_sn_i):
+        logger.info(f"To start process report for device {device_sn_i}")
+        try:
+            health_report = HealthReport(
+                sql_config_path=SQL_CONFIG_PATH,
+                query_date=query_date,
+                device_sn=device_sn_i,
+                model=SleepIndices
+            )
+            result = health_report.process()
+        except Exception as e:
+            logger.error(e)
+        logger.info(f"Processed report for device {device_sn_i}")
+    
+    device_sn_size = 0
+    if isinstance(device_sn, str):
+        device_sn_size += 1
+        background_tasks.add_task(process_health_report, device_sn)
+    else:
+        for device_sn_i in device_sn:
+            device_sn_size += 1
+            background_tasks.add_task(process_health_report, device_sn_i)
+    waste_time = device_sn_size * 1.5
+    
+    return R.success(f"To start process background. It will take approximately {waste_time} minutes.")
 
 if __name__ == '__main__':
-    health_report = HealthReport(sql_config_path=SQL_CONFIG_PATH, query_date='2024-12-25', device_sn='13D7F349200080712111150807', model=SleepIndices)
-    result = health_report.process()
-    print(result)
-    # print(result)
-    # for t in time_list:
-    #     print(datetime.utcfromtimestamp((t).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'))
-    # # print(data_list[0][199, 0])
-    
+    uvicorn.run(app, host='0.0.0.0', port=8000)

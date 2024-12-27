@@ -15,7 +15,8 @@ from typing import (
     Tuple,
     Union,
     overload,
-    Type
+    Type,
+    Any
 )
 import os
 import numpy as np
@@ -33,6 +34,7 @@ from whoami.provider.base_ import ModelType
 from whoami.tool.health_report.sleep_indices import SleepIndices
 
 ROOT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
+
 
 class HealthReport(BaseProvider):
     sql_config_path: Optional[str] = None
@@ -53,6 +55,11 @@ class HealthReport(BaseProvider):
     ) -> None:
         super().__init__()
         self._init_param(sql_config_path, sql_config, data_provider, query_date, device_sn, model=model)
+        # 查询是否已经存在，否则直接返回
+        first_check_condition = {"device_sn": self.device_sn, "query_date": self.query_date}
+        record_ = self.data_provider.sql_provider.get_record_by_condition(first_check_condition)
+        if record_:
+            raise ValueError(f"exists! {first_check_condition}")
     
     def _init_param(self, sql_config_path, sql_config, data_provider, query_date, device_sn, model):
         self.sql_config_path = sql_config_path
@@ -93,17 +100,21 @@ class HealthReport(BaseProvider):
             all_result = []
             all_index_list = []
             count = 0
+            start_index = None
             for index, item in enumerate(data):
                 if item == 0:
+                    if count == 0:  # 记录起始索引
+                        start_index = index
                     count += 1
                 elif count > 0:  # 当遇到非0值且之前有统计到0时
                     all_result.append(count)
-                    all_index_list.append(index)
+                    all_index_list.append([start_index, index - 1])
                     count = 0
+                    start_index = None
             # 处理最后一次情况
             if count > 0:
                 all_result.append(count)
-                all_index_list.append(index)
+                all_index_list.append([start_index, len(data) - 1])
             filtered_results = [(item_result, item_index) for item_result, item_index in zip(all_result, all_index_list) if item_result > max_consecutive_count]
             real_result, real_index_list = zip(*filtered_results) if filtered_results else ([], [])
         except Exception as e:
@@ -136,12 +147,65 @@ class HealthReport(BaseProvider):
             all_stds.append(np.std(window_data))
         
         all_stds = np.array(all_stds)
-        
         # 使用分位数来确定阈值
         wake_threshold = np.percentile(all_stds, 75)  # 75分位数作为清醒阈值
         deep_threshold = np.percentile(all_stds, 25)  # 25分位数作为深睡阈值
         
         return wake_threshold, deep_threshold
+    
+    def _score(self, data: Optional[Union[list, np.ndarray]] = None):
+        reference = {
+            "waking_second": [0, 1860],
+            "sleep_efficiency": [0.8, 1],
+            "sleep_second": [21600, 36000],
+            "deep_sleep_efficiency": [0.2, 0.6],
+            "leave_count": [0, 2],
+            "to_sleep_second": [0, 1800],
+            "body_move_exponent": [1.25, 15],
+            "breath_bpm": [8, 22],
+            "heart_bpm": [40, 100]
+        }
+
+        weights = {
+            "sleep_efficiency": 20,        # 睡眠效率最重要
+            "deep_sleep_efficiency": 15,   # 深睡眠效率次之
+            "sleep_second": 15,            # 睡眠时长
+            "heart_bpm": 10,              # 心率
+            "breath_bpm": 10,             # 呼吸率
+            "to_sleep_second": 10,         # 入睡时间
+            "body_move_exponent": 10,      # 体动指数
+            "waking_second": 5,            # 清醒时间
+            "leave_count": 5               # 离床次数
+        }
+
+        scores = {}
+        total_score = 0
+        for metric, weight in weights.items():
+            if metric not in data or metric not in reference:
+                continue
+            actual = data[metric]
+            ref_min, ref_max = reference[metric]
+            # 计算单项得分
+            if actual < ref_min:
+                # 低于最小值，按比例得分
+                score = (actual / ref_min) * weight
+            elif actual > ref_max:
+                # 高于最大值，按比例得分
+                score = (ref_max / actual) * weight
+            else:
+                # 在区间内，满分
+                score = weight
+            # 特殊处理：对于一些指标，越低越好
+            if metric in ["waking_second", "to_sleep_second", "body_move_exponent", "leave_count"]:
+                if actual <= ref_min:
+                    score = weight
+                elif actual >= ref_max:
+                    score = 0
+                else:
+                    score = ((ref_max - actual) / (ref_max - ref_min)) * weight
+            scores[metric] = round(score, 2)
+            total_score += score
+        return round(total_score, 2), scores
     
     def convert_seconds_to_hhmm(self, seconds):
         # 计算小时
@@ -162,7 +226,6 @@ class HealthReport(BaseProvider):
         # 初始化结果列表
         index_ranges = []
         value_sequences = []
-        
         start = 0
         # 遍历列表找连续序列
         for i in range(1, len(data)):
@@ -243,7 +306,6 @@ class HealthReport(BaseProvider):
         stage_result = smooth_stages(stages)
         
         sleep_stage_image_x_y = self.find_continuous_sequences(stage_result)
-        
         deep_sleep_second = int(np.sum(stage_result == 1))
         waking_second = int(np.sum(stage_result == 3))
         sleep_second = int(np.sum(stage_result != 3))
@@ -260,13 +322,13 @@ class HealthReport(BaseProvider):
         on_bed_time = create_time[0]
 
         # 入睡时间
-        sleep_time = create_time[real_waking_index[0] + 1] if waking_stage[0] == 0 else create_time[0]
+        sleep_time = create_time[real_waking_index[0][-1] + 1] if waking_stage[0] == 0 else create_time[0]
 
         # 入睡时长，所有清醒时长平均值
         to_sleep_second = waking_second / waking_count
         
         # 醒来时间，最后一次清醒的时间
-        waking_time = create_time[real_waking_index[-1]]
+        waking_time = create_time[real_waking_index[-1][-1]]
         
         result_data = {
             "total_num_second_on_bed": len(breath_line), # 总在床时长（秒）
@@ -284,22 +346,13 @@ class HealthReport(BaseProvider):
             "sleep_time": datetime.fromtimestamp((sleep_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'), # 入睡时间（节点）
             "waking_time": datetime.fromtimestamp((waking_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'), # 醒来时间（节点）
             "sleep_stage_image_x_y": sleep_stage_image_x_y, 
-            "sleep_efficiency": round(sleep_second / len(breath_line), 2) # 睡眠效率
+            "sleep_efficiency": round(sleep_second / len(breath_line), 2), # 睡眠效率
+            "deep_sleep_efficiency": round(deep_sleep_second / sleep_second, 2) # 深睡效率
         }
         self.logger.info("-----------------------------------------------------------------------------------")
         self.logger.info(result_data)
         self.logger.info("-----------------------------------------------------------------------------------")
         
-        # self.logger.info("-----------------------------------------------------------------------------------")
-        # self.logger.info(f"总监测时长（秒）：{len(breath_line)}")
-        # self.logger.info(f"睡眠时长（秒）：{sleep_second}")
-        # self.logger.info(f"深睡时长（秒）：{deep_sleep_second}")
-        # self.logger.info(f"夜醒时长（秒）：{night_waking_second}")
-        # self.logger.info(f"入睡时长（秒）：{to_sleep_second}")
-        # self.logger.info(f"上床时间（节点）：{on_bed_time}")
-        # self.logger.info(f"入睡时间（节点）：{sleep_time}")
-        # self.logger.info(f"醒来时间（节点）：{waking_time}")
-        # self.logger.info("-----------------------------------------------------------------------------------")
         return result_data
     
     def _mean_max_min(self, data: Optional[np.ndarray] = None):
@@ -321,34 +374,87 @@ class HealthReport(BaseProvider):
                 batch_create_time = batch[:, -1]
                 batch_state = batch[:, 6][batch_in_out_bed == 1]
                 batch_state_0_1 = np.where(batch_state == 0, 0, 1)
+                if index == 0:
+                    body_move_count_list.append(0)
+                    create_time_list.append(int(batch_create_time[0]))
                 body_move_result, body_move_index = self.count_consecutive_zeros(batch_state_0_1, 0)
                 body_move_count = len(body_move_result)
                 body_move_count_list.append(body_move_count)
                 create_time_list.append(int(batch_create_time[-1]))
-                if index == 0:
-                    body_move_count_list.append(0)
-                    create_time_list.append(int(batch_create_time[0]))
                 # 只考虑第一次，最后一次肯定有结尾
         except Exception as e:
             raise ValueError('fail to exec cal batch body move!') from e
         return body_move_count_list, create_time_list
     
+    def classify_total_score(self, score: float) -> str:
+        # 对0-100分的总分进行等级划分
+        
+        # Parameters:
+        # score (float): 0-100之间的分数
+        
+        # Returns:
+        # str: 等级评价（优秀/良好/一般/较差）
+        
+        if not 0 <= score <= 100:
+            return "分数超出范围"
+            
+        if score >= 90:
+            return "优秀"
+        elif score >= 75:
+            return "良好"
+        elif score >= 60:
+            return "一般"
+        else:
+            return "较差"
+    
+    def _insert_sleep_indices_data(self, condition: Optional[Dict[str, Any]] = None, data: Optional[Dict[str, Any]] = None):
+        record_ = self.data_provider.sql_provider.get_record_by_condition(condition)
+        if not record_:
+            recode_result = self.data_provider.sql_provider.add_record(data)
+            return recode_result
+        else:
+            raise ValueError(f'fail to add record: {condition}, exists!')
+
+    def _check_consist_indices(self, data: Optional[Dict[str, Any]] = None):
+        """返回连续指标，连续？晚夜醒时长超标，连续？晚睡眠效率低于最低标准"""
+        condition = {"device_sn": self.device_sn}
+        record_ = self.data_provider.sql_provider.get_record_by_condition(condition)
+        consist_count_waking_second = 0
+        consist_count_sleep_efficiency = 0
+        try:
+            for record in record_:
+                if record["query_date"].strftime('%Y-%m-%d') == self.query_date:
+                    raise ValueError("fail to check consist indices, because the current data is exists!")
+                if record["waking_second"] > 1860:
+                    consist_count_waking_second += 1
+                if record["sleep_efficiency"] < 0.8:
+                    consist_count_sleep_efficiency += 1
+            data["consist_count_waking"] = consist_count_waking_second + 1 if data["waking_second"] > 1860 else consist_count_waking_second
+            data["consist_count_sleep_efficiency"] = consist_count_sleep_efficiency + 1 if data["sleep_efficiency"] < 0.8 else consist_count_sleep_efficiency
+        except Exception as e:
+            raise ValueError("fail to exec check_consist_indices!") from e
+        return data
+    
     def process(self):
+        
         # in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, create_time 
         all_data_list = self.init_data(batch_size=60*60*14)
-        
+        if all_data_list[0].size == 0:
+            raise ValueError(f'check data is empty! device_sn: {self.device_sn}')
         # 统计离床次数 -- 歧义：离床状态连续时间（暂定连续离床状态大于300秒定义为离床，小于300秒但是为离床状态的暂时划分到体动）
         # 根据在离床状态统计离床次数
-        # 根据在离床状态统计起床时间、
+        # 根据在离床状态统计起床时间
         # 起床时间为最晚离床状态
         in_out_bed = all_data_list[0][:, 0]
         all_create_time = all_data_list[0][:, -1]
         real_leave_count_result, real_leave_index = self.count_consecutive_zeros(in_out_bed, 300)
         leave_count = len(real_leave_count_result) - 1
-        leave_bed_time = all_create_time[real_leave_index[-1]]
+        leave_bed_time = all_create_time[real_leave_index[-1][-1]]
         
         # 基于在床数据统计睡眠分区，并进一步计算得到上床时间、入睡时间、醒来时间、夜醒时长、睡眠时长、深睡时长、入睡时长
         in_bed_data = all_data_list[0][in_out_bed != 0]
+        if in_bed_data.size == 0:
+            raise ValueError(f"in bed data is empty! device_sn: {self.device_sn}")
         breath_line = in_bed_data[:, 2]
         heart_line = in_bed_data[:, 3]
         create_time = in_bed_data[:, -1]
@@ -380,15 +486,16 @@ class HealthReport(BaseProvider):
         # 根据在床数据分析体动数据state=0，需要分批次显示
         body_move_count_list, create_time_list = self._cal_batch_body_move()
         body_move_count = sum(body_move_count_list)
-        create_time_list.insert(0, int(all_create_time[0]))
-        body_move_count_list.append(0)
-        create_time_list.append(int(all_create_time[-1]))
+        # create_time_list.insert(0, int(create_time[0]))
+        # body_move_count_list.append(0)
         sleep_result["body_move_count"] = body_move_count # 体动次数
+        sleep_result["body_move_exponent"] = body_move_count / 30 # 体动指数
         sleep_result["body_move_image_x_y"] = json.dumps([create_time_list, body_move_count_list]) # 体动绘图
         
         # 呼吸异常事件，有心率没有呼吸率，并且设置首尾数据
         breath_exception = np.where((in_bed_data[:, 4] == 0) & (in_bed_data[:, 5] != 0), 0, 1)
         real_breath_exception_result, real_breath_exception_index = self.count_consecutive_zeros(breath_exception, 0)
+        real_breath_exception_index = [item[-1] for item in real_breath_exception_index]
         sleep_result["breath_exception_count"] = len(real_breath_exception_result) # 呼吸异常次数
         # 设置首尾数据
         real_breath_exception_result.insert(0, 0)
@@ -398,20 +505,25 @@ class HealthReport(BaseProvider):
         sleep_result["breath_exception_image_x_y"] = json.dumps([real_breath_exception_index, real_breath_exception_result]) # 呼吸异常绘图
         
         # 在睡眠分区绘图数据的基础上考虑离床数据
-        leave_bed_list = self.find_continuous_sequences(in_out_bed)
-        leave_bed_list = [[int(all_create_time[index[0]]), int(all_create_time[index[1]])] for index in leave_bed_list[0] if index[1] - index[0] >= 300]
+        real_result, real_index_list = self.count_consecutive_zeros(in_out_bed, 300)
+        real_index_list = [[int(all_create_time[item[0]]), int(all_create_time[item[1]])] for item in list(real_index_list)]
         sleep_stage_image_x_y = sleep_result["sleep_stage_image_x_y"] # 睡眠分区绘图
         sleep_stage_image_x_y[0] = [[int(create_time[index[0]]), int(create_time[index[1]])]for index in sleep_stage_image_x_y[0]]
-        sleep_stage_image_x_y[0].extend(leave_bed_list)
-        sleep_stage_image_x_y[1].extend([4] * len(leave_bed_list))
+        sleep_stage_image_x_y[0].extend(list(real_index_list))
+        sleep_stage_image_x_y[1].extend([4] * len(real_index_list))
         sleep_result["sleep_stage_image_x_y"] = json.dumps(sleep_stage_image_x_y)
+        total_score, detailed_scores = self._score(sleep_result)
+        sleep_result["score"] = total_score
+        sleep_result["score_name"] = self.classify_total_score(total_score)
+        
         self.logger.info("-----------------------------------------------------------------------------------")
         self.logger.info(sleep_result)
         self.logger.info("-----------------------------------------------------------------------------------")
+        sleep_result = self._check_consist_indices(sleep_result)
         
-        recode_ = self.data_provider.sql_provider.add_record(sleep_result)
-        
-        return recode_
+        condition = {"device_sn": self.device_sn, "query_date": self.query_date}
+        recode_ = self._insert_sleep_indices_data(condition, sleep_result)
+        return sleep_result
 
 
         
