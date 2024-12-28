@@ -239,30 +239,15 @@ class HealthReport(BaseProvider):
         value_sequences.append(int(data[start]))
         return [index_ranges, value_sequences]
     
-    def _sleep_state(self, breath_line, heart_line, create_time, window_size: int = 300):
-        """
-        Args:
-            breath_line (_type_): breath line or breath bpm
-            heart_line (_type_): heart line or heart bpm
-            window_size (_type_): the size of window, stage each window size seconds.
-
-        Returns:
-            _type_: np.array the sleep stage.
-        """
-        
+    def _sleep_stage(self, breath_line, heart_line, window_size: int = 300):
         # cal the adptive threshold
         hr_wake_thresh, hr_deep_thresh = self._calculate_adaptive_thresholds(heart_line, window_size)
         br_wake_thresh, br_deep_thresh = self._calculate_adaptive_thresholds(breath_line, window_size)
         
         # init the stages.
         stages = np.zeros(len(heart_line))
-    
-        def extract_features(signal, start_idx):
-            
-            # 处理窗口末尾
-            end_idx = min(start_idx + window_size, len(signal))
+        def extract_features(signal, start_idx, end_idx):
             window_data = signal[start_idx:end_idx]
-            
             # 计算统计特征
             std = np.std(window_data)
             range_val = np.ptp(window_data)
@@ -272,16 +257,69 @@ class HealthReport(BaseProvider):
             entropy = stats.entropy(hist + 1e-8)
             
             return np.array([std, range_val, n_peaks, entropy])
+        
+        # Calculate number of windows
+        n_windows = (len(heart_line) - window_size) // (window_size // 2) + 1
+        
+        # Process each window
+        for i in range(n_windows):
+            # Calculate window boundaries with 50% overlap
+            start_idx = i * (window_size // 2)
+            end_idx = min(start_idx + window_size, len(heart_line))
+            
+            # Extract features for the entire window
+            hr_features = extract_features(heart_line, start_idx, end_idx)
+            br_features = extract_features(breath_line, start_idx, end_idx)
+            
+            # Determine sleep stage for the window
+            if (hr_features[0] > hr_wake_thresh or br_features[0] > br_wake_thresh):
+                stage = 3  # Wake
+            elif (hr_features[0] < hr_deep_thresh and br_features[0] < br_deep_thresh):
+                stage = 1  # Deep sleep
+            else:
+                stage = 2  # Light sleep
+            # Assign the stage to all points in the window
+            stages[start_idx:end_idx] = stage
+        # Handle any remaining data points at the end
+        if end_idx < len(heart_line):
+            last_stage = stages[end_idx - 1]
+            stages[end_idx:] = last_stage
+        # Smooth transitions between windows
+        def smooth_stages(stages, window=900):
+            smoothed = np.copy(stages)
+            half_window = window // 2
+            for i in range(len(stages)):
+                start = max(0, i - half_window)
+                end = min(len(stages), i + half_window + 1)
+                smoothed[i] = np.median(stages[start:end])
+            return smoothed
+        return smooth_stages(stages)
+        
+    def _sleep_stage_details(self, breath_line, heart_line, window_size: int = 300):
+        # cal the adptive threshold
+        hr_wake_thresh, hr_deep_thresh = self._calculate_adaptive_thresholds(heart_line, window_size)
+        br_wake_thresh, br_deep_thresh = self._calculate_adaptive_thresholds(breath_line, window_size)
+        # init the stages.
+        stages = np.zeros(len(heart_line))
+        def extract_features(signal, start_idx):
+            # 处理窗口末尾
+            end_idx = min(start_idx + window_size, len(signal))
+            window_data = signal[start_idx:end_idx]
+            # 计算统计特征
+            std = np.std(window_data)
+            range_val = np.ptp(window_data)
+            peaks, _ = find_peaks(window_data)
+            n_peaks = len(peaks)
+            hist, _ = np.histogram(window_data, bins=20)
+            entropy = stats.entropy(hist + 1e-8)
+            return np.array([std, range_val, n_peaks, entropy])
 
         for i in range(0, len(heart_line)):
-            
             # 计算窗口的起始位置，确保不会超出数组边界
             window_start = max(0, i - window_size // 2)
-        
             # 提取特征
             hr_features = extract_features(heart_line, window_start)
             br_features = extract_features(breath_line, window_start)
-
             # 基于特征阈值判断睡眠阶段
             # 这些阈值需要根据实际数据调整
             if (hr_features[0] > hr_wake_thresh or br_features[0] > br_wake_thresh):  # 高波动性
@@ -290,7 +328,6 @@ class HealthReport(BaseProvider):
                 stages[i] = 1  # 深睡
             else:
                 stages[i] = 2  # 浅睡
-
         # 平滑处理：避免频繁的状态切换
         def smooth_stages(stages, window=900):
             smoothed = np.copy(stages)
@@ -303,7 +340,19 @@ class HealthReport(BaseProvider):
                 # 使用中值滤波
                 smoothed[i] = np.median(stages[start:end])
             return smoothed
-        stage_result = smooth_stages(stages)
+        return smooth_stages(stages)
+    
+    def _sleep_state(self, breath_line, heart_line, create_time, window_size: int = 300, details_flag: int = 0):
+        """
+        Args:
+            breath_line (_type_): breath line or breath bpm
+            heart_line (_type_): heart line or heart bpm
+            window_size (_type_): the size of window, stage each window size seconds.
+
+        Returns:
+            _type_: np.array the sleep stage.
+        """
+        stage_result = self._sleep_stage(breath_line, heart_line, window_size) if details_flag == 0 else self._sleep_stage_details(breath_line, heart_line, window_size)
         
         sleep_stage_image_x_y = self.find_continuous_sequences(stage_result)
         deep_sleep_second = int(np.sum(stage_result == 1))
@@ -332,10 +381,10 @@ class HealthReport(BaseProvider):
         
         result_data = {
             "total_num_second_on_bed": len(breath_line), # 总在床时长（秒）
-            "sleep_second": sleep_second, # 睡眠时长（秒）
-            "deep_sleep_second": deep_sleep_second, # 深睡时长（秒）
-            "waking_second": night_waking_second, # 夜醒时长（秒）
-            "to_sleep_second": to_sleep_second, # 入睡时长（秒）
+            "sleep_second": int(sleep_second), # 睡眠时长（秒）
+            "deep_sleep_second": int(deep_sleep_second), # 深睡时长（秒）
+            "waking_second": int(night_waking_second), # 夜醒时长（秒）
+            "to_sleep_second": int(to_sleep_second), # 入睡时长（秒）
             "total_num_hour_on_bed": self.convert_seconds_to_hhmm(len(breath_line)), # 总在床时长（小时）
             "sleep_hour": self.convert_seconds_to_hhmm(sleep_second), # 睡眠时长（小时）
             "deep_sleep_hour": self.convert_seconds_to_hhmm(deep_sleep_second), # 深睡时长（小时）
@@ -436,9 +485,10 @@ class HealthReport(BaseProvider):
         return data
     
     def process(self):
-        
         # in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, create_time 
         all_data_list = self.init_data(batch_size=60*60*14)
+        if not all_data_list:
+            raise ValueError(f"empty data, device_sn: {self.device_sn}, query_date: {self.query_date}")
         if all_data_list[0].size == 0:
             raise ValueError(f'check data is empty! device_sn: {self.device_sn}')
         # 统计离床次数 -- 歧义：离床状态连续时间（暂定连续离床状态大于300秒定义为离床，小于300秒但是为离床状态的暂时划分到体动）
@@ -448,18 +498,17 @@ class HealthReport(BaseProvider):
         in_out_bed = all_data_list[0][:, 0]
         all_create_time = all_data_list[0][:, -1]
         real_leave_count_result, real_leave_index = self.count_consecutive_zeros(in_out_bed, 300)
-        leave_count = len(real_leave_count_result) - 1
-        leave_bed_time = all_create_time[real_leave_index[-1][-1]]
+        leave_count = len(real_leave_count_result) - 1 if real_leave_count_result else 0
+        leave_bed_time = all_create_time[real_leave_index[-1][-1]] if real_leave_index else all_create_time[-1]
         
         # 基于在床数据统计睡眠分区，并进一步计算得到上床时间、入睡时间、醒来时间、夜醒时长、睡眠时长、深睡时长、入睡时长
         in_bed_data = all_data_list[0][in_out_bed != 0]
         if in_bed_data.size == 0:
-            raise ValueError(f"in bed data is empty! device_sn: {self.device_sn}")
+            raise ValueError(f"in bed data is empty! device_sn: {self.device_sn}, query_date: {self.query_date}")
         breath_line = in_bed_data[:, 2]
         heart_line = in_bed_data[:, 3]
         create_time = in_bed_data[:, -1]
-        sleep_result = self._sleep_state(breath_line, heart_line, create_time, 900)
-        
+        sleep_result = self._sleep_state(breath_line, heart_line, create_time, 300, 0)
         # 并入离床次数和离床时间 
         sleep_result["leave_count"] = leave_count # 离床次数
         sleep_result["leave_bed_time"] = datetime.fromtimestamp((leave_bed_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S') # 离床时间
@@ -472,16 +521,23 @@ class HealthReport(BaseProvider):
         sleep_result["device_sn"] = self.device_sn # 设备编号
         
         # 根据在床数据分析呼吸率和心率数据
-        breath_bpm = in_bed_data[:, 4]
-        heart_bpm = in_bed_data[:, 5]
+        # 心率、心线--红线正常(state=2)，黑线为不正常(state=0, 1)
+        # 呼吸率、呼吸线--蓝线正常(state=1, 2)，黑线为不正常(state=0)
+        # bug：在睡眠分区的时候没有去除state异常情况，有差异
+        # 如果考虑state的情况，那就需要考虑state不稳定的时候分区，是清醒还是体动，目前是将不稳定的情况归类到体动中，所以体动数据不影响睡眠分区
+        # 如果state不稳定的情况是清醒，那么会影响睡眠分区
+        # 如果可以根据state的状态直接进行粗分睡眠和清醒，然后再根据心率呼吸率的情况去区分浅睡眠还是深睡眠。这样较科学。
+        state = in_bed_data[:, 6]
+        breath_bpm = in_bed_data[:, 4][state != 0]
+        heart_bpm = in_bed_data[:, 5][state == 2]
         average_breath_bpm, max_breath_bpm, min_breath_bpm = self._mean_max_min(breath_bpm)
         average_heart_bpm, max_heart_bpm, min_heart_bpm = self._mean_max_min(heart_bpm)
-        sleep_result["average_breath_bpm"] = average_breath_bpm # 平均呼吸率
-        sleep_result["max_breath_bpm"] = max_breath_bpm # 最大呼吸率
-        sleep_result["min_breath_bpm"] = min_breath_bpm # 最小呼吸率
-        sleep_result["average_heart_bpm"] = average_heart_bpm # 平均心率
-        sleep_result["max_heart_bpm"] = max_heart_bpm # 最大心率
-        sleep_result["min_heart_bpm"] = min_heart_bpm # 最小心率
+        sleep_result["average_breath_bpm"] = int(average_breath_bpm) # 平均呼吸率
+        sleep_result["max_breath_bpm"] = int(max_breath_bpm) # 最大呼吸率
+        sleep_result["min_breath_bpm"] = int(min_breath_bpm) # 最小呼吸率
+        sleep_result["average_heart_bpm"] = int(average_heart_bpm) # 平均心率
+        sleep_result["max_heart_bpm"] = int(max_heart_bpm) # 最大心率
+        sleep_result["min_heart_bpm"] = int(min_heart_bpm) # 最小心率
         
         # 根据在床数据分析体动数据state=0，需要分批次显示
         body_move_count_list, create_time_list = self._cal_batch_body_move()
@@ -489,7 +545,7 @@ class HealthReport(BaseProvider):
         # create_time_list.insert(0, int(create_time[0]))
         # body_move_count_list.append(0)
         sleep_result["body_move_count"] = body_move_count # 体动次数
-        sleep_result["body_move_exponent"] = body_move_count / 30 # 体动指数
+        sleep_result["body_move_exponent"] = round(body_move_count / 30, 2) # 体动指数
         sleep_result["body_move_image_x_y"] = json.dumps([create_time_list, body_move_count_list]) # 体动绘图
         
         # 呼吸异常事件，有心率没有呼吸率，并且设置首尾数据
