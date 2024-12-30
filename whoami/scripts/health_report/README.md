@@ -27,6 +27,7 @@ response json:
 
 ## result details
 ```
+
 # 绘图数据起始时间戳区间固定
 {
     'total_num_second_on_bed': 38342, # 总在床时长（秒）
@@ -70,3 +71,11 @@ response json:
     "consist_count_sleep_efficiency": 1, # 连续?晚睡眠效率小于80%
 }
 ``` 
+
+
+## 开发日志
+```
+v1.0 
+完成在离床
+
+```
