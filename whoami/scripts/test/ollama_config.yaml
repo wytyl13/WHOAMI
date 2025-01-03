@@ -1,0 +1,3 @@
+api_type: "ollama"  # or azure / ollama / open_llm etc. Check LLMType for more options
+model: "qwen2.5:7b-instruct"  # or gpt-3.5-turbo-1106 / gpt-4-1106-preview
+base_url: "http://127.0.0.1:11434/api"

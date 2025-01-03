@@ -16,12 +16,12 @@ class LLMType(Enum):
     def __missing__(cls, value):
         return cls.OPENAI
 
-
 class LLMConfig(YamlModel):
     
     api_key: str = ""
     api_type: LLMType = LLMType.OPENAI
     base_url: str = "https://api.openai.com/v1"
     model: Optional[str] = None
+    timeout: int = 600
     
     

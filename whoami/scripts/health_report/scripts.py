@@ -58,8 +58,9 @@ async def sleep_indices(request_data: RequestData, background_tasks: BackgroundT
         return R.fail(f"query date must not be null! query_date: {query_date}")
     
     # 定义一个后台任务函数
-    async def process_health_report(device_sn_i):
+    async def process_health_report(device_sn_i, last_flag: int):
         logger.info(f"To start process report for device {device_sn_i}")
+        health_report = None
         try:
             health_report = HealthReport(
                 sql_config_path=SQL_CONFIG_PATH,
@@ -70,16 +71,23 @@ async def sleep_indices(request_data: RequestData, background_tasks: BackgroundT
             result = health_report.process()
         except Exception as e:
             logger.error(e)
-        logger.info(f"Processed report for device {device_sn_i}")
+        finally:
+            logger.info(f"Processed report for device {device_sn_i}")
+            if last_flag > 0 and health_report is not None:
+                health_report.rank()
+                health_report.health_advice()
     
     device_sn_size = 0
+    last_flag = 0
     if isinstance(device_sn, str):
         device_sn_size += 1
-        background_tasks.add_task(process_health_report, device_sn)
+        background_tasks.add_task(process_health_report, device_sn, 1)
     else:
         for device_sn_i in device_sn:
             device_sn_size += 1
-            background_tasks.add_task(process_health_report, device_sn_i)
+            if device_sn_size == len(device_sn):
+                last_flag = 1
+            background_tasks.add_task(process_health_report, device_sn_i, last_flag)
     waste_time = device_sn_size * 1.5
     
     return R.success(f"To start process background. It will take approximately {waste_time} minutes.")

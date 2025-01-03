@@ -20,11 +20,13 @@ from typing import (
 )
 import os
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from torch.utils.data import DataLoader
 from scipy import stats
 from scipy.signal import find_peaks
 import json
+import traceback
+from pathlib import Path
 
 from whoami.configs.sql_config import SqlConfig
 from whoami.provider.sql_provider import SqlProvider
@@ -32,9 +34,12 @@ from whoami.tool.health_report.sx_data_provider import SxDataProvider
 from whoami.provider.base_provider import BaseProvider
 from whoami.provider.base_ import ModelType
 from whoami.tool.health_report.sleep_indices import SleepIndices
+from whoami.llm_api.ollama_llm import OllamLLM
+from whoami.configs.llm_config import LLMConfig
 
 ROOT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 
+llm = OllamLLM(LLMConfig.from_file(Path("/home/weiyutao/work/WHOAMI/whoami/scripts/test/ollama_config.yaml")))
 
 class HealthReport(BaseProvider):
     sql_config_path: Optional[str] = None
@@ -79,7 +84,8 @@ class HealthReport(BaseProvider):
                 pre_date_str = (current_date - timedelta(days=1)).strftime('%Y-%m-%d')
                 start = pre_date_str + ' 20:00:00'
                 end = current_date_str + ' 09:00:00'
-                sql_query = f"SELECT in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
+                # sql_query = f"SELECT in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
+                sql_query = f"SELECT in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log_bxx_0103 WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
                 self.data_provider = SxDataProvider(sql_config_path=self.sql_config_path, sql_config=self.sql_config, sql_query=sql_query, model=self.model)
             else:
                 self.data_provider = SxDataProvider(sql_config_path=self.sql_config_path, sql_config=self.sql_config, model=self.model)
@@ -163,7 +169,8 @@ class HealthReport(BaseProvider):
             "to_sleep_second": [0, 1800],
             "body_move_exponent": [1.25, 15],
             "breath_bpm": [8, 22],
-            "heart_bpm": [40, 100]
+            "heart_bpm": [40, 100],
+            "breath_exception_exponent": [0, 5]
         }
 
         weights = {
@@ -173,39 +180,49 @@ class HealthReport(BaseProvider):
             "heart_bpm": 10,              # 心率
             "breath_bpm": 10,             # 呼吸率
             "to_sleep_second": 10,         # 入睡时间
-            "body_move_exponent": 10,      # 体动指数
+            "body_move_exponent": 5,      # 体动指数
+            "breath_exception_exponent": 5,      # 呼吸异常指数
             "waking_second": 5,            # 清醒时间
             "leave_count": 5               # 离床次数
         }
 
         scores = {}
         total_score = 0
-        for metric, weight in weights.items():
-            if metric not in data or metric not in reference:
-                continue
-            actual = data[metric]
-            ref_min, ref_max = reference[metric]
-            # 计算单项得分
-            if actual < ref_min:
-                # 低于最小值，按比例得分
-                score = (actual / ref_min) * weight
-            elif actual > ref_max:
-                # 高于最大值，按比例得分
-                score = (ref_max / actual) * weight
-            else:
-                # 在区间内，满分
-                score = weight
-            # 特殊处理：对于一些指标，越低越好
-            if metric in ["waking_second", "to_sleep_second", "body_move_exponent", "leave_count"]:
-                if actual <= ref_min:
-                    score = weight
-                elif actual >= ref_max:
-                    score = 0
+        try:
+            for metric, weight in weights.items():
+                if metric not in data or metric not in reference:
+                    continue
+                actual = data[metric]
+                ref_min, ref_max = reference[metric]
+                # 计算单项得分
+                if actual < ref_min:
+                    # 低于最小值，按比例得分
+                    score = (actual / ref_min) * weight
+                elif actual > ref_max:
+                    # 高于最大值，按比例得分
+                    score = (ref_max / actual) * weight
                 else:
-                    score = ((ref_max - actual) / (ref_max - ref_min)) * weight
-            scores[metric] = round(score, 2)
-            total_score += score
-        return round(total_score, 2), scores
+                    # 在区间内，满分
+                    score = weight
+                    
+                # 特殊处理：对于一些指标，越低越好
+                if metric in ["waking_second", "to_sleep_second", "body_move_exponent", "leave_count"]:
+                    if actual <= ref_min:
+                        score = weight
+                    elif actual >= ref_max:
+                        score = 0
+                    else:
+                        score = ((ref_max - actual) / (ref_max - ref_min)) * weight
+                scores[metric] = round(score, 2)
+                total_score += score
+
+            # breath_bpm_status, heart_bpm_status, body_move_status
+            breath_bpm_status = "正常" if all([item >= min(reference["breath_bpm"]) and item <= max(reference["breath_bpm"]) for item in [data["max_breath_bpm"], data["min_breath_bpm"]]]) else "异常"
+            heart_bpm_status = "正常" if all([item >= min(reference["heart_bpm"]) and item <= max(reference["heart_bpm"]) for item in [data["max_heart_bpm"], data["min_heart_bpm"]]]) else "异常"
+            body_move_status = "正常" if data["body_move_exponent"] >= min(reference["body_move_exponent"]) and data["body_move_exponent"] <= max(reference["body_move_exponent"]) else "异常"
+        except Exception as e:
+            raise ValueError('fail to exec the function _score!') from e
+        return round(total_score, 2), scores, breath_bpm_status, heart_bpm_status, body_move_status
     
     def convert_seconds_to_hhmm(self, seconds):
         # 计算小时
@@ -358,6 +375,7 @@ class HealthReport(BaseProvider):
         deep_sleep_second = int(np.sum(stage_result == 1))
         waking_second = int(np.sum(stage_result == 3))
         sleep_second = int(np.sum(stage_result != 3))
+        light_sleep_second = int(np.sum(stage_result == 2))
         
         waking_stage = np.where(stage_result == 3, 0, 1)
         real_waking_result, real_waking_index = self.count_consecutive_zeros(waking_stage, 30)
@@ -396,7 +414,9 @@ class HealthReport(BaseProvider):
             "waking_time": datetime.fromtimestamp((waking_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'), # 醒来时间（节点）
             "sleep_stage_image_x_y": sleep_stage_image_x_y, 
             "sleep_efficiency": round(sleep_second / len(breath_line), 2), # 睡眠效率
-            "deep_sleep_efficiency": round(deep_sleep_second / sleep_second, 2) # 深睡效率
+            "deep_sleep_efficiency": round(deep_sleep_second / sleep_second, 2), # 深睡效率
+            "light_sleep_second": light_sleep_second, # 浅睡时长（秒）
+            "light_sleep_hour": self.convert_seconds_to_hhmm(light_sleep_second) # 浅睡时长（小时）
         }
         self.logger.info("-----------------------------------------------------------------------------------")
         self.logger.info(result_data)
@@ -484,6 +504,77 @@ class HealthReport(BaseProvider):
             raise ValueError("fail to exec check_consist_indices!") from e
         return data
     
+    def rank(self):
+        try:
+            condition = {"query_date": self.query_date}
+            record_ = self.data_provider.sql_provider.get_record_by_condition(condition)
+            scores = [record['score'] for record in record_]
+            ids = [record['id'] for record in record_]
+            def rank_elements(input_list):
+                # 对输入列表进行排序，并保留原始索引
+                sorted_indices = sorted(range(len(input_list)), key=lambda i: input_list[i], reverse=True)
+                # 初始化排名列表
+                rankings = [0] * len(input_list)
+                # 根据排序后的索引填充排名
+                for rank, index in enumerate(sorted_indices, start=1):
+                    rankings[index] = rank
+                return rankings
+            rank_list = rank_elements(scores)
+            total_poeple = len(rank_list)
+            self.logger.info(rank_list)
+            rank_ = [round((total_poeple - item) / total_poeple, 2) if total_poeple != 0 else 1 for item in rank_list]
+            for index, new_rank in enumerate(rank_):
+                self.data_provider.sql_provider.update_rank_by_id(ids[index], new_rank)
+        except Exception as e:
+            raise ValueError('fail to exec _rank function!') from e
+    
+    def health_advice(self, ):
+        
+        reference = {
+            "waking_second": [0, 1860],
+            "sleep_efficiency": [0.8, 1],
+            "sleep_second": [21600, 36000],
+            "deep_sleep_efficiency": [0.2, 0.6],
+            "leave_count": [0, 2],
+            "to_sleep_second": [0, 1800],
+            "body_move_exponent": [1.25, 15],
+            "breath_bpm": [8, 22],
+            "heart_bpm": [40, 100],
+            "breath_exception_exponent": [0, 5]
+        }
+        
+        try:
+            filed_description = self.data_provider.sql_provider.get_field_names_and_descriptions()
+            condition = {"query_date": self.query_date}
+            record_ = self.data_provider.sql_provider.get_record_by_condition(condition)
+            for health_data in record_:
+                if health_data:
+                    del health_data['breath_bpm_image_x_y']
+                    del health_data['heart_bpm_image_x_y']
+            
+                health_prompt = f"""
+                You are a professional health doctor, please give professional advice based on the user's health data, The health data fields correspond as follows:
+                {filed_description}
+                
+                Some of the health fileds standards are as follows:
+                {reference}
+                
+                The breakdown of the user's health data is as follows:
+                {health_data}
+                
+                note:
+                - Focus on recommendations.
+                - Output as plain Chinese text.
+                - Output recommendations directly without categorization.
+                - Maintaining professionalism and rigor.
+                - Do not use special symbols.
+                """
+                content = llm.whoami(health_prompt, stream=False)
+                self.logger.info(content)
+                self.data_provider.sql_provider.update_health_advice_by_id(health_data['id'], content)
+        except Exception as e:
+            raise ValueError('fail to exec the function health advice!') from e
+    
     def process(self):
         # in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, create_time 
         all_data_list = self.init_data(batch_size=60*60*14)
@@ -499,26 +590,37 @@ class HealthReport(BaseProvider):
         all_create_time = all_data_list[0][:, -1]
         real_leave_count_result, real_leave_index = self.count_consecutive_zeros(in_out_bed, 300)
         leave_count = len(real_leave_count_result) - 1 if real_leave_count_result else 0
+
+
+        leave_bed_total_second = sum(real_leave_count_result[1:])
         leave_bed_time = all_create_time[real_leave_index[-1][-1]] if real_leave_index else all_create_time[-1]
         
         # 基于在床数据统计睡眠分区，并进一步计算得到上床时间、入睡时间、醒来时间、夜醒时长、睡眠时长、深睡时长、入睡时长
         in_bed_data = all_data_list[0][in_out_bed != 0]
         if in_bed_data.size == 0:
             raise ValueError(f"in bed data is empty! device_sn: {self.device_sn}, query_date: {self.query_date}")
-        breath_line = in_bed_data[:, 2]
-        heart_line = in_bed_data[:, 3]
-        create_time = in_bed_data[:, -1]
-        sleep_result = self._sleep_state(breath_line, heart_line, create_time, 300, 0)
-        # 并入离床次数和离床时间 
-        sleep_result["leave_count"] = leave_count # 离床次数
-        sleep_result["leave_bed_time"] = datetime.fromtimestamp((leave_bed_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S') # 离床时间
         
-        # 添加总监测时长
-        sleep_result["total_num_second"] = len(in_out_bed)
-        sleep_result["total_num_hour"] = self.convert_seconds_to_hhmm(len(in_out_bed))
-        sleep_result["query_date"] = self.query_date
-        sleep_result["save_file_path"] = "none"
-        sleep_result["device_sn"] = self.device_sn # 设备编号
+        try:
+            breath_line = in_bed_data[:, 2]
+            heart_line = in_bed_data[:, 3]
+            create_time = in_bed_data[:, -1]
+            sleep_result = self._sleep_state(breath_line, heart_line, create_time, 300, 0)
+
+            # 并入离床次数和离床时间 
+            sleep_result["leave_count"] = leave_count # 离床次数
+            sleep_result["leave_bed_total_second"] = leave_bed_total_second # 离床总时间（秒）
+            sleep_result["leave_bed_total_hour"] = self.convert_seconds_to_hhmm(leave_bed_total_second) # 离床总时间（小时）
+            sleep_result["leave_bed_time"] = datetime.fromtimestamp((leave_bed_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S') # 离床时间
+            
+            # 添加总监测时长
+            sleep_result["total_num_second"] = len(in_out_bed)
+            sleep_result["total_num_hour"] = self.convert_seconds_to_hhmm(len(in_out_bed))
+            sleep_result["query_date"] = self.query_date
+            sleep_result["save_file_path"] = "none"
+            sleep_result["device_sn"] = self.device_sn # 设备编号
+        except Exception as e:
+            self.logger.error(traceback.format_exc())
+            raise ValueError('fail to cal the basic indices!') from e
         
         # 根据在床数据分析呼吸率和心率数据
         # 心率、心线--红线正常(state=2)，黑线为不正常(state=0, 1)
@@ -527,54 +629,117 @@ class HealthReport(BaseProvider):
         # 如果考虑state的情况，那就需要考虑state不稳定的时候分区，是清醒还是体动，目前是将不稳定的情况归类到体动中，所以体动数据不影响睡眠分区
         # 如果state不稳定的情况是清醒，那么会影响睡眠分区
         # 如果可以根据state的状态直接进行粗分睡眠和清醒，然后再根据心率呼吸率的情况去区分浅睡眠还是深睡眠。这样较科学。
-        state = in_bed_data[:, 6]
-        breath_bpm = in_bed_data[:, 4][state != 0]
-        heart_bpm = in_bed_data[:, 5][state == 2]
-        average_breath_bpm, max_breath_bpm, min_breath_bpm = self._mean_max_min(breath_bpm)
-        average_heart_bpm, max_heart_bpm, min_heart_bpm = self._mean_max_min(heart_bpm)
-        sleep_result["average_breath_bpm"] = int(average_breath_bpm) # 平均呼吸率
-        sleep_result["max_breath_bpm"] = int(max_breath_bpm) # 最大呼吸率
-        sleep_result["min_breath_bpm"] = int(min_breath_bpm) # 最小呼吸率
-        sleep_result["average_heart_bpm"] = int(average_heart_bpm) # 平均心率
-        sleep_result["max_heart_bpm"] = int(max_heart_bpm) # 最大心率
-        sleep_result["min_heart_bpm"] = int(min_heart_bpm) # 最小心率
+        try:
+            state = in_bed_data[:, 6]
+            breath_bpm = in_bed_data[:, 4][state != 0]
+            heart_bpm = in_bed_data[:, 5][state == 2]
+            average_breath_bpm, max_breath_bpm, min_breath_bpm = self._mean_max_min(breath_bpm)
+            average_heart_bpm, max_heart_bpm, min_heart_bpm = self._mean_max_min(heart_bpm)
+            sleep_result["average_breath_bpm"] = int(average_breath_bpm) # 平均呼吸率
+            sleep_result["max_breath_bpm"] = int(max_breath_bpm) # 最大呼吸率
+            sleep_result["min_breath_bpm"] = int(min_breath_bpm) # 最小呼吸率
+            sleep_result["average_heart_bpm"] = int(average_heart_bpm) # 平均心率
+            sleep_result["max_heart_bpm"] = int(max_heart_bpm) # 最大心率
+            sleep_result["min_heart_bpm"] = int(min_heart_bpm) # 最小心率
+        except Exception as e:
+            self.logger.error(traceback.format_exc())
+            raise ValueError('fail to cal the indices of breath_bpm and heart_bpm!') from e
+        
         
         # 根据在床数据分析体动数据state=0，需要分批次显示
-        body_move_count_list, create_time_list = self._cal_batch_body_move()
-        body_move_count = sum(body_move_count_list)
-        # create_time_list.insert(0, int(create_time[0]))
-        # body_move_count_list.append(0)
-        sleep_result["body_move_count"] = body_move_count # 体动次数
-        sleep_result["body_move_exponent"] = round(body_move_count / 30, 2) # 体动指数
-        sleep_result["body_move_image_x_y"] = json.dumps([create_time_list, body_move_count_list]) # 体动绘图
+        try:
+            body_move_count_list, create_time_list = self._cal_batch_body_move()
+            body_move_count = sum(body_move_count_list)
+            # create_time_list.insert(0, int(create_time[0]))
+            # body_move_count_list.append(0)
+            sleep_result["body_move_count"] = body_move_count # 体动次数
+            sleep_result["average_body_move_count"] = body_move_count / len(body_move_count_list) # 平均体动次数
+            sleep_result["max_body_move_count"] = max(body_move_count_list) # 最大体动次数
+            sleep_result["min_body_move_count"] = min(body_move_count_list) # 最小体动次数
+            sleep_result["body_move_exponent"] = round(body_move_count / 30, 2) # 体动指数
+            sleep_result["body_move_image_x_y"] = json.dumps([create_time_list, body_move_count_list]) # 体动绘图
+        except Exception as e:
+            self.logger.error(traceback.format_exc())
+            raise ValueError('fail to cal the indices of body move!') from e
         
-        # 呼吸异常事件，有心率没有呼吸率，并且设置首尾数据
-        breath_exception = np.where((in_bed_data[:, 4] == 0) & (in_bed_data[:, 5] != 0), 0, 1)
-        real_breath_exception_result, real_breath_exception_index = self.count_consecutive_zeros(breath_exception, 0)
-        real_breath_exception_index = [item[-1] for item in real_breath_exception_index]
-        sleep_result["breath_exception_count"] = len(real_breath_exception_result) # 呼吸异常次数
-        # 设置首尾数据
-        real_breath_exception_result.insert(0, 0)
-        real_breath_exception_index.insert(0, int(all_create_time[0]))
-        real_breath_exception_result.append(0)
-        real_breath_exception_index.append(int(all_create_time[-1]))
-        sleep_result["breath_exception_image_x_y"] = json.dumps([real_breath_exception_index, real_breath_exception_result]) # 呼吸异常绘图
+        # 呼吸异常事件，有心率没有呼吸率，或者呼吸率不在正常范围内。并且设置首尾数据
+        try:
+            breath_bpm = in_bed_data[:, 4]
+            heart_bpm = in_bed_data[:, 5]
+            
+            # 添加呼吸心率秒级绘图数据
+            breath_bpm_image_x_y = [[datetime.fromtimestamp(int(create_time[x]), tz=timezone.utc).astimezone(timezone(timedelta(hours=8))).strftime("%H:%M:%S") for x in range(0, len(create_time.tolist()), 60)], [int(breath_bpm[x]) for x in range(0, len(breath_bpm.tolist()), 60)]]
+            heart_bpm_image_x_y = [[datetime.fromtimestamp(int(create_time[x]), tz=timezone.utc).astimezone(timezone(timedelta(hours=8))).strftime("%H:%M:%S") for x in range(0, len(create_time.tolist()), 60)], [int(heart_bpm[x]) for x in range(0, len(heart_bpm.tolist()), 60)]]
+            
+            breath_exception = np.where((breath_bpm < 8) | (breath_bpm > 23) & (heart_bpm != 0), 0, 1)
+            real_breath_exception_result, real_breath_exception_index = self.count_consecutive_zeros(breath_exception, 0)
+            real_breath_exception_result = [item for item in real_breath_exception_result]
+            
+            def get_start_end_index(breath_bpm, cur_index, data: list):
+                start_index = max(0, cur_index - 30)
+                end_index = min(len(breath_bpm), cur_index + 30)
+                current_length = end_index - start_index
+                if current_length < 60:
+                    # 需要补全的数量
+                    needed_length = 60 - current_length
+
+                    # 向前补充
+                    if start_index > 0:
+                        additional_start = max(0, start_index - needed_length)
+                        start_index = additional_start
+                    else:
+                        # 向后补充
+                        additional_end = min(len(breath_bpm), end_index + needed_length)
+                        end_index = additional_end
+                    # 确保最终范围不超过 60
+                    if end_index - start_index > 60:
+                        end_index = start_index + 60
+                return data[start_index:end_index]
+            
+            breath_exception_60S_x = [[int(value) for value in get_start_end_index(breath_bpm, item[-1], create_time)] for item in real_breath_exception_index]
+            breath_exception_60S_y = [[int(value) for value in get_start_end_index(breath_bpm, item[-1], breath_bpm)] for item in real_breath_exception_index]
+            breath_exception_60S_x_y = [breath_exception_60S_x, breath_exception_60S_y]
+            sleep_result["breath_exception_count"] = len(real_breath_exception_result) # 呼吸异常次数
+            sleep_result["breath_exception_exponent"] = round(len(real_breath_exception_result) / 14, 2) # 呼吸异常指数=呼吸异常次数/监测小时数
+            # 设置首尾数据
+            real_breath_exception_index = [int(create_time[item[-1]]) for item in real_breath_exception_index]
+            real_breath_exception_result.insert(0, 0)
+            real_breath_exception_index.insert(0, int(all_create_time[0]))
+            real_breath_exception_result.append(0)
+            real_breath_exception_index.append(int(all_create_time[-1]))
+            sleep_result["breath_exception_image_x_y"] = json.dumps([real_breath_exception_index, real_breath_exception_result]) # 呼吸异常绘图
+            sleep_result["breath_exception_image_sixty_x_y"] = json.dumps(breath_exception_60S_x_y) # 典型呼吸异常事件
+        except Exception as e:
+            self.logger.error(traceback.format_exc())
+            raise ValueError('fail to cal the indices of breath exception!') from e
         
         # 在睡眠分区绘图数据的基础上考虑离床数据
-        real_result, real_index_list = self.count_consecutive_zeros(in_out_bed, 300)
-        real_index_list = [[int(all_create_time[item[0]]), int(all_create_time[item[1]])] for item in list(real_index_list)]
-        sleep_stage_image_x_y = sleep_result["sleep_stage_image_x_y"] # 睡眠分区绘图
-        sleep_stage_image_x_y[0] = [[int(create_time[index[0]]), int(create_time[index[1]])]for index in sleep_stage_image_x_y[0]]
-        sleep_stage_image_x_y[0].extend(list(real_index_list))
-        sleep_stage_image_x_y[1].extend([4] * len(real_index_list))
-        sleep_result["sleep_stage_image_x_y"] = json.dumps(sleep_stage_image_x_y)
-        total_score, detailed_scores = self._score(sleep_result)
-        sleep_result["score"] = total_score
-        sleep_result["score_name"] = self.classify_total_score(total_score)
+        try:
+            real_result, real_index_list = self.count_consecutive_zeros(in_out_bed, 300)
+            real_index_list = [[int(all_create_time[item[0]]), int(all_create_time[item[1]])] for item in list(real_index_list)]
+            sleep_stage_image_x_y = sleep_result["sleep_stage_image_x_y"] # 睡眠分区绘图
+            sleep_stage_image_x_y[0] = [[int(create_time[index[0]]), int(create_time[index[1]])]for index in sleep_stage_image_x_y[0]]
+            sleep_stage_image_x_y[0].extend(list(real_index_list))
+            sleep_stage_image_x_y[1].extend([4] * len(real_index_list))
+            sleep_result["sleep_stage_image_x_y"] = json.dumps(sleep_stage_image_x_y)
+            total_score, detailed_scores, breath_bpm_status, heart_bpm_status, body_move_status = self._score(sleep_result)
+            sleep_result["score"] = total_score
+            sleep_result["score_name"] = self.classify_total_score(total_score)
+            sleep_result["breath_bpm_status"] = breath_bpm_status # 呼吸率状态
+            sleep_result["heart_bpm_status"] = heart_bpm_status # 心率状态
+            sleep_result["body_move_status"] = body_move_status # 体动状态
+            
+            # 添加呼吸率心率秒级绘图数据
+            sleep_result["breath_bpm_image_x_y"] = json.dumps(breath_bpm_image_x_y) # 呼吸率绘图数据
+            sleep_result["heart_bpm_image_x_y"] = json.dumps(heart_bpm_image_x_y) # 心率绘图数据 
+            
+        except Exception as e:
+            self.logger.error(traceback.format_exc())
+            raise ValueError('fail to cal the other indices!') from e
         
-        self.logger.info("-----------------------------------------------------------------------------------")
-        self.logger.info(sleep_result)
-        self.logger.info("-----------------------------------------------------------------------------------")
+        # self.logger.info("-----------------------------------------------------------------------------------")
+        # self.logger.info(sleep_result)
+        # self.logger.info("-----------------------------------------------------------------------------------")
         sleep_result = self._check_consist_indices(sleep_result)
         
         condition = {"device_sn": self.device_sn, "query_date": self.query_date}

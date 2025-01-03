@@ -177,6 +177,66 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 self.logger.error(error_info)
                 raise ValueError(error_info) from e
     
+    def get_field_names_and_descriptions(self) -> Dict[str, str]:
+        field_info = {}
+        # 获取模型的所有字段
+        for column in self.model.__table__.columns:
+            # 假设中文描述存储在列的 doc 属性中
+            # 如果没有中文描述，可以使用其他方法来获取
+            field_info[column.name] = column.comment  if column.comment else "无描述"
+        return field_info
+    
+    def update_rank_by_id(self, record_id: int, new_rank: int) -> Optional[Dict[str, Any]]:
+        with self.get_db_session() as session:
+            try:
+                # 查询要更新的记录
+                record = session.query(self.model).filter(self.model.id == record_id, self.model.deleted == False).one_or_none()
+                
+                if record is None:
+                    error_info = f"Record with ID {record_id} not found."
+                    self.logger.error(error_info)
+                    raise ValueError(error_info)
+
+                # 更新 rank 字段
+                record.score_rank = new_rank
+                
+                # 提交更改
+                session.commit()
+                
+                # 返回更新后的记录（可选）
+                return {key: value for key, value in record.__dict__.items() if key != '_sa_instance_state'}
+            
+            except Exception as e:
+                error_info = f"Failed to update rank for record ID {record_id}: {str(e)}"
+                self.logger.error(error_info)
+                raise ValueError(error_info) from e
+    
+    def update_health_advice_by_id(self, record_id: int, new_health_advice) -> Optional[Dict[str, Any]]:
+        with self.get_db_session() as session:
+            try:
+                # 查询要更新的记录
+                record = session.query(self.model).filter(self.model.id == record_id, self.model.deleted == False).one_or_none()
+                
+                if record is None:
+                    error_info = f"Record with ID {record_id} not found."
+                    self.logger.error(error_info)
+                    raise ValueError(error_info)
+
+                # 更新 rank 字段
+                record.health_advice = new_health_advice
+                
+                # 提交更改
+                session.commit()
+                
+                # 返回更新后的记录（可选）
+                return {key: value for key, value in record.__dict__.items() if key != '_sa_instance_state'}
+            
+            except Exception as e:
+                error_info = f"Failed to update health advice for record ID {record_id}: {str(e)}"
+                self.logger.error(error_info)
+                raise ValueError(error_info) from e
+        
+    
     def exec_sql(self, query: Optional[str] = None):
         """query words check data"""
         with self.sql_connection() as db:

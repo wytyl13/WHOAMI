@@ -48,7 +48,6 @@ _thread_context = threading.local()
 
 LLM_LOG = os.environ.get("LLM_LOG", "debug")
 
-
 class ApiType(Enum):
     AZURE = 1
     OPEN_AI = 2
@@ -74,13 +73,11 @@ api_key_to_header = (
     else {"api-key": f"{key}"}
 )
 
-
 def _console_log_level():
     if LLM_LOG in ["debug", "info"]:
         return LLM_LOG
     else:
         return None
-
 
 def log_debug(message, **params):
     msg = logfmt(dict(message=message, **params))
@@ -88,13 +85,11 @@ def log_debug(message, **params):
         print(msg, file=sys.stderr)
     logger.debug(msg)
 
-
 def log_info(message, **params):
     msg = logfmt(dict(message=message, **params))
     if _console_log_level() in ["debug", "info"]:
         print(msg, file=sys.stderr)
     logger.info(msg)
-
 
 def log_warn(message, **params):
     msg = logfmt(dict(message=message, **params))
@@ -149,7 +144,6 @@ class OpenAIResponse:
         h = self._headers.get("Openai-Processing-Ms")
         return None if h is None else round(float(h))
 
-
 def _build_api_url(url, query):
     scheme, netloc, path, base_query, fragment = urlsplit(url)
 
@@ -195,7 +189,6 @@ def _make_session() -> requests.Session:
     )
     return s
 
-
 def parse_stream_helper(line: bytes) -> Optional[str]:
     if line:
         if line.strip() == b"data: [DONE]":
@@ -222,7 +215,6 @@ async def parse_stream_async(rbody: aiohttp.StreamReader):
         _line = parse_stream_helper(line)
         if _line is not None:
             yield _line
-
 
 class APIRequestor:
     def __init__(
@@ -573,7 +565,7 @@ class APIRequestor:
                 total=request_timeout[1],
             )
         else:
-            timeout = aiohttp.ClientTimeout(total=request_timeout or TIMEOUT_SECS)
+            timeout = aiohttp.ClientTimeout(total=request_timeout if request_timeout else TIMEOUT_SECS)
 
         if files:
             # TODO: Use `aiohttp.MultipartWriter` to create the multipart form data here.
@@ -614,7 +606,6 @@ class APIRequestor:
 
     def _interpret_response_line(self, rbody: str, rcode: int, rheaders, stream: bool) -> OpenAIResponse:
         ...
-
 
 @asynccontextmanager
 async def aiohttp_session() -> AsyncIterator[aiohttp.ClientSession]:

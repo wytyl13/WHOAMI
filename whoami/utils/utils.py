@@ -8,7 +8,6 @@
 import traceback
 import os
 import shutil
-# from simhash import Simhash, SimhashIndex
 import re
 import yaml
 
@@ -104,26 +103,3 @@ class Utils:
             raise ValueError('fail to load yaml file!') from e
         return config
     
-    # def remove_duplicate_simhash(self, contents: list[str]) -> list[str]:
-    #     """remove duplicate paragraph used simhash
-
-    #     Args:
-    #         contents (list[str]): the paragraph list.
-    #     """
-    #     def get_features(s):
-    #         width = 3
-    #         s = s.lower()
-    #         s = re.sub(r'[^\w]+', '', s)
-    #         return [s[i:i + width] for i in range(max(len(s) - width + 1, 1))]
-        
-    #     try:
-    #         index = SimhashIndex([], k=3)
-    #         unique_contents = []
-    #         for content in contents:
-    #             simhash_value = Simhash(get_features(content))
-    #             if not index.get_near_dups(simhash_value):
-    #                 unique_contents.append(content)
-    #                 index.add(content, simhash_value)
-    #     except Exception as e:
-    #         return False, self.get_error_info("fail to remove duplicate!", e)
-    #     return True, unique_contents

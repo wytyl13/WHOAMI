@@ -10,6 +10,7 @@ import requests
 
 from whoami.utils.log import Logger
 from whoami.llm_api.general_api import APIRequestor
+
 logger = Logger('GeneralAPIRequestor')
 
 def parse_stream_helper(line: bytes) -> Union[bytes, None]:
@@ -27,13 +28,11 @@ def parse_stream_helper(line: bytes) -> Union[bytes, None]:
             return line
     return None
 
-
 def parse_stream(rbody: Iterator[bytes]) -> Iterator[bytes]:
     for line in rbody:
         _line = parse_stream_helper(line)
         if _line is not None:
             yield _line
-
 
 class GeneralAPIRequestor(APIRequestor):
     """

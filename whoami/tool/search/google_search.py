@@ -17,29 +17,96 @@ from newspaper import Article
 import re
 import threading
 import os
-
-from pydantic import BaseModel
+from simhash import Simhash, SimhashIndex
+from typing import (
+    AsyncGenerator,
+    AsyncIterator,
+    Dict,
+    Iterator,
+    Optional,
+    Tuple,
+    Union,
+    overload,
+)
 
 from whoami.utils.utils import Utils
 from whoami.utils.log import Logger
-
-
+from whoami.tool.base.base_tool import BaseTool
+from whoami.configs.search_config import SearchConfig
 utils = Utils()
-logger = Logger('GoogleSearch')
 
-class GoogleSearch(BaseModel):
+ROOT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
+CONFIG_PATH = os.path.abspath(os.path.join(ROOT_DIRECTORY, "search_config_case.yaml"))
+
+class GoogleSearch(BaseTool):
+    search_config: Optional[SearchConfig] = None
+    search_config_path: Optional[str] = CONFIG_PATH
+    key: Optional[str] = None
+    cx: Optional[str] = None
+    snippet_flag: Optional[int] = None
+    blocked_domains: Optional[list] = None
+    end_flag: Optional[int] = 0
+    query_num: Optional[int] = None
+
     def __init__(
                 self, 
-                key: str = 'AIzaSyBIzlzwDtbzm7O4g3DzC8JrKe6hfo43TAc', 
-                cx: str = '43cf2dbf880b24cb0',
-                snippet_flag = 0
+                key: Optional[str] = None, 
+                cx: Optional[str] = None,
+                search_config: Optional[SearchConfig] = None,
+                search_config_path: Optional[str] = CONFIG_PATH,
+                snippet_flag: Optional[int] = 0,
+                blocked_domains: Optional[list] = None,
+                end_flag: Optional[int] = 0,
+                query_num: Optional[int] = None
             ) -> None:
-        self.key = key
-        self.cx = cx
-        self.blocked_domains = ["youtube.com", "vimeo.com", "dailymotion.com", "bilibili.com"]
-        self.snippet_flag = snippet_flag
-        self.end_flag = 0
-    
+        super().__init__()
+        self.end_flag = end_flag if end_flag is not None else self.end_flag
+        self.search_config_path = search_config_path if search_config_path is not None else self.search_config_path
+        self.search_config = search_config if search_config is not None else self.search_config
+        self._init_param(key, cx, blocked_domains, snippet_flag, query_num)
+       
+    def remove_duplicate_simhash(self, contents: list[str]) -> list[str]:
+        """remove duplicate paragraph used simhash
+
+        Args:
+            contents (list[str]): the paragraph list.
+        """
+        def get_features(s):
+            width = 3
+            s = s.lower()
+            s = re.sub(r'[^\w]+', '', s)
+            return [s[i:i + width] for i in range(max(len(s) - width + 1, 1))]
+        
+        try:
+            index = SimhashIndex([], k=3)
+            unique_contents = []
+            for content in contents:
+                simhash_value = Simhash(get_features(content))
+                if not index.get_near_dups(simhash_value):
+                    unique_contents.append(content)
+                    index.add(content, simhash_value)
+        except Exception as e:
+            return False, self.get_error_info("fail to remove duplicate!", e)
+        return True, unique_contents
+        
+    def _init_param(self, key, cx, blocked_domains, snippet_flag, query_num):
+        self.key = key if key is not None else self.key
+        self.cx = cx if cx is not None else self.cx
+        self.blocked_domains = blocked_domains if blocked_domains is not None else self.blocked_domains
+        self.snippet_flag = snippet_flag if snippet_flag is not None else self.snippet_flag
+        self.query_num = query_num if query_num  is not None else self.query_num
+        if self.search_config is None and self.search_config_path is not None:
+            self.search_config = SearchConfig.from_file(self.search_config_path)
+        
+        if self.search_config is not None:
+            self.key = self.search_config.key if self.key is None else self.key
+            self.cx = self.search_config.cx if self.cx is None else self.cx
+            self.blocked_domains = self.search_config.blocked_domains if self.blocked_domains is None else self.blocked_domains
+            self.snippet_flag = self.search_config.snippet_flag if self.snippet_flag is None else self.snippet_flag
+            self.query_num = self.search_config.query_num if self.query_num is None else self.query_num
+        if None in {self.key, self.cx, self.snippet_flag} or self.blocked_domains is None:
+            raise ValueError('invalid parameters in GoogleSearch!')
+
     def fetch_url_content(self, url: str, max_request_num: int = 3):
         max_request_num -= 1
         try:
@@ -50,15 +117,16 @@ class GoogleSearch(BaseModel):
             return True, response.text
         except Exception as e:
             if max_request_num > 0:
-                logger.warning(f"fail to request, retry: {url}，the num of rest request: {max_request_num}")
+                self.logger.warning(f"fail to request, retry: {url}，the num of rest request: {max_request_num}")
                 time.sleep(2)
                 return False, self.fetch_url_content(url, max_request_num)
             error_info = utils.get_error_info("fail to request: {url}!", e)
-            logger.error(error_info)
+            self.logger.error(error_info)
             return False, error_info
     
-    def preprocess_web_content(url, original_content, min_paraph_length: int = 50):
+    def preprocess_web_content(self, url, original_content, min_paraph_length: int = 50):
         process_result = []
+        
         # init the query result
         content = ""
         try:
@@ -77,13 +145,13 @@ class GoogleSearch(BaseModel):
             
             # drop all the black string.
             original_content_list = [x for x in original_content_list if x and x.strip()]
-            logger.info(original_content_list)
+            self.logger.info(original_content_list)
             total_index_sum = len(original_content_list)
             total_length = sum(len(s) for s in original_content_list)
             average_length = total_length / total_index_sum if original_content_list else 0
-            logger.info(f"=================Go ahead the link: {url}=================") 
-            logger.info(f"the result before processing：\n{original_content_list}") 
-            logger.info(f"=================Number of paragraphs before processing is {total_index_sum}, the total number of words before processing is {total_length}，the average number of words for each paragraphs is {average_length:.0f}=================") 
+            self.logger.info(f"=================Go ahead the link: {url}=================") 
+            self.logger.info(f"the result before processing：\n{original_content_list}") 
+            self.logger.info(f"=================Number of paragraphs before processing is {total_index_sum}, the total number of words before processing is {total_length}，the average number of words for each paragraphs is {average_length:.0f}=================") 
             for p in original_content_list:
                 # first, clear all the url.
                 cleaned_text = re.sub(r'https?://[^\s]+|www\.[^\s]+', '', p)
@@ -105,17 +173,17 @@ class GoogleSearch(BaseModel):
                 max_length_cleaned_text = max(utils.count_chinese_characters(cleaned_text)[1], utils.count_english_words(cleaned_text)[1])
                 if max_length_cleaned_text >= min_paraph_length and not cleaned_text.startswith('Sorry'):
                     process_result.append(cleaned_text)
-            logger.info(f"=================开始去重！=================") 
-            status, process_result = utils.remove_duplicate_simhash(process_result)
+            self.logger.info(f"=================开始去重！=================") 
+            status, process_result = self.remove_duplicate_simhash(process_result)
             if not status:
-                logger.error(f"=================去重失败！=================") 
+                self.logger.error(f"=================去重失败！=================") 
                 return False, process_result
-            logger.info(f"=================去重完成！=================") 
+            self.logger.info(f"=================去重完成！=================") 
             total_index_sum = len(process_result)
             total_length = sum(len(s) for s in process_result)
             average_length = total_length / total_index_sum if process_result else 0
-            logger.info(f"=================处理后的段落数是{total_index_sum}，总字数是{total_length}，平均段落字数是{average_length:.0f}=================") 
-            logger.info(f"处理结果如下：\n{process_result}")
+            self.logger.info(f"=================处理后的段落数是{total_index_sum}，总字数是{total_length}，平均段落字数是{average_length:.0f}=================") 
+            self.logger.info(f"处理结果如下：\n{process_result}")
         except Exception as e:
             return False, utils.get_error_info("预处理检索结果错误！", e)
         return True, process_result
@@ -227,11 +295,11 @@ class GoogleSearch(BaseModel):
             
         for thread in threads:
             thread.join()
-        logger.info(f"不同方法从html到text的解析结果：{url}为\n{results}")
+        self.logger.info(f"不同方法从html到text的解析结果：{url}为\n{results}")
         return get_longest_value(results)    
     
     def __call__(self, *args, **kwds) -> str:
-        logger.info(f"{kwds}")
+        self.logger.info(f"{kwds}")
         
         query = kwds['query'] if 'query' in kwds else ''
         
@@ -243,6 +311,7 @@ class GoogleSearch(BaseModel):
             "key": self.key,
             "cx": self.cx,
             "q": query,
+            "num": self.query_num
         }
         try:
             response = requests.get(search_url, params=params)
@@ -250,7 +319,7 @@ class GoogleSearch(BaseModel):
             search_results = response.json()
         except Exception as e:
             error_info = utils.get_error_info("fail to request google api！", e)
-            logger.error(error_info)
+            self.logger.error(error_info)
             return False, error_info
         
         # extract the interested content from the search results.
@@ -261,10 +330,10 @@ class GoogleSearch(BaseModel):
                 if not any(domain in item['link'] for domain in self.blocked_domains)
                 and not item['link'].endswith(('pdf', 'mp4', 'mp3', 'ashx', 'avi'))
             ]
-            logger.info(f"google search result: \n{result}")
+            self.logger.info(f"google search result: \n{result}")
         except Exception as e:
             error_info = utils.get_error_info("fail to extract interested content.", e)
-            logger.error(error_info)
+            self.logger.error(error_info)
             return False, error_info
         
         if self.snippet_flag:
@@ -277,6 +346,6 @@ class GoogleSearch(BaseModel):
             if status:
                 if content:
                     # parse the html content
-                    item["fetch_url_content"] = self.preprocess_web_content(self._parse_html(item['link'], content))
+                    item["fetch_url_content"] = self.preprocess_web_content(url=item['link'], original_content=self._parse_html(item['link'], content))
                     fetch_url_content_result.append(item)
-        return True, fetch_url_content_resultself
+        return True, fetch_url_content_result
