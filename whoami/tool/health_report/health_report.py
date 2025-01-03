@@ -591,7 +591,6 @@ class HealthReport(BaseProvider):
         real_leave_count_result, real_leave_index = self.count_consecutive_zeros(in_out_bed, 300)
         leave_count = len(real_leave_count_result) - 1 if real_leave_count_result else 0
 
-
         leave_bed_total_second = sum(real_leave_count_result[1:])
         leave_bed_time = all_create_time[real_leave_index[-1][-1]] if real_leave_index else all_create_time[-1]
         
