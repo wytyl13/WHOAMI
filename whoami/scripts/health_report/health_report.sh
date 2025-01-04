@@ -1,6 +1,12 @@
 #!/bin/bash
-CURRENT_ROOT=$(dirname "$(readlink -f "$0")")
-PROJECT_ROOT=$(dirname "$(dirname "$(dirname "$CURRENT_ROOT")")")
+
+# 从命令行参数获取 PROJECT_ROOT，如果未提供，则使用现有方式
+if [ -n "$1" ]; then
+    PROJECT_ROOT="$1"
+else
+    CURRENT_ROOT=$(dirname "$(readlink -f "$0")")
+    PROJECT_ROOT=$(dirname "$(dirname "$(dirname "$CURRENT_ROOT")")")
+fi
 
 check_and_kill_port() {
     local port=$1
@@ -17,7 +23,7 @@ check_and_kill_port() {
 check_and_kill_port 8000
 
 # 激活虚拟环境
-CONDA_ENV='/work/soft/miniconda3/bin/'
+CONDA_ENV='/home/weiyutao/miniconda3/bin/'
 export PATH=$CONDA_ENV:$PATH
 eval "$(conda shell.bash hook)"
 conda init bash

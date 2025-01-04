@@ -36,10 +36,14 @@ from whoami.provider.base_ import ModelType
 from whoami.tool.health_report.sleep_indices import SleepIndices
 from whoami.llm_api.ollama_llm import OllamLLM
 from whoami.configs.llm_config import LLMConfig
+from whoami.tool.health_report.standard_breath_heart import StandardBreathHeart
 
 ROOT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 
-llm = OllamLLM(LLMConfig.from_file(Path("/home/weiyutao/work/WHOAMI/whoami/scripts/test/ollama_config.yaml")))
+llm = OllamLLM(
+    LLMConfig.from_file(Path("/home/weiyutao/work/WHOAMI/whoami/scripts/test/ollama_config.yaml")),
+    temperature=0.8
+)
 
 class HealthReport(BaseProvider):
     sql_config_path: Optional[str] = None
@@ -48,7 +52,11 @@ class HealthReport(BaseProvider):
     query_date: Optional[str] = None
     device_sn: Optional[str] = None
     model: Type[ModelType] = SleepIndices
-    
+    standard_breath_heart: Optional[SqlProvider] = None
+    breath_bpm_low: Optional[int] = None
+    breath_bpm_high: Optional[int] = None
+    heart_bpm_low: Optional[int] = None
+    heart_bpm_high: Optional[int] = None
     def __init__(
         self, 
         sql_config_path: Optional[str] = None, 
@@ -59,12 +67,24 @@ class HealthReport(BaseProvider):
         model: Type[ModelType] = None
     ) -> None:
         super().__init__()
+
         self._init_param(sql_config_path, sql_config, data_provider, query_date, device_sn, model=model)
         # 查询是否已经存在，否则直接返回
         first_check_condition = {"device_sn": self.device_sn, "query_date": self.query_date}
         record_ = self.data_provider.sql_provider.get_record_by_condition(first_check_condition)
         if record_:
             raise ValueError(f"exists! {first_check_condition}")
+        
+        # init the breath heart param
+        try:
+            self.standard_breath_heart = SqlProvider(StandardBreathHeart, sql_config_path=self.sql_config_path)
+            standard_breath_heart_default_data = self.standard_breath_heart.get_record_by_condition({"device_sn": "default_config"})[0]
+            self.breath_bpm_low = standard_breath_heart_default_data["breath_bpm_low"] # read from sql where table is sx_device_wavve_vital_sign_config
+            self.breath_bpm_high = standard_breath_heart_default_data["breath_bpm_high"] # read from sql where table is sx_device_wavve_vital_sign_config
+            self.heart_bpm_low = standard_breath_heart_default_data["heart_bpm_low"] # read from sql where table is sx_device_wavve_vital_sign_config
+            self.heart_bpm_high = standard_breath_heart_default_data["heart_bpm_high"] # read from sql where table is sx_device_wavve_vital_sign_config
+        except Exception as e:
+            raise ValueError("fail to init breath heart bpm low and high!") from e
     
     def _init_param(self, sql_config_path, sql_config, data_provider, query_date, device_sn, model):
         self.sql_config_path = sql_config_path
@@ -84,8 +104,8 @@ class HealthReport(BaseProvider):
                 pre_date_str = (current_date - timedelta(days=1)).strftime('%Y-%m-%d')
                 start = pre_date_str + ' 20:00:00'
                 end = current_date_str + ' 09:00:00'
-                # sql_query = f"SELECT in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
-                sql_query = f"SELECT in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log_bxx_0103 WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
+                sql_query = f"SELECT in_out_bed, signal_intensity, breath_line, heart_line, breath_bpm, heart_bpm, state, body_move_data, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
+                # sql_query = f"SELECT in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log_bxx_0103 WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
                 self.data_provider = SxDataProvider(sql_config_path=self.sql_config_path, sql_config=self.sql_config, sql_query=sql_query, model=self.model)
             else:
                 self.data_provider = SxDataProvider(sql_config_path=self.sql_config_path, sql_config=self.sql_config, model=self.model)
@@ -93,10 +113,9 @@ class HealthReport(BaseProvider):
     def init_data(self, batch_size: Optional[int] = 60*60*14):
         dataloader = DataLoader(self.data_provider, batch_size=batch_size, shuffle=False)
         data_list = []
-        # 去掉distance=0的情况
         for batch in dataloader:
             float_array = batch.numpy()
-            float_array = float_array[float_array[:, 1] != 0]
+            # float_array = float_array[float_array[:, 1] != 0]
             data_list.append(float_array)
         return data_list
     
@@ -168,8 +187,8 @@ class HealthReport(BaseProvider):
             "leave_count": [0, 2],
             "to_sleep_second": [0, 1800],
             "body_move_exponent": [1.25, 15],
-            "breath_bpm": [8, 22],
-            "heart_bpm": [40, 100],
+            "breath_bpm": [self.breath_bpm_low, self.breath_bpm_high],
+            "heart_bpm": [self.heart_bpm_low, self.heart_bpm_high],
             "breath_exception_exponent": [0, 5]
         }
 
@@ -441,12 +460,13 @@ class HealthReport(BaseProvider):
             for index, batch in enumerate(all_batch_list):
                 batch_in_out_bed = batch[:, 0]
                 batch_create_time = batch[:, -1]
-                batch_state = batch[:, 6][batch_in_out_bed == 1]
-                batch_state_0_1 = np.where(batch_state == 0, 0, 1)
+                batch_body_move = batch[:, 7][batch_in_out_bed == 1]
+                batch_body_move_0_1 = np.where(batch_body_move != 0, 0, 1)
+
                 if index == 0:
                     body_move_count_list.append(0)
                     create_time_list.append(int(batch_create_time[0]))
-                body_move_result, body_move_index = self.count_consecutive_zeros(batch_state_0_1, 0)
+                body_move_result, body_move_index = self.count_consecutive_zeros(batch_body_move_0_1, 0)
                 body_move_count = len(body_move_result)
                 body_move_count_list.append(body_move_count)
                 create_time_list.append(int(batch_create_time[-1]))
@@ -525,6 +545,7 @@ class HealthReport(BaseProvider):
             rank_ = [round((total_poeple - item) / total_poeple, 2) if total_poeple != 0 else 1 for item in rank_list]
             for index, new_rank in enumerate(rank_):
                 self.data_provider.sql_provider.update_rank_by_id(ids[index], new_rank)
+            return rank_
         except Exception as e:
             raise ValueError('fail to exec _rank function!') from e
     
@@ -563,11 +584,11 @@ class HealthReport(BaseProvider):
                 {health_data}
                 
                 note:
-                - Focus on recommendations.
-                - Output as plain Chinese text.
-                - Output recommendations directly without categorization.
-                - Maintaining professionalism and rigor.
                 - Do not use special symbols.
+                - Maintaining professionalism and rigor.
+                - Focus on recommendations and don't go off topic.
+                - Output as plain Chinese text and output recommendations directly without categorization.
+                - It is recommended to try to have corresponding data references and as precise as possible to the point in time.
                 """
                 content = llm.whoami(health_prompt, stream=False)
                 self.logger.info(content)
@@ -667,10 +688,11 @@ class HealthReport(BaseProvider):
             heart_bpm = in_bed_data[:, 5]
             
             # 添加呼吸心率秒级绘图数据
-            breath_bpm_image_x_y = [[datetime.fromtimestamp(int(create_time[x]), tz=timezone.utc).astimezone(timezone(timedelta(hours=8))).strftime("%H:%M:%S") for x in range(0, len(create_time.tolist()), 60)], [int(breath_bpm[x]) for x in range(0, len(breath_bpm.tolist()), 60)]]
-            heart_bpm_image_x_y = [[datetime.fromtimestamp(int(create_time[x]), tz=timezone.utc).astimezone(timezone(timedelta(hours=8))).strftime("%H:%M:%S") for x in range(0, len(create_time.tolist()), 60)], [int(heart_bpm[x]) for x in range(0, len(heart_bpm.tolist()), 60)]]
-            
-            breath_exception = np.where((breath_bpm < 8) | (breath_bpm > 23) & (heart_bpm != 0), 0, 1)
+            # 适配前端数据格式
+            breath_bpm_image_x_y = [[datetime.fromtimestamp(int(create_time[i]), tz=timezone.utc).astimezone(timezone(timedelta(hours=8))).strftime("%H:%M:%S"), int(breath_bpm[i])] for i in range(0, len(create_time.tolist()), 60)]
+            heart_bpm_image_x_y = [[datetime.fromtimestamp(int(create_time[i]), tz=timezone.utc).astimezone(timezone(timedelta(hours=8))).strftime("%H:%M:%S"), int(heart_bpm[i])] for i in range(0, len(create_time.tolist()), 60)]
+
+            breath_exception = np.where((breath_bpm < self.breath_bpm_low) | (breath_bpm > self.breath_bpm_high) & (heart_bpm != 0), 0, 1)
             real_breath_exception_result, real_breath_exception_index = self.count_consecutive_zeros(breath_exception, 0)
             real_breath_exception_result = [item for item in real_breath_exception_result]
             
@@ -695,7 +717,7 @@ class HealthReport(BaseProvider):
                         end_index = start_index + 60
                 return data[start_index:end_index]
             
-            breath_exception_60S_x = [[int(value) for value in get_start_end_index(breath_bpm, item[-1], create_time)] for item in real_breath_exception_index]
+            breath_exception_60S_x = [[datetime.fromtimestamp(int(value), tz=timezone.utc).astimezone(timezone(timedelta(hours=8))).strftime("%H:%M:%S") for value in get_start_end_index(breath_bpm, item[-1], create_time)] for item in real_breath_exception_index]
             breath_exception_60S_y = [[int(value) for value in get_start_end_index(breath_bpm, item[-1], breath_bpm)] for item in real_breath_exception_index]
             breath_exception_60S_x_y = [breath_exception_60S_x, breath_exception_60S_y]
             sleep_result["breath_exception_count"] = len(real_breath_exception_result) # 呼吸异常次数

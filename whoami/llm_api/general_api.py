@@ -579,6 +579,7 @@ class APIRequestor:
             "data": data,
             "timeout": timeout,
         }
+        logger.info(request_kwargs)
         try:
             result = await session.request(**request_kwargs)
             # log_info(

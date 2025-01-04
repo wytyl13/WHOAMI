@@ -24,7 +24,7 @@ else
 fi
 
 # 激活虚拟环境
-CONDA_ENV='/work/soft/miniconda3/bin/'
+CONDA_ENV='/home/weiyutao/miniconda3/bin/'
 export PATH=$CONDA_ENV:$PATH
 eval "$(conda shell.bash hook)"
 conda init bash

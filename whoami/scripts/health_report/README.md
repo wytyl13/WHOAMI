@@ -28,7 +28,6 @@ response json:
 ## result details
 
 ```
-
 # 绘图数据起始时间戳区间固定
 {
     'total_num_second_on_bed': 38342, # 总在床时长（秒）
@@ -74,12 +73,49 @@ response json:
 ```
 
 ## 开发日志
+```
+# 对原始数据的理解
+1 body_move_data != 0 体动  体动情况下有心率呼吸率数据，因此也要对体动进行睡眠分区
+2 distance 和 signal_intensity 成正比 但是不绝对（存在有距离但是信号强度为0的情况）
+3 信号强度signal_intensity（未使用）信号强度为0时离床
+    信号强度不为0一定有数据，距离不为0不一定有数据，信号为0也可能有数据（但是少数13D2F34920008071211195ED07）
+    signal_intensity == 0 and state == 0 不存在
+    signal_intensity == 0 and breath_bpm != 0 不存在
+    signal_intensity == 0 and inout_bed == 1 存在少数（13D2F34920008071211195ED07）
+    signal_intensity != 0 and inout_bed == 0 存在少数（13D4F349200080712111955907）
+    signal_intensity != 0 and breath_bpm == 0 存在少数但是属于憋气状态（因此根据信号强度来判断在离床最准确）
+    signal_intensity == 0 and inout_bed is none 存在多数
+    signal_intensity == 0 and in_out_bed is none and breath_bpm != 0 存在少数（可以忽略）
+4 in_out_bed 在离床
+    in_out_bed == 1 and heart_bpm == 0 不存在
+    in_out_bed == 0 and heart_bpm != 0 不存在
+    in_out_bed is none and heart_bpm != 0 存在多数
+5 决定：在离床判断条件 
+    signal_intensity == 0 and inout_bed != 1  离床
+    signal_intensity !=0 or (signal_intensity == 0 and inout_bed == 1) 在床
+6 state稳定性（未使用，通过分析原始数据发现，该稳定性数值本身并不稳定）
+    signal_intensity=0 and state=0 数据不稳定
+    刚开始使用其判断体动，后引入体动动量值指标，所以抛弃
+7 睡眠分区要基于在床数据进行分析
+    1 首先对原始数据使用4条件分类为离床和在床
 
+    2 基于在床数据做睡眠分区并统计睡眠数据
+        使用统计方式分区
+
+    3 然后基于在床数据去进行体动统计
+    signal_intensity is none and body_move_data is not none 体动
+    查询对应的device_sn和create_time然后将对应的体动数据赋值给对应的条目
+    统计一个总体动次数
+    以20分钟为一个批次统计体动次数并报告统计数据
+
+    4 判断呼吸异常事件
+    呼吸异常 "breath_bpm": [10, 22]  标准区间，该标准区间由后端使用数据库维护
+    不在区间范围内定义为呼吸异常，报告该呼吸异常60秒内的呼吸率数据
+
+8 
 ```
 v1.0 
 完成：在离床  
-
-
 
 已完成：
 1、各项基本指标的获得
