@@ -10,11 +10,11 @@ fi
 
 check_and_kill_port() {
     local port=$1
-    local pid=$(lsof -t -i :$port)
+    local pid=$(sudo lsof -t -i :$port)
 
     if [ -n "$pid" ]; then
         echo "端口 $port 已被占用，正在终止进程 $pid"
-        kill $pid
+        sudo kill $pid
     else
         echo "端口 $port 未被占用"
     fi

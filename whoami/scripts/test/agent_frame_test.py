@@ -10,13 +10,10 @@ llm = ChatOpenAI(
             base_url="http://localhost:11434/v1",
         )
 
-
-
 @tool
 def multiply(a: int, b: int):
     """Multiply two numbers."""
     return a * b
-
 
 if __name__ == '__main__':
     print(multiply.name)

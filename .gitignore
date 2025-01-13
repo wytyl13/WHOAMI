@@ -5,3 +5,4 @@ whoami/scripts/health_report/sql_config.yaml
 whoami/scripts/detect/detect_config.yaml
 whoami/scripts/test/ollama_config.yaml
 whoami/scripts/test/search_config.yaml
+whoami/out

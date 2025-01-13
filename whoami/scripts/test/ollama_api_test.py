@@ -31,23 +31,31 @@ if __name__ == '__main__':
         temperature=0.0
     )
     
-    sql_provider = SqlProvider(sql_config_path="/home/weiyutao/work/WHOAMI/whoami/scripts/health_report/sql_config.yaml", model=SleepIndices)
-    filed_description = sql_provider.get_field_names_and_descriptions()
-    health_data = sql_provider.get_record_by_condition({"device_sn": "13D6F349200080712111952D07", "query_date": "2024-12-28"})
-    if health_data:
-        del health_data[0]['breath_bpm_image_x_y']
-        del health_data[0]['heart_bpm_image_x_y']
+    # sql_provider = SqlProvider(sql_config_path="/home/weiyutao/work/WHOAMI/whoami/scripts/health_report/sql_config.yaml", model=SleepIndices)
+    # filed_description = sql_provider.get_field_names_and_descriptions()
+    # health_data = sql_provider.get_record_by_condition({"device_sn": "13D6F349200080712111952D07", "query_date": "2024-12-28"})
+    # if health_data:
+    #     del health_data[0]['breath_bpm_image_x_y']
+    #     del health_data[0]['heart_bpm_image_x_y']
     
-    health_prompt = f"""
-    You are a professional health doctor, please give professional advice based on the user's health data, The health data fields correspond as follows:
-    {filed_description}
+    # health_prompt = f"""
+    # You are a professional health doctor, please give professional advice based on the user's health data, The health data fields correspond as follows:
+    # {filed_description}
     
-    The breakdown of the user's health data is as follows:
-    {health_data}
+    # The breakdown of the user's health data is as follows:
+    # {health_data}
     
-    note:
-    - Focus on recommendations
-    - Output as plain Chinese text
+    # note:
+    # - Focus on recommendations
+    # - Output as plain Chinese text
+    # """
+    health_prompt = """
+    帮我颠倒输出这句话单词
+    Yesterday, my TV stopped working. Now, I can’t turn it on at all.
+    """
+    health_prompt = """
+    帮我颠倒输出这句话
+    我是谁，我来自哪里，我要到哪里去？
     """
     
     content = llm.whoami(health_prompt, stream=False, user_stop_words=[])

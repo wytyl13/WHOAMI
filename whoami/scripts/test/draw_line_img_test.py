@@ -19,6 +19,7 @@ from matplotlib.font_manager import FontProperties
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 from datetime import datetime
+from scipy.signal import medfilt
 
 font = FontProperties(fname='/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc', size=14)
 OUT_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -192,28 +193,32 @@ from whoami.tool.health_report.sleep_indices import SleepIndices
 if __name__ == '__main__':
     
     sql_config_path = "/home/weiyutao/work/WHOAMI/whoami/scripts/health_report/sql_config.yaml"
-    sql_provider = SqlProvider(sql_config_path)
-    query_text = "SELECT breath_bpm, heart_bpm, stable_num, UNIX_TIMESTAMP(create_time) as create_time FROM sx_device_sleep_vital_sign_log WHERE device_sn='C82E18AFA5B4' AND create_time>='2024-12-28 20:00:00' AND create_time<='2024-12-29 12:00:00'"
+    # sql_provider = SqlProvider(sql_config_path)
+    query_text = "SELECT in_out_bed, signal_intensity, breath_line, heart_line, breath_bpm, heart_bpm, state, body_move_data, UNIX_TIMESTAMP(create_time) as create_time FROM sx_device_wavve_vital_sign_log WHERE device_sn='13D1F349200080712111151107' AND create_time>='2025-1-8 12:00:00' AND create_time<='2025-1-8 14:00:00'"
+    sx_data_provider = SxDataProvider(sql_config_path=sql_config_path, sql_query=query_text, model=SleepIndices)
+    dataloader = DataLoader(sx_data_provider, batch_size=60*60*20, shuffle=False)
+    if len(dataloader) == 0:
+        raise ValueError('the data is empty!')
+    for batch in dataloader:
+        breath_bpm = batch[:, 4]
+        heart_bpm = batch[:, 5]
+        state = batch[:, 6]
+        create_time = batch[:, -1]
+        data_1 = [breath_bpm, heart_bpm, state, create_time]
+    
+    query_text = "SELECT in_out_bed, signal_intensity, breath_line, heart_line, breath_bpm, heart_bpm, state, body_move_data, UNIX_TIMESTAMP(create_time) as create_time FROM sx_device_wavve_vital_sign_log WHERE device_sn='13D1F349200080712111151107' AND create_time>='2025-1-8 12:00:00' AND create_time<='2025-1-8 14:00:00'"
     sx_data_provider = SxDataProvider(sql_config_path=sql_config_path, sql_query=query_text, model=SleepIndices)
     dataloader = DataLoader(sx_data_provider, batch_size=60*60*20, shuffle=False)
     for batch in dataloader:
-        breath_bpm = batch[:, 0]
-        heart_bopm = batch[:, 1]
-        state = batch[:, 2]
-        create_time = batch[:, 3]
-        data_1 = [breath_bpm, heart_bopm, state, create_time]
+        breath_bpm = batch[:, 4]
+        heart_bpm = batch[:, 5]
+        breath_bpm = medfilt(breath_bpm, kernel_size=59)
+        heart_bpm = medfilt(heart_bpm, kernel_size=59)
+        state = batch[:, 6]
+        create_time = batch[:, -1]
+        data_2 = [breath_bpm, heart_bpm, state, create_time]
     
-    query_text = "SELECT breath_bpm, heart_bpm, stable_num, UNIX_TIMESTAMP(create_time) as create_time FROM sx_device_sleep_vital_sign_log WHERE device_sn='C82E18AFA5B4' AND create_time>='2024-12-27 20:00:00' AND create_time<='2024-12-28 12:00:00'"
-    sx_data_provider = SxDataProvider(sql_config_path=sql_config_path, sql_query=query_text, model=SleepIndices)
-    dataloader = DataLoader(sx_data_provider, batch_size=60*60*20, shuffle=False)
-    for batch in dataloader:
-        breath_bpm = batch[:, 0]
-        heart_bopm = batch[:, 1]
-        state = batch[:, 2]
-        create_time = batch[:, 3]
-        data_2 = [breath_bpm, heart_bopm, state, create_time]
-    
-    draw_line_hear_breath(data_1[0], data_1[1], data_1[2], data_1[3], data_2[0], data_2[1], data_2[2], data_2[3], '2024_12_28_29')
+    draw_line_hear_breath(data_1[0], data_1[1], data_1[2], data_1[3], data_2[0], data_2[1], data_2[2], data_2[3], '2025_1_8_14')
 
     # device_sn = "13D7F349200080712111150807"
     # query_date = "2024-12-25"

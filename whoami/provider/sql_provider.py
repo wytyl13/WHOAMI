@@ -25,6 +25,7 @@ from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from sqlalchemy.ext.declarative import declarative_base
 import numpy as np
 from contextlib import contextmanager
+import traceback
 
 from whoami.provider.base_provider import BaseProvider
 from whoami.configs.sql_config import SqlConfig
@@ -112,8 +113,9 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 record_id = record.id
                 return record_id
             except Exception as e:
-                error_info = f"Failed to add record: {data}"
+                error_info = f"Failed to add record: {e}"
                 self.logger.error(error_info)
+                self.logger.error(traceback.print_exc())
                 raise ValueError(error_info) from e
     
     def delete_record(self, record_id: int) -> bool:

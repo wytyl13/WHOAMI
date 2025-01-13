@@ -50,21 +50,24 @@ class SxDataProvider(DataProvider):
         if data.size != 0:
             # 从数据库读取的none数据要先转换为np.nan否则不能直接转换为tensor
             data_with_npnan = np.where(data == None, np.nan, data).astype(np.float64)
-            
             # 提取所有体动数据
             body_move_rows = data_with_npnan[~np.isnan(data_with_npnan[:, 7])]
             body_move_values_to_fill = body_move_rows[:, 7]
             match_col_8 = body_move_rows[:, 8]
 
-            # 回填体动动量值，有动量的为原始数据，无动量的实用0填充
+            # 回填体动动量值，有动量的为原始数据，无动量的使用0填充
+            # in_out_bed, signal_intensity, breath_line, heart_line, breath_bpm, heart_bpm, state, body_move_data, create_time
             for i in range(len(body_move_rows)):
                 mask = (data_with_npnan[:, 8] == match_col_8[i])
                 data_with_npnan[mask, 7] = body_move_values_to_fill[i]
-                data_with_npnan[~mask, 7] = 0
+            
+            
+            data_with_npnan[np.isnan(data_with_npnan[:, 7]), 7] = 0
             # 先过滤掉为none的字段，因为转换为torch.float64会报错
             # 后续需要根据这些字段去拿到体动值数据
+            # 注意原始数据中，如果信号强度为0，心率呼吸率数据均为0，因此判断是否为空会保留这些为0的数据
             mask = ~(np.isnan(data_with_npnan[:, 4]) & np.isnan(data_with_npnan[:, 5]))
-            original_data = data[mask]
+            original_data = data_with_npnan[mask]
             
             # 在离床判断条件 
             # signal_intensity !=0 or (signal_intensity == 0 and inout_bed == 1) 在床

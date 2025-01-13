@@ -10,6 +10,9 @@ import os
 import shutil
 import re
 import yaml
+from typing import (
+    Optional
+)
 
 from whoami.utils.log import Logger
 logger = Logger('Utils')
@@ -49,6 +52,7 @@ class Utils:
                 shutil.rmtree(directory)
             if not os.path.exists(directory):
                 os.makedirs(directory)
+                os.chmod(directory, 0o755)
             return True, f"success to init the directory: {directory}！"
         except Exception as e:
             error_info = f"fail to init the directory: {directory}\n{str(e)}！\n{traceback.format_exc()}"
@@ -102,4 +106,57 @@ class Utils:
         except Exception as e:
             raise ValueError('fail to load yaml file!') from e
         return config
+    
+    def sort_two_list(self, list_one: Optional[list[list[int, int], list[int]]] = None, list_two: Optional[list[list[int, int], list[int]]] = None):
+        """
+        combined two list and rerank them. each list involved one timestamp range list and correspond label list.
+        rerank the timestamp range list and rerank the correspond label list.
+        """
+        try:
+            timestamp_range = list_one[0]
+            timestamp_range.extend(list_two[0])
+            label_value = list_one[1]
+            label_value.extend(list_two[1])
+            combined_data = list(zip(timestamp_range, label_value))
+            combined_data.sort(key=lambda x: x[0][0])
+            timestamps = set()
+            for (start, end), _ in combined_data:
+                timestamps.add(start)
+                timestamps.add(end)
+            timestamps = sorted(list(timestamps))
+            result = []
+            for i in range(len(timestamps) - 1):
+                current_time = timestamps[i]
+                next_time = timestamps[i + 1]
+                active_intervals = []
+                for (start, end), value in combined_data:
+                    if start <= current_time and end >= next_time:
+                        active_intervals.append((value, start))
+                if active_intervals:
+                    # Sort by start time in descending order
+                    active_intervals.sort(key=lambda x: x[1], reverse=True)
+                    value = active_intervals[0][0]
+                    result.append(([current_time, next_time], value))        
+                
+            merged_result = []
+            for interval in result:
+                if (merged_result and 
+                    merged_result[-1][1] == interval[1] and 
+                    merged_result[-1][0][1] == interval[0][0]):
+                    merged_result[-1] = ([merged_result[-1][0][0], interval[0][1]], interval[1])
+                else:
+                    merged_result.append(interval)
+                    
+            sorted_timestamps, sorted_labels = zip(*merged_result)
+        except Exception as e:
+            logger.error(traceback.print_exc())
+            raise ValueError('fail to exec sort two list function!') from e
+        return [sorted_timestamps, sorted_labels]
+        
+        
+        
+        
+
+
+    
     
