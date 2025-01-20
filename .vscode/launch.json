@@ -5,10 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Current File",
+            "name": "Python Debugger: ollama_api_test",
             "type": "debugpy",
             "request": "launch",
             "module": "whoami.scripts.test.ollama_api_test",
+            "console": "integratedTerminal",
+            "args": []
+        },
+        {
+            "name": "Python Debugger: agent_frame_test",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "whoami.scripts.test.agent_frame_test",
             "console": "integratedTerminal",
             "args": []
         }

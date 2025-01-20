@@ -29,6 +29,7 @@ from typing import (
 
 from whoami.tool.health_report.health_report import HealthReport
 from whoami.tool.health_report.sleep_indices import SleepIndices
+from whoami.provider.sql_provider import SqlProvider
 from whoami.utils.log import Logger
 from whoami.utils.R import R
 logger = Logger('health_report_fastapi')
@@ -41,6 +42,9 @@ SQL_CONFIG_PATH = os.path.join(ROOT_DIRECTORY, 'sql_config.yaml')
 class RequestData:
     device_sn: Optional[Union[list, str]] = None
     query_date: Optional[str] = None
+
+sql_provider = SqlProvider(model=SleepIndices, sql_config_path=SQL_CONFIG_PATH)
+
 
 @app.post('/sleep_indices')
 async def sleep_indices(request_data: RequestData, background_tasks: BackgroundTasks):
@@ -64,6 +68,7 @@ async def sleep_indices(request_data: RequestData, background_tasks: BackgroundT
         try:
             health_report = HealthReport(
                 sql_config_path=SQL_CONFIG_PATH,
+                # sql_provider=sql_provider,
                 query_date=query_date,
                 device_sn=device_sn_i,
                 model=SleepIndices

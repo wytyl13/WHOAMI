@@ -37,6 +37,7 @@ from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 from collections import Counter
 import matplotlib
+import pandas as pd
 
 from whoami.configs.sql_config import SqlConfig
 from whoami.provider.sql_provider import SqlProvider
@@ -63,6 +64,7 @@ llm = OllamLLM(
 class HealthReport(BaseProvider):
     sql_config_path: Optional[str] = None
     sql_config: Optional[SqlConfig] = None
+    sql_provider: Optional[SqlProvider] = None # if pass this variable, you can use the single sql_provider to handle all health_report instance.
     data_provider: Optional[SxDataProvider] = None
     query_date: Optional[str] = None
     device_sn: Optional[str] = None
@@ -77,6 +79,7 @@ class HealthReport(BaseProvider):
         self, 
         sql_config_path: Optional[str] = None, 
         sql_config: Optional[SqlConfig] = None, 
+        sql_provider: Optional[SqlProvider] = None,
         data_provider: Optional[SxDataProvider] = None,
         query_date: Optional[str] = None,
         device_sn: Optional[str] = None,
@@ -84,17 +87,18 @@ class HealthReport(BaseProvider):
     ) -> None:
         super().__init__()
 
-        self._init_param(sql_config_path, sql_config, data_provider, query_date, device_sn, model=model)
+        self._init_param(sql_config_path, sql_config, sql_provider, data_provider, query_date, device_sn, model=model)
         # 查询是否已经存在，否则直接返回
         first_check_condition = {"device_sn": self.device_sn, "query_date": self.query_date}
-        record_ = self.data_provider.sql_provider.get_record_by_condition(first_check_condition)
+        check_fields = ['id']
+        record_ = self.data_provider.sql_provider.get_record_by_condition(condition=first_check_condition, fields=check_fields)
         if record_:
             raise ValueError(f"exists! {first_check_condition}")
         
         # init the breath heart param
         try:
             self.standard_breath_heart = SqlProvider(StandardBreathHeart, sql_config_path=self.sql_config_path)
-            standard_breath_heart_default_data = self.standard_breath_heart.get_record_by_condition({"device_sn": "default_config"})[0]
+            standard_breath_heart_default_data = self.standard_breath_heart.get_record_by_condition(condition={"device_sn": "default_config"})[0]
             self.breath_bpm_low = standard_breath_heart_default_data["breath_bpm_low"] # read from sql where table is sx_device_wavve_vital_sign_config
             self.breath_bpm_high = standard_breath_heart_default_data["breath_bpm_high"] # read from sql where table is sx_device_wavve_vital_sign_config
             self.heart_bpm_low = standard_breath_heart_default_data["heart_bpm_low"] # read from sql where table is sx_device_wavve_vital_sign_config
@@ -102,13 +106,16 @@ class HealthReport(BaseProvider):
         except Exception as e:
             raise ValueError("fail to init breath heart bpm low and high!") from e
     
-    def _init_param(self, sql_config_path, sql_config, data_provider, query_date, device_sn, model):
+    
+    def _init_param(self, sql_config_path, sql_config, sql_provider, data_provider, query_date, device_sn, model):
         self.sql_config_path = sql_config_path
         self.sql_config = sql_config
+        self.sql_provider = sql_provider
         self.data_provider = data_provider if data_provider is not None else self.data_provider
         self.query_date = query_date
         self.device_sn = device_sn
         self.model=model if model is not None else self.model
+        
         if self.sql_config_path is None and self.sql_config is None and self.data_provider is None:
             raise ValueError('sql_config_path, sql_config, data_provider must not be none!')
         if self.data_provider is None:
@@ -120,11 +127,11 @@ class HealthReport(BaseProvider):
                 pre_date_str = (current_date - timedelta(days=1)).strftime('%Y-%m-%d')
                 start = pre_date_str + ' 20:00:00'
                 end = current_date_str + ' 09:00:00'
-                sql_query = f"SELECT in_out_bed, signal_intensity, breath_line, heart_line, breath_bpm, heart_bpm, state, body_move_data, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
-                # sql_query = f"SELECT in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log_bxx_0103 WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
-                self.data_provider = SxDataProvider(sql_config_path=self.sql_config_path, sql_config=self.sql_config, sql_query=sql_query, model=self.model)
+                sql_query = f"SELECT in_out_bed, signal_intensity, breath_line, heart_line, breath_bpm, heart_bpm, state, body_move_data, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log_20250120 WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
+                # sql_query = f"SELECT in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
+                self.data_provider = SxDataProvider(sql_config_path=self.sql_config_path, sql_config=self.sql_config, sql_provider=self.sql_provider, sql_query=sql_query, model=self.model)
             else:
-                self.data_provider = SxDataProvider(sql_config_path=self.sql_config_path, sql_config=self.sql_config, model=self.model)
+                self.data_provider = SxDataProvider(sql_config_path=self.sql_config_path, sql_config=self.sql_config, sql_provider=self.sql_provider, model=self.model)
 
     def init_data(self, batch_size: Optional[int] = 60*60*14):
         dataloader = DataLoader(self.data_provider, batch_size=batch_size, shuffle=False)
@@ -449,24 +456,27 @@ class HealthReport(BaseProvider):
         light_sleep_second = int(np.sum(stage_result == 2))
         
         waking_stage = np.where(stage_result == 3, 0, 1)
+        assert (len(waking_stage) == len(create_time)), f'fail to assert the dimension of waking_stage: {len(waking_stage)} and create_time: {len(create_time)}'
         real_waking_result, real_waking_index = self.count_consecutive_zeros(waking_stage, 30)
+        
+        # 注意每个分区的睡眠时长都可能为0
         waking_count = len(real_waking_result)
         
         # 夜醒时长，去除第一次入睡时长
-        first_waking_sleep_time = real_waking_result[0] if waking_stage[0] == 0 else 0
+        first_waking_sleep_time = real_waking_result[0] if (waking_stage[0] == 0 and waking_count != 0) else 0
         night_waking_second = waking_second - first_waking_sleep_time
 
         # 上床时间
         on_bed_time = create_time[0]
 
         # 入睡时间
-        sleep_time = create_time[real_waking_index[0][-1] + 1] if waking_stage[0] == 0 else create_time[0]
+        sleep_time = create_time[real_waking_index[0][-1] + 1] if (waking_stage[0] == 0 and waking_count != 0) else create_time[0]
 
         # 入睡时长，所有清醒时长平均值
-        to_sleep_second = waking_second / waking_count
+        to_sleep_second = waking_second / waking_count if waking_count != 0 else waking_second
         
         # 醒来时间，最后一次清醒的时间
-        waking_time = create_time[real_waking_index[-1][0]]
+        waking_time = create_time[real_waking_index[-1][0]] if waking_count != 0 else create_time[-1]
 
         result_data = {
             "total_num_second_on_bed": len(breath_line), # 总在床时长（秒）
@@ -552,7 +562,7 @@ class HealthReport(BaseProvider):
             return "较差"
     
     def _insert_sleep_indices_data(self, condition: Optional[Dict[str, Any]] = None, data: Optional[Dict[str, Any]] = None):
-        record_ = self.data_provider.sql_provider.get_record_by_condition(condition)
+        record_ = self.data_provider.sql_provider.get_record_by_condition(condition=condition, fields=['id'])
         if not record_:
             recode_result = self.data_provider.sql_provider.add_record(data)
             return recode_result
@@ -562,7 +572,7 @@ class HealthReport(BaseProvider):
     def _check_consist_indices(self, data: Optional[Dict[str, Any]] = None):
         """返回连续指标，连续？晚夜醒时长超标，连续？晚睡眠效率低于最低标准"""
         condition = {"device_sn": self.device_sn}
-        record_ = self.data_provider.sql_provider.get_record_by_condition(condition)
+        record_ = self.data_provider.sql_provider.get_record_by_condition(condition, fields=['query_date', 'waking_second', 'sleep_efficiency'])
         consist_count_waking_second = 0
         consist_count_sleep_efficiency = 0
         try:
@@ -583,6 +593,8 @@ class HealthReport(BaseProvider):
         self, 
         breath_bpm, 
         heart_bpm, 
+        breath_line,
+        heart_line,
         state,
         create_time, 
         all_breath_exception, 
@@ -592,6 +604,7 @@ class HealthReport(BaseProvider):
         sleep_stage_label = None, 
         query_date_device_sn: str = None
     ):
+        
         """assert the same input dimension"""
         assert (len(breath_bpm) == len(heart_bpm) == len(state) == len(create_time) == len(all_breath_exception) == len(all_body_move_01)), \
         "All input arrays must have the same length."
@@ -599,6 +612,24 @@ class HealthReport(BaseProvider):
         if sleep_stage_timestamp_range is not None and sleep_stage_label is not None:
             assert len(sleep_stage_timestamp_range) == len(sleep_stage_label), \
             "sleep_stage_timestamp_range and sleep_stage_label must have the same length."
+        
+        # 将睡眠分区和心率呼吸率数据写入csv文件，进行分区结果核对
+        intervals = np.array(sleep_stage_timestamp_range)
+        sleep_state = np.array(sleep_stage_label)
+        timestamps = np.array(create_time)
+        
+        formatted_times = np.array([
+            int(ts)
+            for ts in timestamps
+        ])
+        
+        starts = intervals[:, 0]
+        ends = intervals[:, 1]
+        in_interval = (timestamps[:, np.newaxis] >= starts) & (timestamps[:, np.newaxis] < ends)
+        # 匹配不上就是离床4
+        matched_values = np.where(in_interval.any(axis=1), sleep_state[in_interval.argmax(axis=1)], 4)
+        merged_data = np.column_stack((formatted_times, breath_bpm, heart_bpm, breath_line, heart_line, matched_values))
+        df = pd.DataFrame(merged_data, columns=['time', 'breath_bpm', 'heart_bpm', 'breath_line', 'heart_line', 'sleep_state'])
         
         try:
             breath_bpm = breath_bpm
@@ -840,15 +871,18 @@ class HealthReport(BaseProvider):
             if not status:
                 raise ValueError(result)
             save_file_name = f'{query_date_device_sn}_{time.strftime("%Y%m%d%H%M%S")}.png'
+            save_csv_name = f'{query_date_device_sn}_{time.strftime("%Y%m%d%H%M%S")}.csv'
             save_file_path = os.path.join(save_dir, save_file_name)
+            save_csv_file_path = os.path.join(save_dir, save_csv_name)
             plt.savefig(save_file_path, dpi=300, bbox_inches='tight')
+            df.to_csv(save_csv_file_path, index=False)
         except Exception as e:
             raise ValueError('fail to exec draw_line_hear_breath function!') from e
     
     def rank(self):
         try:
             condition = {"query_date": self.query_date}
-            record_ = self.data_provider.sql_provider.get_record_by_condition(condition)
+            record_ = self.data_provider.sql_provider.get_record_by_condition(condition=condition, fields=['id', 'score'])
             scores = [record['score'] for record in record_]
             ids = [record['id'] for record in record_]
             def rank_elements(input_list):
@@ -888,28 +922,34 @@ class HealthReport(BaseProvider):
         try:
             filed_description = self.data_provider.sql_provider.get_field_names_and_descriptions()
             condition = {"query_date": self.query_date}
-            record_ = self.data_provider.sql_provider.get_record_by_condition(condition)
+            record_ = self.data_provider.sql_provider.get_record_by_condition(condition=condition, exclude_fields=['breath_bpm_image_x_y', 'heart_bpm_image_x_y', 'sleep_stage_image_x_y'])
             for health_data in record_:
                 if health_data:
-                    del health_data['breath_bpm_image_x_y']
-                    del health_data['heart_bpm_image_x_y']
+                    if 'breath_bpm_image_x_y' in health_data:
+                        del health_data['breath_bpm_image_x_y']
+                    if 'heart_bpm_image_x_y' in health_data:
+                        del health_data['heart_bpm_image_x_y']
             
                 health_prompt = f"""
-                You are a professional health doctor, please give professional advice based on the user's health data, The health data fields correspond as follows:
+                请您作为一位专业的睡眠健康医生，基于以下睡眠监测数据生成一段专业的健康分析描述。
+                
+                字段描述：
                 {filed_description}
                 
-                Some of the health fileds standards are as follows:
+                健康标准区间：
                 {reference}
                 
-                The breakdown of the user's health data is as follows:
+                实际睡眠数据：
                 {health_data}
                 
-                note:
-                - Do not use special symbols.
-                - Maintaining professionalism and rigor.
-                - Focus on recommendations and don't go off topic.
-                - Output as plain Chinese text and output recommendations directly without categorization.
-                - It is recommended to try to have corresponding data references and as precise as possible to the point in time.
+                分析要求：
+                1. 严格对照实际数据和标准区间进行分析，确保数值完全准确
+                2. 以一段流畅的文字呈现，不使用特殊符号或分段
+                3. 优先分析异常指标，重点说明其偏离标准范围的程度
+                4. 结合所有指标给出专业的整体诊断判断
+                5. 使用专业医学视角，但确保描述通俗易懂
+                6. 在描述最后给出针对性的改善建议
+                7. 控制总体描述在150字以内
                 """
                 content = llm.whoami(health_prompt, stream=False)
                 self.logger.info(content)
@@ -1021,6 +1061,8 @@ class HealthReport(BaseProvider):
         all_state = all_data_list[0][:, 6]
         all_breath_bpm = all_data_list[0][:, 4]
         all_heart_bpm = all_data_list[0][:, 5]
+        all_breath_line = all_data_list[0][:, 2]
+        all_heart_line = all_data_list[0][:, 3]
         all_create_time = all_data_list[0][:, -1]
         all_body_move_01 = np.where(all_data_list[0][:, 7] != 0, 0, 1)
         
@@ -1069,6 +1111,7 @@ class HealthReport(BaseProvider):
             # heart_line = in_bed_data[:, 5]
 
             create_time = in_bed_data[:, -1]
+            assert (len(breath_line) == len(heart_line) == len(create_time) != 0)
             sleep_result, waking_time = self._sleep_state(breath_line, heart_line, create_time, 300, 0)
 
             # 并入离床次数和离床时间 
@@ -1188,12 +1231,24 @@ class HealthReport(BaseProvider):
             sleep_stage_image_x_y[0] = [[int(create_time[index[0]]), int(create_time[index[1]])]for index in sleep_stage_image_x_y[0]]
             leave_bed_stage_list = [list(real_index_list), [4] * len(real_index_list)]
             sleep_stage_image_x_y = utils.sort_two_list(sleep_stage_image_x_y, leave_bed_stage_list)
-            sleep_result["sleep_stage_image_x_y"] = json.dumps(sleep_stage_image_x_y)
+            
+            # 适配前端，无意义工作
+            new_time_stamps = []
+            new_values = []
+            for (start_time, end_time), value in zip(sleep_stage_image_x_y[0], sleep_stage_image_x_y[1]):
+                new_time_stamps.extend(range(start_time, end_time + 1, 60))
+                new_values.extend([value] * len(range(start_time, end_time + 1, 60)))
+            new_time_stamps = [datetime.fromtimestamp(int(time_stamps), tz=timezone.utc).astimezone(timezone(timedelta(hours=8))).strftime("%H:%M:%S") for time_stamps in new_time_stamps]
+            sleep_stage_image_x_y_customer = [new_time_stamps, new_values]
+            sleep_result["sleep_stage_image_x_y"] = json.dumps(sleep_stage_image_x_y_customer)
             
             # 绘图
+            """
             self.draw_line_hear_breath(
                 breath_bpm=all_breath_bpm, 
                 heart_bpm=all_heart_bpm, 
+                breath_line=all_breath_line,
+                heart_line=all_heart_line,
                 state=all_state, 
                 create_time=all_create_time, 
                 all_breath_exception=all_breath_exception,
@@ -1203,7 +1258,8 @@ class HealthReport(BaseProvider):
                 sleep_stage_label = sleep_stage_image_x_y[1],
                 query_date_device_sn=f'{self.query_date}_{self.device_sn}'
             )
-            
+            """
+
             total_score, detailed_scores, breath_bpm_status, heart_bpm_status, body_move_status = self._score(sleep_result)
             sleep_result["score"] = total_score
             sleep_result["score_name"] = self.classify_total_score(total_score)
@@ -1226,7 +1282,7 @@ class HealthReport(BaseProvider):
         
         condition = {"device_sn": self.device_sn, "query_date": self.query_date}
         recode_ = self._insert_sleep_indices_data(condition, sleep_result)
-        return sleep_result
+        # return sleep_result
 
 
         

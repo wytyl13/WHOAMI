@@ -1,7 +1,17 @@
 
 import json
 import datetime
+from whoami.llm_api.ollama_llm import OllamLLM
+from whoami.configs.llm_config import LLMConfig
+from pathlib import Path
+
 from whoami.utils.log import Logger
+
+
+llm = OllamLLM(
+    LLMConfig.from_file(Path("/home/weiyutao/work/WHOAMI/whoami/scripts/test/ollama_config.yaml")), 
+    temperature=0.0
+)
 
 class PlanningAgent:
     def __init__(self, tools: list) -> None:
@@ -9,6 +19,7 @@ class PlanningAgent:
         self.tool_names = ', '.join([tool.name for tool in self.tools])
         self.tool_descs =self._init_descs()
         self.logger = Logger('PlanningAgent')
+        self.llm = llm
         self.prompt_tpl = """Today is {today}. Please Answer the following questions as best you can. You have access to the following tools:
         {tool_description}
 
@@ -40,12 +51,12 @@ class PlanningAgent:
         tool_descs = []
         for t in self.tools:
             args_desc = []
-            for name, info in t.args.items():
+            for name, info in t.args().items():
                 print(name, info)
                 args_desc.append(
                     {'name': name, 'description': info['description'] if 'description' in info else '', 'type': info['type']})
             args_desc = json.dumps(args_desc, ensure_ascii=False)
-            tool_descs.append('%s: %s,args: %s' % (t.name, t.description, args_desc))
+            tool_descs.append('%s: %s, args: %s' % (t.name, t.description, args_desc))
         tool_descs = '\n'.join(tool_descs)
         return tool_descs
 
@@ -57,7 +68,7 @@ class PlanningAgent:
             # 1 格式化提示词并输入大语言模型
             history = '\n'.join(['Question:%s\nAnswer:%s' % (his[0], his[1]) for his in chat_history])
             # 兼容qwen2.5和其他模型
-            model_name = 'qwen2.5'
+            model_name = 'qwen2'
             # history = ';'.join(['Question:%s;Answer:%s' % (his[0], his[1]) for his in chat_history])
             
             today = datetime.datetime.now().strftime('%Y-%m-%d')
@@ -65,7 +76,7 @@ class PlanningAgent:
                                     query=query, agent_scratchpad=agent_scratchpad)
             self.logger.info(f"---等待LLM返回... ...\n{prompt}")
             user_stop_words = ['Observation:'] if model_name == 'qwen2' else ['- Observation:']
-            response = self.llm(prompt, user_stop_words=user_stop_words)
+            response = self.llm.whoami(prompt, user_stop_words=user_stop_words)
             self.logger.info(f"---LLM返回... ...\n{response}")
 
             # 2 解析 thought+action+action input+observation or thought+final answer
@@ -93,7 +104,7 @@ class PlanningAgent:
                 return False, 'LLM回复格式异常', chat_history
             if observation_i == -1:
                 observation_i = len(response)
-                response = response + 'Observation: '
+                response = response + '\nObservation: '
             thought = response[thought_i + len(thought_i_str):action_i].strip()
             action = response[action_i + len(action_i_str):action_input_i].strip()
             action_input = response[action_input_i + len(action_input_i_str):observation_i].strip()

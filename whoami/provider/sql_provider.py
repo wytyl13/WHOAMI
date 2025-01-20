@@ -5,6 +5,7 @@
 @Author  : weiyutao
 @File    : sql_provider.py
 """
+import traceback
 from pydantic import BaseModel, model_validator, ValidationError
 from typing import (
     AsyncGenerator,
@@ -18,7 +19,8 @@ from typing import (
     Generic,
     TypeVar,
     Any,
-    Type
+    Type,
+    List
 )
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
@@ -160,11 +162,33 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 self.logger.error(error_info)
                 raise ValueError(error_info) from e
     
-    def get_record_by_condition(self, condition: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def get_record_by_condition(
+        self, 
+        condition: Optional[Dict[str, Any]],
+        fields: Optional[List[str]] = None,
+        exclude_fields: Optional[List[str]] = None
+    ) -> Optional[Dict[str, Any]]:
         with self.get_db_session() as session:
             try:
-                # Start building the query
-                query = session.query(self.model).filter(self.model.deleted == False)
+                
+                # 获取模型的所有字段
+                all_fields = [column.key for column in self.model.__table__.columns]
+                
+                if fields:
+                    # 如果指定了字段，只查询指定字段
+                    query_fields = fields
+                else:
+                    query_fields = all_fields
+                
+                # 排除不需要的字段
+                if exclude_fields:
+                    query_fields = [f for f in query_fields if f not in exclude_fields]
+                    
+                # 构建查询条件
+                query = session.query(*[getattr(self.model, field) for field in query_fields])
+                
+                # 添加未删除条件
+                query = query.filter(self.model.deleted == False)
 
                 # Apply filters based on the provided condition
                 if condition:
@@ -172,8 +196,24 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                         # Assuming that keys in condition match the model's attributes
                         query = query.filter(getattr(self.model, key) == value)
 
+                # 执行查询
                 records = query.all()
-                return [{key: value for key, value in record.__dict__.items() if key != '_sa_instance_state'} for record in records] if records else []
+
+                # 处理查询结果
+                if not records:
+                    return []
+                
+                # 返回查询结果
+                return [dict(zip(query_fields, record)) for record in records]
+                # if fields:
+                #     # 如果指定了字段，返回包含指定字段的字典列表
+                #     return [dict(zip(fields, record)) for record in records]
+                # else:
+                #     return [{
+                #         key: value 
+                #         for key, value in record.__dict__.items() 
+                #         if key != '_sa_instance_state'
+                #         } for record in records]
             except Exception as e:
                 error_info = f"Failed to get records by condition: {condition}"
                 self.logger.error(error_info)
@@ -248,7 +288,7 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
             except Exception as e:
                 db.rollback()        
                 error_info = f"Failed to execute SQL query: {query}!"
-                self.logger.error(error_info)
+                self.logger.error(f"{traceback.print_exc()}\n{error_info}")
                 raise ValueError(error_info) from e
             if result is not None:
                 # 将 RowProxy 转换为列表，然后再转换为 NumPy 数组

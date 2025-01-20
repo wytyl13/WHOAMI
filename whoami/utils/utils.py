@@ -51,8 +51,8 @@ class Utils:
             if os.path.exists(directory) and delete_flag == 1:
                 shutil.rmtree(directory)
             if not os.path.exists(directory):
-                os.makedirs(directory)
-                os.chmod(directory, 0o755)
+                os.makedirs(directory) 
+                os.chmod(directory, 0o2755) # 设置setgid位
             return True, f"success to init the directory: {directory}！"
         except Exception as e:
             error_info = f"fail to init the directory: {directory}\n{str(e)}！\n{traceback.format_exc()}"

@@ -28,6 +28,7 @@ from typing import (
     Union,
     overload,
 )
+from pydantic import BaseModel, Field
 
 from whoami.utils.utils import Utils
 from whoami.utils.log import Logger
@@ -38,7 +39,16 @@ utils = Utils()
 ROOT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.abspath(os.path.join(ROOT_DIRECTORY, "search_config_case.yaml"))
 
+class GoogleSearchSchema(BaseModel):
+    """TableInf tool schema."""
+    query: str = Field(..., description="the search string for google search")
+
+
+
 class GoogleSearch(BaseTool):
+    name: Optional[str] = 'GoogleSearch'
+    description: Optional[str] = 'the tool that you can search human, event and so on.'
+    args_schema: Optional[BaseModel] = GoogleSearchSchema
     search_config: Optional[SearchConfig] = None
     search_config_path: Optional[str] = CONFIG_PATH
     key: Optional[str] = None
@@ -298,6 +308,13 @@ class GoogleSearch(BaseTool):
         self.logger.info(f"不同方法从html到text的解析结果：{url}为\n{results}")
         return get_longest_value(results)    
     
+    def get_input_schema(self):
+        if self.args_schema is not None:
+            return self.args_schema
+    
+    def _run(self, *args, **kwds) -> str:
+        return self.__call__(*args, **kwds)
+    
     def __call__(self, *args, **kwds) -> str:
         self.logger.info(f"{kwds}")
         
@@ -320,7 +337,7 @@ class GoogleSearch(BaseTool):
         except Exception as e:
             error_info = utils.get_error_info("fail to request google api！", e)
             self.logger.error(error_info)
-            return False, error_info
+            return error_info
         
         # extract the interested content from the search results.
         try:
@@ -334,10 +351,10 @@ class GoogleSearch(BaseTool):
         except Exception as e:
             error_info = utils.get_error_info("fail to extract interested content.", e)
             self.logger.error(error_info)
-            return False, error_info
+            return error_info
         
         if self.snippet_flag:
-            return True, result
+            return result
         
         # fetch url content
         fetch_url_content_result = []
@@ -348,4 +365,4 @@ class GoogleSearch(BaseTool):
                     # parse the html content
                     item["fetch_url_content"] = self.preprocess_web_content(url=item['link'], original_content=self._parse_html(item['link'], content))
                     fetch_url_content_result.append(item)
-        return True, fetch_url_content_result
+        return fetch_url_content_result

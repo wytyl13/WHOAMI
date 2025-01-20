@@ -23,6 +23,7 @@ from scipy.signal import medfilt
 
 font = FontProperties(fname='/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc', size=14)
 OUT_PATH = os.path.dirname(os.path.abspath(__file__))
+PROGRAM_ROOT_DIRECTORY = os.path.abspath(os.path.join(OUT_PATH, "../../"))
 
 def draw_line_image(data, data_name: str):
     """
@@ -186,7 +187,7 @@ def draw_line_hear_breath(breath_bpm_1, heart_bpm_1, state_1, create_time_1, bre
     ]
     plt.legend(handles=handles, prop=font, loc='upper left', bbox_to_anchor=(1.05, 1), borderaxespad=0)
     save_file_name = f'{date_name}_{time.strftime("%Y%m%d%H%M%S")}.png'
-    save_file_path = os.path.join(OUT_PATH, save_file_name)
+    save_file_path = os.path.join(PROGRAM_ROOT_DIRECTORY, f'out/test_draw_line/{save_file_name}')
     plt.savefig(save_file_path, dpi=300, bbox_inches='tight')
 
 from whoami.tool.health_report.sleep_indices import SleepIndices
