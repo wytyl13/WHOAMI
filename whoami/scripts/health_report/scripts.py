@@ -49,6 +49,7 @@ sql_provider = SqlProvider(model=SleepIndices, sql_config_path=SQL_CONFIG_PATH)
 @app.post('/sleep_indices')
 async def sleep_indices(request_data: RequestData, background_tasks: BackgroundTasks):
     logger.info(request_data)
+    result_error_dict = {}
     try:
         device_sn = request_data.device_sn
         query_date = request_data.query_date
@@ -75,13 +76,16 @@ async def sleep_indices(request_data: RequestData, background_tasks: BackgroundT
             )
             result = health_report.process()
         except Exception as e:
+            result_error_dict[device_sn_i] = e
             logger.error(e)
         finally:
             logger.info(f"Processed report for device {device_sn_i}")
             if last_flag > 0 and health_report is not None:
+                logger.info(result_error_dict)
                 rank_result = health_report.rank()
                 if rank_result:
                     health_report.health_advice()
+                    
     
     device_sn_size = 0
     last_flag = 0
