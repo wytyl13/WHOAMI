@@ -28,6 +28,8 @@ from sqlalchemy.ext.declarative import declarative_base
 import numpy as np
 from contextlib import contextmanager
 import traceback
+import urllib.parse
+from sqlalchemy import and_
 
 from whoami.provider.base_provider import BaseProvider
 from whoami.configs.sql_config import SqlConfig
@@ -75,7 +77,11 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
             port = sql_info.port
         except Exception as e:
             raise ValueError(f"fail to init the sql connect information!\n{self.sql_config}") from e
-        database_url = f"mysql+mysqlconnector://{username}:{password}@{host}:{port}/{database}"
+        # 因为url中的密码可能存在冲突的字符串，因此需要在进行数据库连接前对其进行编码
+        # urllib.parse.quote_plus() 函数将特殊字符替换为其 URL 编码的对应项。例如，! 变为 %21，@ 变为 %40。这确保了密码被视为单个字符串，并且不会破坏 URL 语法。
+        encoded_password = urllib.parse.quote_plus(password)
+        database_url = f"mysql+mysqlconnector://{username}:{encoded_password}@{host}:{port}/{database}"
+        
         try:
             engine = create_engine(database_url, pool_size=10, max_overflow=20)
             SessionLocal = sessionmaker(bind=engine)
@@ -147,6 +153,123 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 error_info = f"Failed to update record {record_id} with data: {data}"
                 self.logger.error(error_info)
                 raise ValueError(error_info) from e
+
+
+    def upsert_record_by_unique_field(
+        self, 
+        unique_field: Union[str, List[str]] = None, 
+        data: Dict[str, Any] = None,
+        db_model: Type[Base] = None
+    ) -> Dict[str, Any]:
+
+        db_model = self.model if db_model is None else db_model
+        """
+        根据唯一字段进行记录的更新或插入
+        
+        Args:
+            unique_field (str): 用于判断记录唯一性的字段名
+            data (Dict[str, Any]): 要插入或更新的数据字典
+            db_model (Type[Base]): 数据库模型类
+        
+        Returns:
+            Dict[str, Any]: 插入或更新后的记录
+        """
+        
+        def convert_numpy_types(value):
+            """转换numpy数据类型为Python原生类型"""
+            if isinstance(value, np.integer):
+                return int(value)
+            elif isinstance(value, np.floating):
+                return float(value)
+            elif isinstance(value, np.ndarray):
+                return value.tolist()
+            elif isinstance(value, np.bool_):
+                return bool(value)
+            return value
+        
+        
+        with self.get_db_session() as session:
+            try:
+                
+                if not data:
+                    raise ValueError("Empty data dictionary provided")
+                
+                # 转换数据类型
+                converted_data = {
+                    key: convert_numpy_types(value)
+                    for key, value in data.items()
+                }
+
+                # 将单个字段转换为列表，统一处理
+                unique_fields = [unique_field] if isinstance(unique_field, str) else unique_field
+                
+                # 检查唯一字段是否存在于模型中
+                for field in unique_fields:
+                    if not hasattr(db_model, field):
+                        raise ValueError(f"Unique field {field} not found in model")
+                
+                # 构建唯一键的查询条件
+                filter_conditions = []
+                for field in unique_fields:
+                    field_value = converted_data.get(field)
+                    if field_value is None:
+                        raise ValueError(f"Unique field {field} value is None")
+                    filter_conditions.append(getattr(db_model, field) == field_value)
+                
+                # 添加未删除条件
+                filter_conditions.append(db_model.deleted == False)
+                
+                # 查询是否存在记录
+                existing_record = session.query(db_model).filter(
+                    and_(*filter_conditions)
+                ).first()
+                
+                # 构建要更新的数据字典
+                valid_data = {
+                    key: value 
+                    for key, value in converted_data.items() 
+                    if hasattr(db_model, key) and key != 'id'  # 排除id和不存在的字段
+                }
+                if not valid_data:
+                    raise ValueError("No valid fields to update")
+                
+                # 如果记录已存在，更新记录
+                if existing_record:
+                    for key, value in valid_data.items():
+                        setattr(existing_record, key, value)
+                    record = existing_record
+                
+                # 如果记录不存在，创建新记录
+                else:
+                    # 移除可能的id字段，防止主键冲突
+                    record = db_model(**valid_data)
+                    session.add(record)
+                
+                # 提交事务
+                session.commit()
+                session.refresh(record)
+                
+                # 转换为字典返回
+                result = {}
+                for key in valid_data.keys():
+                    value = getattr(record, key)
+                    # 处理SQLAlchemy对象关系
+                    if hasattr(value, '__table__'):
+                        continue  # 跳过关联对象
+                    result[key] = value
+                
+                return result
+            except Exception as e:
+                session.rollback()
+                if isinstance(unique_field, str):
+                    error_info = f"Failed to upsert record with {unique_field}={data.get(unique_field)}"
+                else:
+                    unique_values = {field: data.get(field) for field in unique_field}
+                    error_info = f"Failed to upsert record with unique fields: {unique_values}"
+                self.logger.error(f"{error_info}. Error: {str(e)}")
+                raise ValueError(error_info) from e
+    
+    
 
     def get_record_by_id(self, record_id: int) -> Optional[Dict[str, Any]]:
         """根据ID查询记录"""

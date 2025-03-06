@@ -1,0 +1,37 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+@Time    : 2025/03/04 11:09
+@Author  : weiyutao
+@File    : model_info.py
+"""
+from ultralytics import YOLO
+from whoami.tool.detect.ultralitics_detector import UltraliticsDetector
+from whoami.provider.base_ import ModelType
+from whoami.tool.base.base_tool import BaseTool
+from whoami.tool.detect.detector import Detector
+
+class ModelInfo(BaseTool):
+
+    model_path: str = None
+    model_type_class: Detector = None
+    classes: list = None
+    conf: float = None
+
+    def __init__(self, 
+            model_path: str = None, 
+            model_type_class: ModelType = None,
+            classes: list = None,
+            conf: float = None
+        ):
+        super().__init__()
+        self.model_path = model_path
+        self.model_type_class = model_type_class
+        self.classes = classes
+        self.conf = conf
+    def init_model(self):
+        if self.model_type_class == UltraliticsDetector:
+            return self.model_type_class(model_path=self.model_path, class_list=self.classes, conf=self.conf)
+        raise ValueError(f'Invalid model type! model_type_class: {self.model_type_class}')
+    def _run(self, *args, **kwargs):
+        pass

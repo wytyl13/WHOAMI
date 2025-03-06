@@ -84,11 +84,29 @@ class UltraliticsDetector(Detector):
         
         try:
             with torch.no_grad():
-                results = self.model.predict(source=image, classes=self.class_list, conf=self.conf)
+                results = self.model.predict(source=image, classes=self.class_list, conf=self.conf, verbose=False)
         except Exception as e:
-            raise RuntimeError("fail to predict one image!") from e
+            raise RuntimeError(f"fail to predict one image! {str(e)}") from e
         return results
 
+    # def predict(
+    #         self, 
+    #         images):
+        
+    #     if images is None or not images:
+    #         raise ValueError("images must not be None!")
+    #     self.logger.info("whoami")
+    #     try:
+    #         with torch.no_grad():
+    #             if not isinstance(images, list):
+    #                 self.logger.info("single images----------------------------")
+    #                 results = self._predict(source=images, classes=self.class_list, conf=self.conf)
+    #             else:
+    #                 self.logger.info(f"batch images-{len(images)}---------------------------")
+    #                 results = self.model.predict(source=images, classes=self.class_list, conf=self.conf)
+    #     except Exception as e:
+    #         raise RuntimeError(f"fail to predict one image! {str(e)}") from e
+    #     return results
         
 
     

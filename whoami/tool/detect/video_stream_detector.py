@@ -22,6 +22,7 @@ import os
 import cv2
 import time
 import json
+import gc
 
 from whoami.tool.detect.detector_warning import DetectorWarning
 from whoami.tool.detect.detector import Detector
@@ -306,67 +307,220 @@ class VideoStreamDetector(BaseModel, ABC):
         # common logical code. 
         # init stream url
         # need not to handle this exception, if happend, stop the process directly.
+        
+        from concurrent.futures import ThreadPoolExecutor
+        executor = ThreadPoolExecutor(max_workers=2)
+        
+        def async_update_db(real_topic_list):
+            # 异步执行数据库更新
+            executor.submit(self.update_sql_video_stream_status, real_topic_list.copy())
+        
         self.stream_url = self.stream_url if self.stream_url else self.get_video_stream_url()
         topic = self.get_topic_based_topic_name()
         
-        def recursive_process():
-            """recursive recall this function if the running process occurs error!"""
-            
-            # need not to handle this exception, if happend, stop the process directly.
-            real_topic_list = self.get_real_topic_list()
-            cap = cv2.VideoCapture(self.stream_url)
-            last_sample_time = time.perf_counter()
-            
-            if not cap.isOpened():
-                self.logger.error(f"fail to open stream_url: {self.stream_url}")
-                if topic in real_topic_list:
-                    real_topic_list.remove(topic)
-                # need not handle this exception, if happend, stop the process directly.
-                self.update_sql_video_stream_status(real_topic_list)
-                self.stream_url = self.stream_url if self.stream_url else self.get_video_stream_url()
-                return recursive_process()
-            
-            # # 是否可以直接访问子类独有的属性？面向对象的多态设计思想是否可用？明天尝试
-            # 不需要这个参数，直接为none即可
-            # self.detector_warning.stream_url = self.stream_url
-            
-            # init the detector warning
-            while cap.isOpened():
-                ret, frame = cap.read()
-                if not ret:
-                    self.logger.error(f"fail to read each fram from stream url: {self.stream_url}!")
+        # 使用循环而非递归
+        while True:
+            try:
+                # 下一步优化思路，使用生产者消费者模式将读取视频流和图像处理分离
+                # 因为受到带宽、阻塞等待等影响，视频流读取属于IO密集型操作，会带来CPU频繁的上下文切换或者等待，如果使用线程池（3个线程）去处理15路视频流的读取，
+                # 其效率肯定高于15个线程去读取15路视频流，因此该操作可以降低CPU负载
+                real_topic_list = self.get_real_topic_list()
+                cap = cv2.VideoCapture(self.stream_url)
+                fps = cap.get(cv2.CAP_PROP_FPS)
+                self.logger.info(f"视频帧率: {fps}")
+                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                self.logger.info(f"分辨率：{width}x{height}")
+                # cap.set(cv2.CAP_PROP_FPS, 30)
+                last_sample_time = time.perf_counter()
+                last_db_update_time = time.perf_counter()
+                # 注意在递归调用中考虑内存泄漏情况
+                if not cap.isOpened():
+                    self.logger.error(f"fail to open stream_url: {self.stream_url}")
                     if topic in real_topic_list:
                         real_topic_list.remove(topic)
-                    self.update_sql_video_stream_status(real_topic_list)
-                    self.stream_url = self.stream_url if self.stream_url else self.get_video_stream_url()
-                    return recursive_process()
+                    async_update_db(real_topic_list)
+                    self.stream_url = self.get_video_stream_url()
+                    cap.release()
+                    time.sleep(1)  # 添加短暂延迟避免CPU过载
+                    continue
+                # 初始化时更新一次数据库状态
+                if topic not in real_topic_list:
+                    real_topic_list.append(topic)
+                async_update_db(real_topic_list)
                 
-                if frame is None or frame.size == 0:
-                    self.logger.error(f"fail to read each frame from stream url: {self.stream_url}")
-                    if topic in real_topic_list:
-                        real_topic_list.remove(topic)
-                    self.update_sql_video_stream_status(real_topic_list)
-                    self.stream_url = self.stream_url if self.stream_url else self.get_video_stream_url()
-                    return recursive_process()
-                current_time = time.perf_counter()
-                if current_time - last_sample_time >= (0.5 / 100):
-                    task_id = self.stream_url + topic
-                    self.logger.info(f"{task_id} is running!")
-
-                    # break process if predict image exception occurs.
-                    results = self.detector.predict(frame)
+                frame_count = 0
+                skip_frames = 0  # 跳过的帧计数
+                # 视频处理主循环
+                while cap.isOpened():
+                    # loop_start = time.perf_counter()
+                    ret, frame = cap.read()
+                    # read_time = time.perf_counter() - loop_start
+                    # self.logger.info(f"read_time: {read_time}")
                     
-                    if topic not in real_topic_list:
-                        real_topic_list.append(topic)
-                        # break process if update sql data exception occurs.
-                        self.update_sql_video_stream_status(real_topic_list)
+                    if not ret or frame is None or frame.size == 0:
+                        self.logger.error(f"fail to read frame from: {self.stream_url}")
+                        if topic in real_topic_list:
+                            real_topic_list.remove(topic)
+                        async_update_db(real_topic_list)
+                        self.stream_url = self.get_video_stream_url()
+                        cap.release()
+                        break  # 跳出内循环，外循环会重新连接
+                    current_time = time.perf_counter()
                     
-                    # continue process if warning information exception occurs.
+                    # 周期性更新数据库 (每3秒)而不是每一帧
+                    elapsed_time  = current_time - last_db_update_time
+                    if elapsed_time >= 3.0:
+                        actual_fps = frame_count / elapsed_time
+                        self.logger.info(f"实际帧率: {actual_fps:.2f}")
+                        if topic not in real_topic_list:
+                            real_topic_list.append(topic)
+                        async_update_db(real_topic_list)
+                        frame_count = 0
+                        last_db_update_time = current_time
+                    # 处理采样的帧
+                    task_id = self.device_sn + topic
+                    # self.logger.info(f"{task_id} running! (frame {frame_counter}, skipped {skip_frames})")
+                    self.logger.info(f"{task_id} running! (skipped {skip_frames})")
                     try:
+                        results = self.detector.predict(frame)
                         warning_flag, warning_information = self.get_warning_information(results)
                         if warning_flag:
                             self.detector_warning.warning(warning_information)
+                        frame_count += 1
                     except Exception as e:
+                        self.logger.error(f"Error processing frame: {str(e)}")
+                        # 继续处理下一帧，不终止循环
                         continue
-        return recursive_process()
+                    
+                    """
+                    if current_time - last_sample_time >= (3 / 100):  # 200毫秒
+                        last_sample_time = current_time
+                        task_id = self.device_sn + topic
+                        # self.logger.info(f"{task_id} running! (frame {frame_counter}, skipped {skip_frames})")
+                        self.logger.info(f"{task_id} running! (skipped {skip_frames})")
+                        try:
+                            results = self.detector.predict(frame)
+                            frame_count += 1
+                            warning_flag, warning_information = self.get_warning_information(results)
+                            if warning_flag:
+                                self.detector_warning.warning(warning_information)
+                        except Exception as e:
+                            self.logger.error(f"Error processing frame: {str(e)}")
+                            # 继续处理下一帧，不终止循环
+                            continue
+                    else:
+                        skip_frames += 1
+                    """
+
+                # 内部循环结束，重新连接
+                cap.release()
+                time.sleep(1)  # 添加短暂延迟避免CPU过载
+            except Exception as e:
+                self.logger.error(f"Error in main process loop: {str(e)}")
+                time.sleep(1.5)  # 发生异常时添加更长延迟
+        
+        # def recursive_process():
+        #     """recursive recall this function if the running process occurs error!"""
+            
+        #     # need not to handle this exception, if happend, stop the process directly.
+        #     # cap因为特殊原因在进行递归调用的时候如果不进行释放会造成内存泄漏
+        #     # 其余普通变量在递归调用的时候不需要考虑内存泄漏，因为重新赋值之前不被使用的变量将被遗弃
+        #     real_topic_list = self.get_real_topic_list()
+        #     cap = cv2.VideoCapture(self.stream_url)
+        #     last_sample_time = time.perf_counter()
+            
+        #     if not cap.isOpened():
+        #         self.logger.error(f"fail to open stream_url: {self.stream_url}")
+        #         if topic in real_topic_list:
+        #             real_topic_list.remove(topic)
+        #         # need not handle this exception, if happend, stop the process directly.
+        #         self.update_sql_video_stream_status(real_topic_list)
+        #         self.stream_url = self.stream_url if self.stream_url else self.get_video_stream_url()
+        #         cap.release()
+        #         return recursive_process()
+        #     else:
+        #         if topic not in real_topic_list:
+        #             real_topic_list.append(topic)
+        #         # need not handle this exception, if happend, stop the process directly.
+        #         self.update_sql_video_stream_status(real_topic_list)
+            
+        #     # # 是否可以直接访问子类独有的属性？面向对象的多态设计思想是否可用？明天尝试
+        #     # 不需要这个参数，直接为none即可
+        #     # self.detector_warning.stream_url = self.stream_url
+            
+        #     # init the detector warning
+        #     while cap.isOpened():
+        #         ret, frame = cap.read()
+        #         # ret是一个很小的对象，frame很大，因此仅需要考虑释放frame即可
+        #         if not ret:
+        #             # 如果ret为空，frame将不会被创建，因此也不需要释放
+        #             self.logger.error(f"fail to read each frame from stream url: {self.stream_url}!")
+        #             if topic in real_topic_list:
+        #                 real_topic_list.remove(topic)
+        #             self.update_sql_video_stream_status(real_topic_list)
+        #             self.stream_url = self.stream_url if self.stream_url else self.get_video_stream_url()
+                    
+        #             # 注意在递归调用之前一定要释放之前的内存占用，否则会导致内存泄漏
+        #             # 内存泄漏
+        #             cap.release() # 时间开销
+        #             return recursive_process()
+        #         else:
+        #             if topic not in real_topic_list:
+        #                 real_topic_list.append(topic)
+        #             self.update_sql_video_stream_status(real_topic_list)
+                
+        #         if frame is None or frame.size == 0:
+        #             self.logger.error(f"fail to read each frame from stream url: {self.stream_url}")
+        #             if topic in real_topic_list:
+        #                 real_topic_list.remove(topic)
+        #             self.update_sql_video_stream_status(real_topic_list)
+        #             self.stream_url = self.stream_url if self.stream_url else self.get_video_stream_url()
+
+        #             # 注意在递归调用之前一定要释放之前的内存占用，否则会导致内存泄漏
+        #             # 虽然frame为空但是还是需要显式释放
+        #             # 释放 frame 对象
+        #             del frame # 时间开销
+        #             # 强制进行垃圾回收
+        #             gc.collect()
+        #             cap.release()
+        #             return recursive_process()
+        #         else:
+        #             if topic not in real_topic_list:
+        #                 real_topic_list.append(topic)
+        #             self.update_sql_video_stream_status(real_topic_list)
+                
+        #         current_time = time.perf_counter()
+        #         if current_time - last_sample_time >= (2 / 100): # 200毫秒，每1秒30帧，200毫秒提取1张，1秒提取5张
+        #             last_sample_time = current_time
+        #             task_id = self.device_sn + topic
+        #             self.logger.info(f"{task_id} running!")
+
+        #             # break process if predict image exception occurs.
+        #             results = self.detector.predict(frame)
+
+        #             if topic not in real_topic_list:
+        #                 real_topic_list.append(topic)
+        #                 # break process if update sql data exception occurs.
+        #                 self.update_sql_video_stream_status(real_topic_list)
+                    
+        #             # continue process if warning information exception occurs.
+        #             try:
+        #                 warning_flag, warning_information = self.get_warning_information(results)
+        #                 if warning_flag:
+        #                     self.detector_warning.warning(warning_information)
+        #             except Exception as e:
+        #                 # 释放 frame 对象
+        #                 del frame
+        #                 # 强制进行垃圾回收
+        #                 gc.collect()
+        #                 # # 不需要释放cap，也不需要重新初始化它，还需要使用它
+        #                 continue
+        #         # 释放 frame 对象
+        #         # del frame
+        #         # 强制进行垃圾回收
+        #         # gc.collect()
+        #     # while循环之后一定要释放cap
+        #     cap.release()
+        # return recursive_process()
         

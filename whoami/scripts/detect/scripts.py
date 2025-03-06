@@ -18,12 +18,16 @@ import copy
 import signal
 import sys
 from typing import Dict
+import torch
+import gc
+from queue import Queue
 
 from whoami.tool.detect.sx_video_stream_detector import SxVideoStreamDetector
 from whoami.utils.log import Logger
 from whoami.utils.R import R
 from whoami.utils.utils import Utils
 from whoami.configs.detector_config import DetectorConfig
+from whoami.tool.detect.ultralitics_detector import UltraliticsDetector
 
 ROOT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.abspath(os.path.join(ROOT_DIRECTORY, "detect_config.yaml"))
@@ -37,6 +41,62 @@ url_str_flag = 'new'
 
 threads = {}
 sx_video_stream_detector = None
+
+
+class DetectorPool:
+    def __init__(self, model_paths: Dict[str, str], max_pool_size=20):
+        """
+        初始化检测器对象池
+        
+        :param model_paths: 模型路径字典 
+        :param max_pool_size: 每个模型最大实例数
+        """
+        self.pools = {}
+        self.locks = {}
+        
+        # 为每个模型创建线程安全的对象池
+        for topic, model_path in model_paths.items():
+            self.pools[topic] = Queue(maxsize=max_pool_size)
+            self.locks[topic] = threading.Lock()
+            
+            # 预先创建实例
+            for _ in range(max_pool_size):
+                detector = UltraliticsDetector(model_path=model_path)
+                self.pools[topic].put(detector)
+    
+    def get_detector(self, topic):
+        """
+        获取指定主题的检测器实例
+        
+        :param topic: 检测器主题
+        :return: 检测器实例
+        """
+        if topic not in self.pools:
+            raise ValueError(f"No detector pool for topic: {topic}")
+        
+        # 从池中获取实例
+        detector = self.pools[topic].get()
+        return detector
+    
+    def release_detector(self, topic, detector):
+        """
+        将检测器实例返回到池中
+        
+        :param topic: 检测器主题
+        :param detector: 检测器实例
+        """
+        if topic not in self.pools:
+            raise ValueError(f"No detector pool for topic: {topic}")
+        
+        # 将实例放回池中
+        self.pools[topic].put(detector)
+model_paths = {
+    "/fallen/falling/warning": "/work/ai/WHOAMI/whoami/models/detect/falldetect-11x.pt",
+    "/fire/smoke/warning": "/work/ai/WHOAMI/whoami/models/detect/fire_smoke_yolov10m_v2_epochs_250.pt",
+    "/violence/warning": "/work/ai/WHOAMI/whoami/models/detect/fight_yolov10m_199_epoch.pt"
+}
+
+detector_pool = DetectorPool(model_paths)
 
 @dataclass
 class RequestData:
@@ -53,16 +113,25 @@ def _async_raise(tid, exctype):
     if not isinstance(exctype, type):
         exctype = type(exctype)
     res = ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, ctypes.py_object(exctype))
-    if res == 0:
-        raise ValueError("Invalid thread id")
-    elif res > 1:
-        ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, None)
-        raise SystemError("PyThreadState_SetAsyncExc failed")
+    try:
+        if res == 0:
+            raise ValueError("Invalid thread id")
+        elif res > 1:
+            ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, None)
+            raise SystemError("PyThreadState_SetAsyncExc failed")
+    except Exception as e:
+        logger.error(str(e))
+    return True
 
 def stop_thread(thread):
     logger.info(f"thread: {thread}")
     """Stop a thread by raising an exception in it."""
     _async_raise(thread.ident, SystemExit)
+    thread.join(timeout=15)
+    if thread.is_alive():
+        logger.warning(f"Thread {thread} did not stop gracefully")
+        return False
+    return True
 
 def stop_all_thread():
     values = [value for value in threads.values()]
@@ -71,7 +140,23 @@ def stop_all_thread():
         _async_raise(value.ident, SystemExit)
 
 def background_run(sx_video_stream_detector: SxVideoStreamDetector):
-    return sx_video_stream_detector.process()
+    try:
+        return sx_video_stream_detector.process()
+    except Exception as e:
+        logger.error(f"Error in thread: {e}")
+    finally:
+        # 释放GPU资源
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
+
+
+def check_running_threads():
+    running_threads = {}
+    for thread_id, thread in threads.items():
+        if thread.is_alive():
+            running_threads[thread_id] = thread
+    return running_threads
 
 @app.post('/fire_smoke_warning')
 async def warning_fastapi(request_data: RequestData):
@@ -111,7 +196,12 @@ async def warning_fastapi(request_data: RequestData):
         # delete the deleted topic for the current video stream url in mysql table.
         task_id_to_stop = device_sn + topic_del
         logger.info(f"delete thread: {task_id_to_stop}")
-        stop_thread(threads[task_id_to_stop])
+        if task_id_to_stop in threads:
+            thread = threads[task_id_to_stop]
+            if stop_thread(thread):
+                del threads[task_id_to_stop]
+            else:
+                logger.error(f"Failed to stop thread for {task_id_to_stop}")
         
     try:
         sx_video_stream_detector.update_sql_video_stream_status(topic_list)
@@ -126,13 +216,28 @@ async def warning_fastapi(request_data: RequestData):
         thread_id = device_sn + topic
         if topic_name not in TOPIC_DICT:
             return R.fail(f"topic: {topic_name}错误！应该属于：{TOPIC_LIST}")
-        sx_video_stream_detector_thread = SxVideoStreamDetector(device_sn=device_sn, url_str_flag=url_str_flag, topic_name=topic_name, config_path=CONFIG_PATH)
-        logger.info(sx_video_stream_detector_thread.tostring())
-        print(f"------------------开启任务：{sx_video_stream_detector_thread.topic_name}")
-        thread = threading.Thread(target=background_run,
-                        args=(sx_video_stream_detector_thread,))
-        thread.start()
-        threads[thread_id] = thread
+        # sx_video_stream_detector_thread = SxVideoStreamDetector(device_sn=device_sn, url_str_flag=url_str_flag, topic_name=topic_name, config_path=CONFIG_PATH)
+        detector = detector_pool.get_detector(topic_name)
+        try:
+            sx_video_stream_detector_thread = SxVideoStreamDetector(device_sn=device_sn, url_str_flag=url_str_flag, topic_name=topic_name, config_path=CONFIG_PATH, detector=detector)
+            logger.info(sx_video_stream_detector_thread.tostring())
+            print(f"------------------开启任务：{sx_video_stream_detector_thread.topic_name}")
+            def wrapped_background_run(detector_wrapper):
+                try:
+                    result = background_run(detector_wrapper)
+                    return result
+                finally:
+                    # 完成后将检测器实例返回对象池
+                    detector_pool.release_detector(topic_name, detector)
+            
+            thread = threading.Thread(target=wrapped_background_run,
+                            args=(sx_video_stream_detector_thread,))
+            thread.start()
+            threads[thread_id] = thread
+        except Exception as e:
+            # 如果创建线程失败，也要确保将检测器实例返回对象池
+            detector_pool.release_detector(topic_name, detector)
+            logger.error(f"创建线程失败: {e}")
     return R.success(f"视频流解析成功{video_stream_url}！开始后台执行！")
 
 @app.on_event("shutdown")
@@ -144,6 +249,10 @@ def shutdown_event():
 @app.get('/list_all_topic')
 async def list_all_topic():
     return R.success(TOPIC_DICT)
+
+@app.get('/check_running_thread')
+async def check_running_thread():
+    return R.success(check_running_threads())
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

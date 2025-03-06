@@ -1,0 +1,10 @@
+host: 192.168.0.10
+port: 3366
+username: root
+password: 2xryuf@I73T
+database: shunxikeji
+table: sx_device_wavve_vital_sign_log
+
+
+# 39.105.172.211
+# 2xryuf!@I73T  PVWadz6fhLCkRG6Z2rZ1

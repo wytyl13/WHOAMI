@@ -1,5 +1,5 @@
 whoami/models
-*.txt
+problems.txt
 whoami/logs
 whoami/scripts/health_report/sql_config.yaml
 whoami/scripts/detect/detect_config.yaml

@@ -38,6 +38,9 @@ from matplotlib.lines import Line2D
 from collections import Counter
 import matplotlib
 import pandas as pd
+import pytz
+import re
+
 
 from whoami.configs.sql_config import SqlConfig
 from whoami.provider.sql_provider import SqlProvider
@@ -50,16 +53,22 @@ from whoami.configs.llm_config import LLMConfig
 from whoami.tool.health_report.standard_breath_heart import StandardBreathHeart
 from whoami.utils.utils import Utils
 from whoami.tool.health_report.pie_legend import PieLegendHandler
+from whoami.tool.disease_predict.threshold_value import ThresholdValue
+from whoami.tool.health_report.sx_device_wavve_vital_sign_config_info import DeviceWavveVitalSignConfigInfo
 
 ROOT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 PROGRAM_ROOT_DIRECTORY = os.path.abspath(os.path.join(ROOT_DIRECTORY, "../../"))
 font = FontProperties(fname='/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc', size=14)
 utils = Utils()
 
+
+
 llm = OllamLLM(
-    LLMConfig.from_file(Path("/home/weiyutao/work/WHOAMI/whoami/scripts/test/ollama_config.yaml")),
+    LLMConfig.from_file(Path("/work/ai/WHOAMI/whoami/scripts/test/ollama_config.yaml")),
     temperature=0.8
 )
+tz = pytz.timezone('Asia/Shanghai')
+import matplotlib as mpl
 
 class HealthReport(BaseProvider):
     sql_config_path: Optional[str] = None
@@ -74,7 +83,7 @@ class HealthReport(BaseProvider):
     breath_bpm_high: Optional[int] = None
     heart_bpm_low: Optional[int] = None
     heart_bpm_high: Optional[int] = None
-    
+    threshold_value: Optional[ThresholdValue] = None
     def __init__(
         self, 
         sql_config_path: Optional[str] = None, 
@@ -86,7 +95,7 @@ class HealthReport(BaseProvider):
         model: Type[ModelType] = None
     ) -> None:
         super().__init__()
-
+        self.threshold_value = ThresholdValue(sql_config_path=sql_config_path, sql_config=sql_config, sql_provider=sql_provider, model=model, device_sn=device_sn)
         self._init_param(sql_config_path, sql_config, sql_provider, data_provider, query_date, device_sn, model=model)
         # 查询是否已经存在，否则直接返回
         first_check_condition = {"device_sn": self.device_sn, "query_date": self.query_date}
@@ -127,6 +136,8 @@ class HealthReport(BaseProvider):
                 pre_date_str = (current_date - timedelta(days=1)).strftime('%Y-%m-%d')
                 start = pre_date_str + ' 20:00:00'
                 end = current_date_str + ' 09:00:00'
+                self.logger.info(start)
+                self.logger.info(end)
                 sql_query = f"SELECT in_out_bed, signal_intensity, breath_line, heart_line, breath_bpm, heart_bpm, state, body_move_data, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
                 # sql_query = f"SELECT in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
                 self.data_provider = SxDataProvider(sql_config_path=self.sql_config_path, sql_config=self.sql_config, sql_provider=self.sql_provider, sql_query=sql_query, model=self.model)
@@ -196,11 +207,14 @@ class HealthReport(BaseProvider):
         # 计算整个信号的统计特征
         all_stds = []
         # 使用滑动窗口计算局部标准差
+        self.logger.info(f"the size of signal: {len(signal)}")
         for i in range(0, len(signal) - window_size, window_size//2):
             window_data = signal[i:i+window_size]
             all_stds.append(np.std(window_data))
         
         all_stds = np.array(all_stds)
+        if all_stds.size == 0:
+            raise ValueError("all_stds is empty. Cannot calculate percentile.")
         # if all_stds.size == 0:
         #     raise ValueError("all_stds array is empty. Cannot calculate adaptive thresholds.")
         
@@ -454,7 +468,6 @@ class HealthReport(BaseProvider):
         waking_second = int(np.sum(stage_result == 3))
         sleep_second = int(np.sum(stage_result != 3))
         light_sleep_second = int(np.sum(stage_result == 2))
-        
         waking_stage = np.where(stage_result == 3, 0, 1)
         assert (len(waking_stage) == len(create_time)), f'fail to assert the dimension of waking_stage: {len(waking_stage)} and create_time: {len(create_time)}'
         real_waking_result, real_waking_index = self.count_consecutive_zeros(waking_stage, 30)
@@ -470,7 +483,7 @@ class HealthReport(BaseProvider):
         on_bed_time = create_time[0]
 
         # 入睡时间
-        sleep_time = create_time[real_waking_index[0][-1] + 1] if (waking_stage[0] == 0 and waking_count != 0) else create_time[0]
+        sleep_time = create_time[real_waking_index[0][-1]] if (waking_stage[0] == 0 and waking_count != 0) else create_time[0]
 
         # 入睡时长，所有清醒时长平均值
         to_sleep_second = waking_second / waking_count if waking_count != 0 else waking_second
@@ -490,12 +503,12 @@ class HealthReport(BaseProvider):
             "waking_hour": self.convert_seconds_to_hhmm(night_waking_second), # 夜醒时长（小时）
             "to_sleep_hour": self.convert_seconds_to_hhmm(to_sleep_second), # 入睡时长（小时）
             "waking_count": waking_count, # 夜醒次数（次）
-            "on_bed_time": datetime.fromtimestamp((on_bed_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'), # 上床时间（节点）
-            "sleep_time": datetime.fromtimestamp((sleep_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'), # 入睡时间（节点）
-            "waking_time": datetime.fromtimestamp((waking_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S'), # 醒来时间（节点）
+            "on_bed_time": datetime.fromtimestamp((on_bed_time).astype(np.int32), tz=tz).strftime('%Y-%m-%d %H:%M:%S'), # 上床时间（节点）
+            "sleep_time": datetime.fromtimestamp((sleep_time).astype(np.int32), tz=tz).strftime('%Y-%m-%d %H:%M:%S'), # 入睡时间（节点）
+            "waking_time": datetime.fromtimestamp((waking_time).astype(np.int32), tz=tz).strftime('%Y-%m-%d %H:%M:%S'), # 醒来时间（节点）
             "sleep_stage_image_x_y": sleep_stage_image_x_y, 
             "sleep_efficiency": round(sleep_second / len(breath_line), 2), # 睡眠效率
-            "deep_sleep_efficiency": round(deep_sleep_second / sleep_second, 2), # 深睡效率
+            "deep_sleep_efficiency": round(deep_sleep_second / sleep_second, 2) if sleep_second != 0 else 0.0, # 深睡效率
             "light_sleep_second": light_sleep_second, # 浅睡时长（秒）
             "light_sleep_hour": self.convert_seconds_to_hhmm(light_sleep_second) # 浅睡时长（小时）
         }
@@ -604,7 +617,6 @@ class HealthReport(BaseProvider):
         sleep_stage_label = None, 
         query_date_device_sn: str = None
     ):
-        
         """assert the same input dimension"""
         assert (len(breath_bpm) == len(heart_bpm) == len(state) == len(create_time) == len(all_breath_exception) == len(all_body_move_01)), \
         "All input arrays must have the same length."
@@ -678,11 +690,10 @@ class HealthReport(BaseProvider):
             colors_heart_1 = [get_heart_color(s, b, v, d) 
                           for s, b, v, d in zip(state, heart_bpm, all_body_move_01, in_out_bed)]
             
-            
-            
             # breath_exception_in_bed_low_01 = np.where((in_out_bed != 0) & (all_body_move_01 != 0) & (state == 2) & (all_breath_exception == 0) & (breath_bpm < self.breath_bpm_low), 0, 1)
             # breath_exception_in_bed_high_01 = np.where((in_out_bed != 0) & (all_body_move_01 != 0) & (state == 2) & (all_breath_exception == 0) & (breath_bpm > self.breath_bpm_high), 0, 1)
             breath_exception_in_bed_low_01 = np.where((all_breath_exception == 0) & (breath_bpm < self.breath_bpm_low), 0, 1)
+            self.logger.info(breath_exception_in_bed_low_01)
             breath_exception_in_bed_high_01 = np.where((all_breath_exception == 0) & (breath_bpm > self.breath_bpm_high), 0, 1)
             heart_exception_in_bed_low_01 = np.where((in_out_bed != 0) & (all_body_move_01 != 0) & (state == 2) & (heart_bpm < self.heart_bpm_low), 0, 1)
             heart_exception_in_bed_high_01 = np.where((in_out_bed != 0) & (all_body_move_01 != 0) & (state == 2) & (heart_bpm > self.heart_bpm_high), 0, 1)
@@ -922,7 +933,18 @@ class HealthReport(BaseProvider):
         try:
             filed_description = self.data_provider.sql_provider.get_field_names_and_descriptions()
             condition = {"query_date": self.query_date}
-            record_ = self.data_provider.sql_provider.get_record_by_condition(condition=condition, exclude_fields=['breath_bpm_image_x_y', 'heart_bpm_image_x_y', 'sleep_stage_image_x_y'])
+            record_ = self.data_provider.sql_provider.get_record_by_condition(
+                condition=condition, 
+                exclude_fields= [
+                    'health_advice',
+                    'sleep_stage_image_x_y',
+                    'body_move_image_x_y',
+                    'breath_exception_image_sixty_x_y',
+                    'heart_bpm_image_x_y',
+                    'breath_bpm_image_x_y',
+                    'breath_exception_image_x_y'
+                ]
+            )
             for health_data in record_:
                 if health_data:
                     if 'breath_bpm_image_x_y' in health_data:
@@ -931,7 +953,7 @@ class HealthReport(BaseProvider):
                         del health_data['heart_bpm_image_x_y']
             
                 health_prompt = f"""
-                请您作为一位专业的睡眠健康医生，基于以下睡眠监测数据生成一段专业的健康分析描述。
+                请您作为一位专业的睡眠健康医生，基于以下睡眠监测数据和标准去见对异常数据进行分析并给出建议
                 
                 字段描述：
                 {filed_description}
@@ -943,17 +965,15 @@ class HealthReport(BaseProvider):
                 {health_data}
                 
                 分析要求：
-                1. 严格对照实际数据和标准区间进行分析，确保数值完全准确
-                2. 以一段流畅的文字呈现，不使用特殊符号或分段
-                3. 优先分析异常指标，重点说明其偏离标准范围的程度
-                4. 结合所有指标给出专业的整体诊断判断
-                5. 使用专业医学视角，但确保描述通俗易懂
-                6. 在描述最后给出针对性的改善建议
-                7. 控制总体描述在150字以内
+                1. 严格对照实际数据和标准区间进行分析，确保数值完全准确，内容简洁，不要出现患者等第三人称字眼。
+                2. 仅分析异常指标，重点说明其偏离标准范围的程度，并给出异常指标可能造成的身体健康隐患。
+                3. 使用专业医学视角，但确保描述通俗易懂，必须在最后给出针对性的改善建议。
+                4. 控制总体描述在150字以内，以一段流畅的文字呈现，不使用特殊符号或分段。
                 """
                 content = llm.whoami(health_prompt, stream=False)
-                self.logger.info(content)
-                self.data_provider.sql_provider.update_health_advice_by_id(health_data['id'], content)
+                cleaned_response = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
+                self.logger.info(cleaned_response)
+                self.data_provider.sql_provider.update_health_advice_by_id(health_data['id'], cleaned_response)
         except Exception as e:
             raise ValueError('fail to exec the function health advice!') from e
     
@@ -1000,6 +1020,52 @@ class HealthReport(BaseProvider):
         """考虑因为呼吸异常造成的状态不稳定为状态稳定情况"""
         """呼吸率异常也可能早层体动情况，因此也要兼容处理因为呼吸异常造成体动而导致对呼吸异常的检测"""
         try:
+            breath_out_of_range = (all_breath_bpm < self.breath_bpm_low) | (all_breath_bpm > self.breath_bpm_high)
+            heart_rate_valid = all_heart_bpm != 0
+            body_move_detected = all_body_move_01 != 0
+            
+            # 分步骤判断异常
+            breath_exception_mask = (
+                breath_out_of_range & 
+                heart_rate_valid & 
+                body_move_detected
+            )
+            
+            # 创建新的状态数组，保留原始逻辑但更清晰
+            overwrite_all_state = all_state.copy()
+            # 使用更精确的状态重写规则
+            breath_exception_segments = self._find_continuous_segments(breath_exception_mask)
+            for start, end in breath_exception_segments:
+                # 更严格地处理状态重写
+                segment_mask = (overwrite_all_state[start:end] != 2)
+                overwrite_all_state[start:end][segment_mask] = 2
+
+            # 最终异常判断
+            all_breath_exception = np.where(breath_exception_mask, 0, 1)
+
+            return all_breath_exception
+        except Exception as e:
+            raise ValueError(f'Failed to process breath exception: {str(e)}')
+
+    def _find_continuous_segments(self, mask):
+        """
+        找出连续的异常区间
+        返回 [(start1, end1), (start2, end2), ...]
+        """
+        diff = np.diff(mask.astype(int))
+        starts = np.where(diff == 1)[0] + 1
+        ends = np.where(diff == -1)[0] + 1
+        
+        # 处理首尾情况
+        if mask[0]:
+            starts = np.concatenate(([0], starts))
+        if mask[-1]:
+            ends = np.concatenate((ends, [len(mask)]))
+        
+        return list(zip(starts, ends))
+    
+    def _get_all_breath_exception(self, all_state, all_breath_bpm, all_heart_bpm, all_body_move_01): 
+        try:
             all_breath_exception = np.where(
                 ((all_breath_bpm < self.breath_bpm_low) | (all_breath_bpm > self.breath_bpm_high)) & 
                 (all_heart_bpm != 0) & 
@@ -1036,7 +1102,9 @@ class HealthReport(BaseProvider):
                         2,
                         all_state[start:end]
                     )
-                    
+            
+            #这块的处理有问题！！！！！！！！！！！！！因为筛选过以后还存在 all_breath_exception 中显示为0但是对应的 all_breath_bpm中的呼吸率或者心率在正常区间内
+            # ！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
             all_breath_exception = np.where(
                 ((all_breath_bpm < self.breath_bpm_low) | (all_breath_bpm > self.breath_bpm_high)) & 
                 (all_heart_bpm != 0) & 
@@ -1083,9 +1151,13 @@ class HealthReport(BaseProvider):
             f'fail to assert the data (in_out_bed: {len(in_out_bed)}, all_state: {len(all_state)}, all_breath_bpm: {len(all_breath_bpm)}, all_heart_bpm: {len(all_heart_bpm)}, all_create_time: {len(all_create_time)}, all_body_move_01: {len(all_body_move_01)}, all_breath_exception: {len(all_breath_exception)}) dimension!'
         real_leave_count_result, real_leave_index = self.count_consecutive_zeros(in_out_bed, 0)
         leave_count = len(real_leave_count_result) - 1 if real_leave_count_result else 0
+        
+        if leave_count > 100:
+            raise ValueError(f"离床次数过多，睡眠数据无意义！{leave_count}次")
+
         leave_bed_total_second = sum(real_leave_count_result[1:])
         
-        timess = datetime.fromtimestamp((all_create_time[real_leave_index[-1][0]]).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S')
+        timess = datetime.fromtimestamp((all_create_time[real_leave_index[-1][0]]).astype(np.int32), tz=tz).strftime('%Y-%m-%d %H:%M:%S')
         self.logger.info(f"起床时间---------------{timess}")
         leave_bed_time = all_create_time[real_leave_index[-1][0]] if real_leave_index else all_create_time[-1]
         
@@ -1094,8 +1166,47 @@ class HealthReport(BaseProvider):
         in_bed_data = all_data_list[0][in_out_bed != 0]
         
         if in_bed_data.size == 0:
+            error_info = f"in bed data is empty! device_sn: {self.device_sn}, query_date: {self.query_date}"
+            error_result = {
+                "device_sn": self.device_sn,
+                "query_date": self.query_date,
+                "breath_bpm_low": 7.00, 
+                "breath_bpm_high": 36.00, 
+                "heart_bpm_low": 45.00, 
+                "heart_bpm_high": 140.00,
+                "alarm_time_interval": 10,
+                "min_breath_bpm": 0,
+                "max_breath_bpm": 0,
+                "min_heart_bpm": 0,
+                "max_heart_bpm": 0,
+                "error_info": error_info
+            }
+            # update correspond sql table;
+            config_info_sql_provider = SqlProvider(model=DeviceWavveVitalSignConfigInfo, sql_config_path=self.sql_config_path)
+            result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=error_result)
             raise ValueError(f"in bed data is empty! device_sn: {self.device_sn}, query_date: {self.query_date}")
         
+        if in_bed_data.size < 10000:
+            error_info = f"in bed data is less than 3 hours! device_sn: {self.device_sn}, query_date: {self.query_date}"
+            error_result = {
+                "device_sn": self.device_sn,
+                "query_date": self.query_date,
+                "breath_bpm_low": 7.00, 
+                "breath_bpm_high": 36.00, 
+                "heart_bpm_low": 45.00, 
+                "heart_bpm_high": 140.00,
+                "alarm_time_interval": 10,
+                "min_breath_bpm": 0,
+                "max_breath_bpm": 0,
+                "min_heart_bpm": 0,
+                "max_heart_bpm": 0,
+                "error_info": error_info
+            }
+            # update correspond sql table;
+            config_info_sql_provider = SqlProvider(model=DeviceWavveVitalSignConfigInfo, sql_config_path=self.sql_config_path)
+            result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=error_result)
+            raise ValueError(f"in bed data is less than 3 hours! device_sn: {self.device_sn}, query_date: {self.query_date}")
+
         try:
             # 分割呼吸线心线
             # in_bed_data_list = self.split_continuous_data(all_data_list[0], in_out_bed != 0)
@@ -1122,7 +1233,7 @@ class HealthReport(BaseProvider):
             # 重置离床时间，因为可能存在监测时间范围内最后一次离床后又回来睡觉，导致离床时间早于醒来时间，因此要根据醒来时间重置离床时间
             # 如果离床时间早于醒来时间，重置离床时间为最后监测时间
             leave_bed_time = leave_bed_time if leave_bed_time > waking_time else all_create_time[-1]
-            sleep_result["leave_bed_time"] = datetime.fromtimestamp((leave_bed_time).astype(np.int32)).strftime('%Y-%m-%d %H:%M:%S') # 离床时间
+            sleep_result["leave_bed_time"] = datetime.fromtimestamp((leave_bed_time).astype(np.int32), tz=tz).strftime('%Y-%m-%d %H:%M:%S') # 离床时间
             
             # 添加总监测时长
             sleep_result["total_num_second"] = len(in_out_bed)
@@ -1154,6 +1265,14 @@ class HealthReport(BaseProvider):
             sleep_result["average_heart_bpm"] = int(average_heart_bpm) # 平均心率
             sleep_result["max_heart_bpm"] = int(max_heart_bpm) # 最大心率
             sleep_result["min_heart_bpm"] = int(min_heart_bpm) # 最小心率
+            
+            result__ = self.threshold_value._run(query_date=self.query_date, device_sn=self.device_sn, breath_bpm=breath_bpm_in_bed, heart_bpm=heart_bpm_in_bed)
+            # update correspond sql table;
+            config_info_sql_provider = SqlProvider(model=DeviceWavveVitalSignConfigInfo, sql_config_path=self.sql_config_path)
+            result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=result__)
+            self.logger.info(result)
+            
+            
         except Exception as e:
             self.logger.error(traceback.format_exc())
             raise ValueError('fail to cal the indices of breath_bpm and heart_bpm!') from e
@@ -1180,7 +1299,10 @@ class HealthReport(BaseProvider):
             breath_bpm_image_x_y = [[datetime.fromtimestamp(int(all_create_time[i]), tz=timezone.utc).astimezone(timezone(timedelta(hours=8))).strftime("%H:%M:%S"), int(all_breath_bpm[i])] for i in range(0, len(all_create_time.tolist()), 60)]
             heart_bpm_image_x_y = [[datetime.fromtimestamp(int(all_create_time[i]), tz=timezone.utc).astimezone(timezone(timedelta(hours=8))).strftime("%H:%M:%S"), int(all_heart_bpm[i])] for i in range(0, len(all_create_time.tolist()), 60)]
             
-            breath_exception_in_bed = np.where((in_out_bed != 0) & (all_breath_exception == 0), 0, 1)
+            # test__ = np.where((all_breath_exception == 0) & (all_breath_bpm < self.breath_bpm_low), 0, 1)
+            # test___ = np.where((all_breath_exception == 0) & (all_breath_bpm > self.breath_bpm_high), 0, 1)
+            # breath_exception_in_bed = [1 if x == 1 and y == 1 else 0 for x, y in zip(test__, test___)]
+            breath_exception_in_bed = np.where(((in_out_bed != 0) & (all_breath_exception == 0)), 0, 1)
             real_breath_exception_result, real_breath_exception_index = self.count_consecutive_zeros(breath_exception_in_bed, 0)
             real_breath_exception_result = [item for item in real_breath_exception_result]
             
@@ -1205,11 +1327,21 @@ class HealthReport(BaseProvider):
                         end_index = start_index + 60
                 return data[start_index:end_index]
             
-            breath_exception_60S_x = [[datetime.fromtimestamp(int(value), tz=timezone.utc).astimezone(timezone(timedelta(hours=8))).strftime("%H:%M:%S") for value in get_start_end_index(breath_bpm_in_bed, item[-1], create_time_in_bed)] for item in real_breath_exception_index]
-            breath_exception_60S_y = [[int(value) for value in get_start_end_index(breath_bpm_in_bed, item[-1], breath_bpm_in_bed)] for item in real_breath_exception_index]
-            breath_exception_60S_x_y = [breath_exception_60S_x, breath_exception_60S_y]
+            # breath_exception_60S_x = [[datetime.fromtimestamp(int(value), tz=timezone.utc).astimezone(timezone(timedelta(hours=8))).strftime("%H:%M:%S") for value in get_start_end_index(breath_bpm_in_bed, item[-1], create_time_in_bed)] for item in real_breath_exception_index]
+            # breath_exception_60S_y = [[int(value) for value in get_start_end_index(breath_bpm_in_bed, item[-1], breath_bpm_in_bed)] for item in real_breath_exception_index]
+            # breath_exception_60S_x_y = [breath_exception_60S_x, breath_exception_60S_y]
+            self.logger.info(real_breath_exception_index)
+            if real_breath_exception_index is None or len(real_breath_exception_index) == 0:
+                breath_exception_60S_x_y = [[[]], [[]]]
+            else:
+                breath_exception_60S_x = [[datetime.fromtimestamp(int(value), tz=timezone.utc).astimezone(timezone(timedelta(hours=8))).strftime("%H:%M:%S") for value in get_start_end_index(all_breath_bpm, item[-1], all_create_time)] for item in real_breath_exception_index]
+                breath_exception_60S_y = [[int(value) for value in get_start_end_index(all_breath_bpm, item[-1], all_breath_bpm)] for item in real_breath_exception_index]
+                breath_exception_60S_x_y = [breath_exception_60S_x, breath_exception_60S_y]
+                
             sleep_result["breath_exception_count"] = len(real_breath_exception_result) # 呼吸异常次数
             sleep_result["breath_exception_exponent"] = round(len(real_breath_exception_result) / 14, 2) # 呼吸异常指数=呼吸异常次数/监测小时数
+            
+            self.logger.info(f"呼吸异常次数：{len(real_breath_exception_result)}")
             
             # 设置首尾数据
             real_breath_exception_index = [int(all_create_time[item[-1]]) for item in real_breath_exception_index]
@@ -1244,21 +1376,21 @@ class HealthReport(BaseProvider):
             
             # 绘图
             """
-            self.draw_line_hear_breath(
-                breath_bpm=all_breath_bpm, 
-                heart_bpm=all_heart_bpm, 
-                breath_line=all_breath_line,
-                heart_line=all_heart_line,
-                state=all_state, 
-                create_time=all_create_time, 
-                all_breath_exception=all_breath_exception,
-                all_body_move_01=all_body_move_01,
-                in_out_bed=in_out_bed,
-                sleep_stage_timestamp_range = sleep_stage_image_x_y[0],
-                sleep_stage_label = sleep_stage_image_x_y[1],
-                query_date_device_sn=f'{self.query_date}_{self.device_sn}'
-            )
             """
+            # self.draw_line_hear_breath(
+            #     breath_bpm=all_breath_bpm, 
+            #     heart_bpm=all_heart_bpm, 
+            #     breath_line=all_breath_line,
+            #     heart_line=all_heart_line,
+            #     state=all_state, 
+            #     create_time=all_create_time, 
+            #     all_breath_exception=all_breath_exception,
+            #     all_body_move_01=all_body_move_01,
+            #     in_out_bed=in_out_bed,
+            #     sleep_stage_timestamp_range = sleep_stage_image_x_y[0],
+            #     sleep_stage_label = sleep_stage_image_x_y[1],
+            #     query_date_device_sn=f'{self.query_date}_{self.device_sn}'
+            # )
 
             total_score, detailed_scores, breath_bpm_status, heart_bpm_status, body_move_status = self._score(sleep_result)
             sleep_result["score"] = total_score

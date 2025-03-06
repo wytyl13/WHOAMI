@@ -1,0 +1,10 @@
+# detect conda environment
+ultralytics
+fastapi
+dataclasses
+colorlog
+uvicorn
+requests
+sqlalchemy
+mysql-connector-python
+dill

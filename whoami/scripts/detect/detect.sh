@@ -40,6 +40,7 @@ if [ ! -d "$LOG_PATH" ]; then
 fi
 
 echo "日志文件路径: $LOG_FILE"
+echo "$url_str_flag"
 cd "$PROJECT_ROOT" || { echo "无法切换到项目目录: $PROJECT_ROOT"; exit 1; }
 nohup python -m whoami.scripts.detect.scripts --url "$url_str_flag" > "$LOG_FILE" 2>&1 &
 echo "检测脚本已在后台运行，输出日志位于: $LOG_FILE"

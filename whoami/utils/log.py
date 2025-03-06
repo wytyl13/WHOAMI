@@ -15,6 +15,7 @@ import functools
 import logging
 import colorlog
 import threading
+from datetime import datetime, timedelta
 
 class Logger(object):
     
@@ -54,6 +55,13 @@ class Logger(object):
             else:
                 self.__dict__[key.lower()] = functools.partial(self.__call__, level)
         
+        
+        # 自定义时间格式化函数
+        def custom_time(*args):  # *args is required to be compatible with logging
+            utc_time = datetime.utcnow()
+            cst_time = utc_time + timedelta(hours=8)  # 北京时间是 UTC+8
+            return cst_time.timetuple()  # 返回 struct_time
+        
         self.formatter = colorlog.ColoredFormatter(
             "%(log_color)s[%(asctime)s] [%(levelname)-8s] [%(name)s] - %(message)s",
             datefmt='%Y-%m-%d %H:%M:%S',
@@ -76,6 +84,9 @@ class Logger(object):
             },
             style='%'
         )
+
+        # 将自定义时间格式化函数添加到 formatter
+        self.formatter.converter = custom_time
 
         self.handler = logging.StreamHandler()
         self.handler.setFormatter(self.formatter)

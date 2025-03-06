@@ -45,10 +45,10 @@ class RequestData:
 
 sql_provider = SqlProvider(model=SleepIndices, sql_config_path=SQL_CONFIG_PATH)
 
-
 @app.post('/sleep_indices')
 async def sleep_indices(request_data: RequestData, background_tasks: BackgroundTasks):
     logger.info(request_data)
+    logger.info(sql_provider)
     result_error_dict = {}
     try:
         device_sn = request_data.device_sn

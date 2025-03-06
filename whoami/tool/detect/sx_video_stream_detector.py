@@ -24,6 +24,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 import ast
 # import ray
+import urllib.parse
 
 from whoami.tool.detect.video_stream_detector import VideoStreamDetector
 from whoami.tool.detect.detector_warning import DetectorWarning
@@ -156,7 +157,9 @@ class SxVideoStreamDetector(VideoStreamDetector):
             port = sql_info["port"]
         except Exception as e:
             raise ValueError(f"fail to init the sql connect information!\n{self.config}") from e
-        database_url = f"mysql+mysqlconnector://{username}:{password}@{host}:{port}/{database}"
+        
+        encoded_password = urllib.parse.quote_plus(password)
+        database_url = f"mysql+mysqlconnector://{username}:{encoded_password}@{host}:{port}/{database}"
         try:
             engine = create_engine(database_url, pool_size=10, max_overflow=20)
             SessionLocal = sessionmaker(bind=engine)
@@ -183,14 +186,16 @@ class SxVideoStreamDetector(VideoStreamDetector):
             raise ValueError(error_info) from e
         return real_topic_list
     
-    def update_sql_video_stream_status(self, topic_list):
+    def update_sql_video_stream_status(self, topic_list, device_sn: str = None, stream_url: str = None):
+        device_sn = self.device_sn if device_sn is None else device_sn
+        stream_url = self.stream_url if stream_url is None else stream_url
         with self.sql_connection() as db:
             try:
                 if not topic_list:
                     delete_sql = "DELETE FROM webcam_ai_config WHERE device_sn = :device_sn;"
-                    db.execute(text(delete_sql), {"device_sn": self.device_sn})
+                    db.execute(text(delete_sql), {"device_sn": device_sn})
                     db.commit()
-                    return True, f"success to delete device_sn: {self.device_sn}"
+                    return True, f"success to delete device_sn: {device_sn}"
                 
                 sql = """
                     INSERT INTO webcam_ai_config (device_sn, video_url, topic_list)
@@ -200,15 +205,14 @@ class SxVideoStreamDetector(VideoStreamDetector):
                         topic_list = VALUES(topic_list);
                 """
                 db.execute(text(sql), {
-                    "device_sn": self.device_sn,
-                    "video_url": self.stream_url,
+                    "device_sn": device_sn,
+                    "video_url": stream_url,
                     "topic_list": str(topic_list)
                 })
                 db.commit()
             except Exception as e:
                 db.rollback()        
-                error_info = "fail to update sql!"
-                self.logger.error(error_info)
+                error_info = f"fail to update sql! {str(e)}"
                 raise ValueError(error_info) from e
         return True
     
@@ -258,10 +262,11 @@ class SxVideoStreamDetector(VideoStreamDetector):
         """overwrite the get video stream url method if you need. and notice, if you
         have not provided one stream url in the StreamDetector instance, you must overwrite this method.
         """
+        device_sn = device_sn if device_sn is not None else self.device_sn
         get_video_stream_url = self.config["get_video_stream_url"]
         url = get_video_stream_url["url"][self.url_str_flag]
         request_json = get_video_stream_url["request_json"][self.url_str_flag]
-        request_json[next(iter(request_json))] = self.device_sn
+        request_json[next(iter(request_json))] = device_sn
         
         print(type(self.logger))
         self.logger.info(f"request_json: {request_json}")
@@ -270,7 +275,7 @@ class SxVideoStreamDetector(VideoStreamDetector):
         self.logger.info(f"get_video_stream_url result: {result.json()}")
         url = ""
         if result.status_code != 200:
-            raise ConnectionError(f"fail to get video url stream! the reason is api error or invalid device_sn: {self.device_sn}")
+            raise ConnectionError(f"fail to get video url stream! the reason is api error or invalid device_sn: {device_sn}")
         try:
             json_result = result.json()
         except Exception as e:
