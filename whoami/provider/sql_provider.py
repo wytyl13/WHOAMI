@@ -401,6 +401,47 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 self.logger.error(error_info)
                 raise ValueError(error_info) from e
         
+    def delete_records_by_condition(self, condition: Dict[str, Any]) -> int:
+        """
+        按照指定条件硬删除多条记录（永久从数据库中删除）
+        
+        Args:
+            condition (Dict[str, Any]): 删除条件，格式为 {字段名: 值}
+        
+        Returns:
+            int: 成功删除的记录数量
+        """
+        with self.get_db_session() as session:
+            try:
+                query = session.query(self.model)
+                
+                # 添加条件过滤，忽略不存在的字段
+                valid_conditions = {}
+                for key, value in condition.items():
+                    if hasattr(self.model, key):
+                        query = query.filter(getattr(self.model, key) == value)
+                        valid_conditions[key] = value
+                    else:
+                        self.logger.warning(f"Field '{key}' not found in model, ignoring this condition")
+                
+                if not valid_conditions:
+                    self.logger.warning("No valid conditions found, no records will be deleted")
+                    return 0
+                    
+                # 获取要删除的记录数量
+                count_to_delete = query.count()
+                
+                # 执行硬删除操作
+                query.delete(synchronize_session=False)
+                
+                return count_to_delete
+            except Exception as e:
+                error_info = f"Failed to delete records by condition: {condition}"
+                self.logger.error(error_info)
+                self.logger.error(traceback.format_exc())
+                raise ValueError(error_info) from e
+    
+    
     
     def exec_sql(self, query: Optional[str] = None):
         """query words check data"""

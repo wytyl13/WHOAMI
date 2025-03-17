@@ -1,0 +1,11 @@
+nohup: ignoring input
+============================= test session starts ==============================
+platform linux -- Python 3.10.16, pytest-8.3.4, pluggy-1.5.0
+rootdir: /work/ai/WHOAMI/tests
+plugins: langsmith-0.3.13, anyio-4.8.0
+collected 1 item
+
+rag_test_sys.py INFO:     Started server process [3907380]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8889 (Press CTRL+C to quit)

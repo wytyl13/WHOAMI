@@ -14,6 +14,10 @@ import yaml
 
 class YamlModel(BaseModel):
     
+    # def __init__(self):
+        # super().__init__()
+    
+    
     @classmethod
     def read(cls, file_path: Optional[Union[Path, str]], encoding: str = "utf-8") -> Dict:
         file_path = Path(file_path) if not isinstance(file_path, Path) and file_path is not None else file_path

@@ -32,9 +32,9 @@ class BaseTool(ABC, BaseModel):
     class Config:
         arbitrary_types_allowed = True  # 允许任意类型
     
-    @abstractmethod
-    def __init__(self) -> None:
-        super().__init__()
+    # @abstractmethod
+    # def __init__(self) -> None:
+    #     super().__init__()
     
     @model_validator(mode="before")
     @classmethod
@@ -115,3 +115,5 @@ class BaseTool(ABC, BaseModel):
         
         return type_mapping.get(field_type, {'type': 'object'})
         
+    def args(self):
+        return self.model_json_schema(self.args_schema)['properties']

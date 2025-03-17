@@ -337,7 +337,7 @@ class GoogleSearch(BaseTool):
         except Exception as e:
             error_info = utils.get_error_info("fail to request google api！", e)
             self.logger.error(error_info)
-            return error_info
+            return False, error_info
         
         # extract the interested content from the search results.
         try:
@@ -351,10 +351,10 @@ class GoogleSearch(BaseTool):
         except Exception as e:
             error_info = utils.get_error_info("fail to extract interested content.", e)
             self.logger.error(error_info)
-            return error_info
+            return False, error_info
         
         if self.snippet_flag:
-            return result
+            return True, result
         
         # fetch url content
         fetch_url_content_result = []
@@ -363,6 +363,8 @@ class GoogleSearch(BaseTool):
             if status:
                 if content:
                     # parse the html content
-                    item["fetch_url_content"] = self.preprocess_web_content(url=item['link'], original_content=self._parse_html(item['link'], content))
+                    status, result = self.preprocess_web_content(url=item['link'], original_content=self._parse_html(item['link'], content))
+                    content = '\n\n'.join(result)
+                    item["fetch_url_content"] = content
                     fetch_url_content_result.append(item)
-        return fetch_url_content_result
+        return True, fetch_url_content_result

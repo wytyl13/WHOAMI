@@ -30,6 +30,8 @@ from whoami.tool.base.base_tool import BaseTool
 from whoami.provider.base_ import ModelType
 from whoami.tool.base.consumer_tool_pool import ConsumerToolPool
 from whoami.tool.base.thread_safe_dict import ThreadSafeDict
+from whoami.tool.base.memory_manager import MemoryMonitor
+from whoami.tool.base.bound_thread_pool import BoundedThreadPoolExecutor
 
 class ProducerConsumerManager(BaseTool):
 
@@ -40,8 +42,11 @@ class ProducerConsumerManager(BaseTool):
     # production_line_locks: Dict[str, threading.Lock] = Field(default_factory=dict)
     # production_line_stop_flags: Dict[str, bool] = Field(default_factory=dict)
 
+    memory_monitor: MemoryMonitor = Field(default_factory=MemoryMonitor) # 内存管理
+
     producer_pool: ThreadPoolExecutor = None
-    consumer_pool: ThreadPoolExecutor = None
+    # consumer_pool: ThreadPoolExecutor = None
+    consumer_pool: BoundedThreadPoolExecutor = None
     production_queue: queue.Queue = None
 
     consumer_worker_running: bool = True
@@ -50,7 +55,7 @@ class ProducerConsumerManager(BaseTool):
 
     _is_running: bool = None
 
-    def __init__(self, max_producers=3, max_consumers=5, production_queue_size=100, consumer_tool_pool: ConsumerToolPool = None):
+    def __init__(self, max_producers=20, max_consumers=30, production_queue_size=1000, consumer_tool_pool: ConsumerToolPool = None):
         super().__init__()
         """This is one base class instance what based on the producer and consumer model.
         Produce the product used the producer pool what max size is max_producer, Consume the
@@ -58,7 +63,8 @@ class ProducerConsumerManager(BaseTool):
         """
 
         self.producer_pool = ThreadPoolExecutor(max_workers=max_producers)
-        self.consumer_pool = ThreadPoolExecutor(max_workers=max_consumers)
+        # self.consumer_pool = ThreadPoolExecutor(max_workers=max_consumers)
+        self.consumer_pool = BoundedThreadPoolExecutor(max_workers=max_consumers, max_queue_size=30)
         self.production_queue = queue.Queue(maxsize=production_queue_size)
 
         # set the consumer thread status and start to consume the product use consumer function.

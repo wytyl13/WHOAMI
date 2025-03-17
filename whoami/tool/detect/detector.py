@@ -22,7 +22,6 @@ from pydantic import BaseModel, model_validator, ValidationError
 from ultralytics import YOLO, RTDETR
 
 from whoami.utils.log import Logger
-
 class Detector(BaseModel, ABC):
     name: Optional[str] = None
     model: Optional[Union[YOLO, RTDETR]] = None
@@ -30,7 +29,6 @@ class Detector(BaseModel, ABC):
     class_list: Optional[list[int]] = None
     conf: Optional[float] = None
     logger: Optional[Logger] = None
-    
     class Config:
         arbitrary_types_allowed = True  # 允许任意类型
     

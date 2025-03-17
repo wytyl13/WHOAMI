@@ -13,9 +13,21 @@ import yaml
 from typing import (
     Optional
 )
+from enum import Enum
+import jieba
 
 from whoami.utils.log import Logger
 logger = Logger('Utils')
+
+class StrEnum(str, Enum):
+    def __str__(self) -> str:
+        # overwrite the __str__ method to implement enum_instance.attribution == enum_instance.attribution.value
+        return self.value
+    
+    def __repr__(self) -> str:
+        return f"'{str(self)}'"
+
+
 
 class Utils:
     """Utils class what aims to code some generation tools what can be used in all tool, agent or other function.
@@ -153,7 +165,11 @@ class Utils:
             raise ValueError('fail to exec sort two list function!') from e
         return [sorted_timestamps, sorted_labels]
         
-        
+    
+    def remove_stopwords(self, text, stop_words):
+        words = jieba.cut(text)
+        filtered_words = [word for word in words if word not in stop_words]
+        return ''.join(filtered_words).replace(' ', '')
         
         
 

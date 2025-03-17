@@ -37,6 +37,9 @@ app = FastAPI()
 CONFIG = DetectorConfig.from_file(CONFIG_PATH).__dict__
 TOPIC_DICT = CONFIG['topics']
 
+topic_list_flag = False
+
+
 @dataclass
 class RequestData:
     device_sn: str = None
@@ -60,12 +63,12 @@ def test_sx_video_stream_pcm(
 ):
     model_paths = {
         "/fire/smoke/warning": ModelInfo("/work/ai/WHOAMI/whoami/models/detect/fire_smoke_yolov10m_v2_epochs_250.pt", UltraliticsDetector, [0, 1], 0.5),
-        "/fallen/falling/warning": ModelInfo("/work/ai/WHOAMI/whoami/models/detect/fall_yolov10_7000_218.pt", UltraliticsDetector, [0], 0.9),
-        "/mouse/warning": ModelInfo("/work/ai/WHOAMI/whoami/models/detect/mouse_yolov10l_epochs_250.pt", UltraliticsDetector, [0], 0.5),
-        "/violence/warning": ModelInfo("/work/ai/WHOAMI/whoami/models/detect/fight_yolov10m_199_epoch.pt", UltraliticsDetector, [0], 0.5),
+        "/fallen/falling/warning": ModelInfo("/work/ai/WHOAMI/whoami/models/detect/fall_yolov10_7000_218.pt", UltraliticsDetector, [0], 0.91),
+        "/mouse/warning": ModelInfo("/work/ai/WHOAMI/whoami/models/detect/mouse_yolov10l_epochs_250.pt", UltraliticsDetector, [0], 0.95),
+        "/violence/warning": ModelInfo("/work/ai/WHOAMI/whoami/models/detect/fight_yolov10m_199_epoch.pt", UltraliticsDetector, [0], 0.97),
     }
     consumer_tool_pool = ConsumerToolPool(model_paths=model_paths)
-    sx_video_stream_pcm = SxVideoStreamPCM(consumer_tool_pool=consumer_tool_pool, max_producers=10)
+    sx_video_stream_pcm = SxVideoStreamPCM(consumer_tool_pool=consumer_tool_pool)
 
     
     @app.get('/list_all_topic')
@@ -83,16 +86,21 @@ def test_sx_video_stream_pcm(
         except Exception as e:
             return R.fail(f"传参错误！{request_data}")
 
+        current_memory = sx_video_stream_pcm.memory_monitor.check_memory_usage()
+        print(f"current_memory: ----------------------------------------- {current_memory}")
         def run_process():
             sx_video_stream_pcm._run(
                 topic_dict=TOPIC_DICT, 
                 device_sn=device_sn, 
-                topic_list=topic_list
+                topic_list=topic_list,
+                topic_list_flag=topic_list_flag
             )
         background_tasks.add_task(run_process)
         return R.success("start process")
     
     uvicorn.run(app, host='0.0.0.0', port=9999)
 
+
+    
     
     

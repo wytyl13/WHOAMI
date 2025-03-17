@@ -13,6 +13,7 @@ from typing import (
     Optional,
     Tuple,
     Union,
+    List,
     overload,
 )
 from pydantic import BaseModel, model_validator, ValidationError
@@ -69,8 +70,41 @@ class UltraliticsDetector(Detector):
         except Exception as e:
             raise ValueError(f"invalid model path {model_path}") from e
     
-    
     def predict(
+        self, 
+        image: Optional[Union[str, np.ndarray, List[Union[str, np.ndarray]]]] = None,
+    ):
+        if image is None:
+            raise ValueError("image must not be None!")
+        
+        # Check if it's a batch (list) of images
+        is_batch = isinstance(image, list)
+
+        # Convert single image to list for unified processing
+        images = image if is_batch else [image]
+
+        # Validate all images in the batch
+        for i, img in enumerate(images):
+            if not isinstance(img, (str, np.ndarray)):
+                raise ValueError(f"Image at index {i} must be str or np.ndarray!")
+            
+            if isinstance(img, str) and not Path(img).exists():
+                raise ValueError(f"Image path {img} at index {i} does not exist!")
+
+        try:
+            with torch.no_grad():
+                results = self.model.predict(
+                    source=images, 
+                    classes=self.class_list, 
+                    conf=self.conf, 
+                    verbose=False
+                )
+        except Exception as e:
+            raise RuntimeError(f"Failed to predict {'batch' if is_batch else 'single'} image! {str(e)}") from e
+        
+        return results
+
+    def predict_bake(
             self, 
             image: Optional[Union[str, np.ndarray]] = None):
         if image is None:

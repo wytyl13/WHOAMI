@@ -1,14 +1,15 @@
 
 import json
 import datetime
-from whoami.llm_api.ollama_llm import OllamLLM
+from whoami.llm_api.ollama_llm import OllamaLLM
 from whoami.configs.llm_config import LLMConfig
 from pathlib import Path
+import asyncio
 
 from whoami.utils.log import Logger
 
 
-llm = OllamLLM(
+llm = OllamaLLM(
     LLMConfig.from_file(Path("/home/weiyutao/work/WHOAMI/whoami/scripts/test/ollama_config.yaml")), 
     temperature=0.0
 )
@@ -60,7 +61,7 @@ class PlanningAgent:
         tool_descs = '\n'.join(tool_descs)
         return tool_descs
 
-    def agent_execute(self, query, chat_history=[]):
+    async def agent_execute(self, query, chat_history=[]):
         global tools, tool_names, tool_descs, prompt_tpl, llm, tokenizer
 
         agent_scratchpad = ''  # agent执行过程
@@ -76,7 +77,8 @@ class PlanningAgent:
                                     query=query, agent_scratchpad=agent_scratchpad)
             self.logger.info(f"---等待LLM返回... ...\n{prompt}")
             user_stop_words = ['Observation:'] if model_name == 'qwen2' else ['- Observation:']
-            response = self.llm.whoami(prompt, user_stop_words=user_stop_words)
+            messages = [{"role": "user", "content": prompt}]
+            response = await self.llm._whoami_text(messages=messages, timeout=10, user_stop_words=user_stop_words)
             self.logger.info(f"---LLM返回... ...\n{response}")
 
             # 2 解析 thought+action+action input+observation or thought+final answer
@@ -142,10 +144,30 @@ class PlanningAgent:
                 observation = str(tool_ret)
             agent_scratchpad = agent_scratchpad + response + observation + '\n'
     
+    
+    async def agent_execute_with_retry_async(self, query, chat_history=[], retry_times=3):
+        for i in range(retry_times):
+            status, result, chat_history = await self.agent_execute(query, chat_history=chat_history)
+            if status:
+                return status, result, chat_history
+        return status, result, chat_history
+    
+    
+    def agent_execute_with_retry(self, query, chat_history=[], retry_times=3):
+        """
+        Synchronous wrapper for the async agent_execute method
+        """
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(
+            self.agent_execute_with_retry_async(query, chat_history, retry_times)
+        )
+    
+    """
     def agent_execute_with_retry(self, query, chat_history=[], retry_times=3):
         for i in range(retry_times):
             status, result, chat_history = self.agent_execute(query, chat_history=chat_history)
             if status:
                 return status, result, chat_history
         return status, result, chat_history
+    """
 

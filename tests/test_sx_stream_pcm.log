@@ -1,0 +1,1693 @@
+nohup: ignoring input
+============================= test session starts ==============================
+platform linux -- Python 3.10.16, pytest-8.3.4, pluggy-1.5.0
+rootdir: /work/ai/WHOAMI/tests
+plugins: anyio-4.8.0
+collected 1 item
+
+sx_video_stream_pcm_test.py INFO:     Started server process [485212]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:9999 (Press CTRL+C to quit)
+[33m[2025-03-07 18:25:41] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[33m[2025-03-07 18:25:46] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[33m[2025-03-07 18:25:51] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[33m[2025-03-07 18:25:56] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[33m[2025-03-07 18:26:01] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+current_memory: ----------------------------------------- 2275.33203125
+INFO:     192.168.0.16:51138 - "POST /fire_smoke_warning HTTP/1.1" 200 OK
+[32m[2025-03-07 18:26:03] [INFO    ] [SxVideoStreamDetector] - request_json: {'deviceSn': 'BD3202818', 'channelNo': 1, 'protocol': 2, 'quality': 1, 'bitRateType': 0, 'videoFrameRate': 0, 'resolution': 'VGA', 'videoBitRate': 21, 'encodeType': 'H264', 'expireTime': '86400'}[0m
+[32m[2025-03-07 18:26:03] [INFO    ] [SxVideoStreamDetector] - request_url: http://1.71.15.102:48080/admin-api/device/yingShiWebcam/getWebcamLiveAddress[0m
+[32m[2025-03-07 18:26:03] [INFO    ] [SxVideoStreamDetector] - get_video_stream_url result: {'code': 0, 'data': {'expireTime': '2025-03-08 18:26:03', 'id': '818187761012817920', 'url': 'https://open.ys7.com/v3/openlive/BD3202818_1_1.m3u8?expire=1741429563&id=818187761012817920&t=4be9eea1ecbe04b8c131be4054066b78f1ec577327b90793454546fa610dd34a&ev=100'}, 'msg': ''}[0m
+[32m[2025-03-07 18:26:03] [INFO    ] [SxVideoStreamPCM] - Requested topics: ['/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警', '/violence/warning?暴力预警'][0m
+[32m[2025-03-07 18:26:03] [INFO    ] [SxVideoStreamPCM] - Currently active topics: [][0m
+[32m[2025-03-07 18:26:03] [INFO    ] [SxVideoStreamPCM] - Topics to stop: [][0m
+[32m[2025-03-07 18:26:03] [INFO    ] [SxVideoStreamPCM] - Topics to start: ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:26:03] [INFO    ] [SxVideoStreamPCM] - Starting reader for stream BD3202818/violence/warning?暴力预警, URL: https://open.ys7.com/v3/openlive/BD3202818_1_1.m3u8?expire=1741429563&id=818187761012817920&t=4be9eea1ecbe04b8c131be4054066b78f1ec577327b90793454546fa610dd34a&ev=100[0m
+[32m[2025-03-07 18:26:03] [INFO    ] [SxVideoStreamPCM] - Started video stream BD3202818/violence/warning?暴力预警![0m
+[32m[2025-03-07 18:26:03] [INFO    ] [SxVideoStreamPCM] - Starting reader for stream BD3202818/fallen/falling/warning?跌倒预警, URL: https://open.ys7.com/v3/openlive/BD3202818_1_1.m3u8?expire=1741429563&id=818187761012817920&t=4be9eea1ecbe04b8c131be4054066b78f1ec577327b90793454546fa610dd34a&ev=100[0m
+[32m[2025-03-07 18:26:03] [INFO    ] [SxVideoStreamPCM] - Started video stream BD3202818/fallen/falling/warning?跌倒预警![0m
+[32m[2025-03-07 18:26:03] [INFO    ] [SxVideoStreamPCM] - Starting reader for stream BD3202818/fire/smoke/warning?烟火预警, URL: https://open.ys7.com/v3/openlive/BD3202818_1_1.m3u8?expire=1741429563&id=818187761012817920&t=4be9eea1ecbe04b8c131be4054066b78f1ec577327b90793454546fa610dd34a&ev=100[0m
+[32m[2025-03-07 18:26:03] [INFO    ] [SxVideoStreamPCM] - Started video stream BD3202818/fire/smoke/warning?烟火预警![0m
+[33m[2025-03-07 18:26:06] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:26:09] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - FPS: 15.0, Resolution: 2304x1296[0m
+[32m[2025-03-07 18:26:09] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 0.00, Current queue size is: 0![0m
+[32m[2025-03-07 18:26:09] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 2445.0390625[0m
+<class 'whoami.utils.log.Logger'>
+Ultralytics 8.3.75 🚀 Python-3.10.16 torch-2.6.0+cu124 CUDA:0 (NVIDIA A10, 22716MiB)
+[32m[2025-03-07 18:26:10] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - FPS: 15.0, Resolution: 2304x1296[0m
+Ultralytics 8.3.75 🚀 Python-3.10.16 torch-2.6.0+cu124 CUDA:0 (NVIDIA A10, 22716MiB)
+YOLOv10m summary (fused): 369 layers, 16,453,858 parameters, 0 gradients, 63.4 GFLOPs
+[32m[2025-03-07 18:26:10] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - FPS: 15.0, Resolution: 2304x1296[0m
+Ultralytics 8.3.75 🚀 Python-3.10.16 torch-2.6.0+cu124 CUDA:0 (NVIDIA A10, 22716MiB)
+Ultralytics 8.3.75 🚀 Python-3.10.16 torch-2.6.0+cu124 CUDA:0 (NVIDIA A10, 22716MiB)
+[33m[2025-03-07 18:26:11] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+YOLOv10m summary (fused): 369 layers, 16,452,700 parameters, 0 gradients, 63.4 GFLOPs
+YOLOv10m summary (fused): 369 layers, 16,452,700 parameters, 0 gradients, 63.4 GFLOPs
+YOLOv10m summary (fused): 369 layers, 16,452,700 parameters, 0 gradients, 63.4 GFLOPs
+[32m[2025-03-07 18:26:13] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 35.02, Current queue size is: 0![0m
+[32m[2025-03-07 18:26:13] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 4874.60546875[0m
+[33m[2025-03-07 18:26:16] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:26:17] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 13.14, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:17] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.09, Current queue size is: 0![0m
+[32m[2025-03-07 18:26:17] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:26:17] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5237.375[0m
+[32m[2025-03-07 18:26:18] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 12.94, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:18] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:26:18] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 13.16, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:18] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:26:21] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 45.35, Current queue size is: 0![0m
+[32m[2025-03-07 18:26:21] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5294.04296875[0m
+[33m[2025-03-07 18:26:21] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:26:25] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.81, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:25] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.42, Current queue size is: 0![0m
+[32m[2025-03-07 18:26:25] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:26:25] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5283.80078125[0m
+[32m[2025-03-07 18:26:26] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.74, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:26] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:26:26] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:26:27] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.77, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:27] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:26:29] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.34, Current queue size is: 0![0m
+[32m[2025-03-07 18:26:29] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5294.59375[0m
+[33m[2025-03-07 18:26:31] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:26:33] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.71, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:33] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:26:33] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.34, Current queue size is: 0![0m
+[32m[2025-03-07 18:26:33] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5298.77734375[0m
+[32m[2025-03-07 18:26:34] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.85, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:34] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:26:35] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.80, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:35] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:26:36] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:26:37] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 45.40, Current queue size is: 0![0m
+[32m[2025-03-07 18:26:37] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5306.08203125[0m
+[32m[2025-03-07 18:26:41] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.90, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:41] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.40, Current queue size is: 0![0m
+[32m[2025-03-07 18:26:41] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:26:41] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5267.3984375[0m
+[33m[2025-03-07 18:26:42] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:26:42] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.72, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:42] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:26:43] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.78, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:43] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:26:45] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.40, Current queue size is: 0![0m
+[32m[2025-03-07 18:26:45] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5311.890625[0m
+[33m[2025-03-07 18:26:47] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:26:49] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.73, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:49] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:26:49] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.60, Current queue size is: 0![0m
+[32m[2025-03-07 18:26:49] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5325.35546875[0m
+[32m[2025-03-07 18:26:50] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.86, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:50] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:26:51] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.66, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:51] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:26:52] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:26:54] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.36, Current queue size is: 0![0m
+[32m[2025-03-07 18:26:54] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5342.4921875[0m
+[33m[2025-03-07 18:26:57] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:26:58] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.55, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:58] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:26:58] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.57, Current queue size is: 0![0m
+[32m[2025-03-07 18:26:58] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5348.73046875[0m
+[32m[2025-03-07 18:26:58] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.72, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:58] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:26:59] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.84, Current queue size is: 1![0m
+[32m[2025-03-07 18:26:59] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:27:02] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.64, Current queue size is: 0![0m
+[32m[2025-03-07 18:27:02] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5337.484375[0m
+[33m[2025-03-07 18:27:02] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:27:06] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.87, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:06] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.61, Current queue size is: 0![0m
+[32m[2025-03-07 18:27:06] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:27:06] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5356.40234375[0m
+[32m[2025-03-07 18:27:07] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.69, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:07] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:27:07] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:27:07] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.71, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:07] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:27:10] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.59, Current queue size is: 0![0m
+[32m[2025-03-07 18:27:10] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5381.6484375[0m
+[33m[2025-03-07 18:27:12] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:27:14] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.72, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:14] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.69, Current queue size is: 0![0m
+[32m[2025-03-07 18:27:14] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:27:14] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5363.81640625[0m
+[32m[2025-03-07 18:27:15] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.57, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:15] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:27:15] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.87, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:15] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:27:17] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:27:18] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.55, Current queue size is: 0![0m
+[32m[2025-03-07 18:27:18] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5341.91015625[0m
+[32m[2025-03-07 18:27:22] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.64, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:22] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.31, Current queue size is: 0![0m
+[32m[2025-03-07 18:27:22] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5358.55859375[0m
+[32m[2025-03-07 18:27:22] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:27:22] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:27:23] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.86, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:23] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:27:23] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.83, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:23] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:27:24] [INFO    ] [SxDetectorWarning] - response_data: {'deviceSn': 'BD3202818', 'videoStreamUrl': '', 'imageUrl': 'https://sxkjmall.oss-cn-beijing.aliyuncs.com/9d90effce270ef20169a4e39209f511883b211e60976905fddaa971ddf880eb0.png', 'alarmType': '跌倒预警', 'alarmTime': '2025-03-07T18:27:24+08:00'}[0m
+[32m[2025-03-07 18:27:24] [INFO    ] [SxDetectorWarning] - {'code': 0, 'data': True, 'msg': ''}[0m
+[33m[2025-03-07 18:27:24] [WARNING ] [SxVideoStreamPCM] - Warning detected: /fallen/falling/warning?跌倒预警[0m
+[32m[2025-03-07 18:27:26] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.64, Current queue size is: 0![0m
+[32m[2025-03-07 18:27:26] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5447.46484375[0m
+[33m[2025-03-07 18:27:28] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:27:30] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.56, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:30] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:27:30] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.43, Current queue size is: 0![0m
+[32m[2025-03-07 18:27:30] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5382.55859375[0m
+[32m[2025-03-07 18:27:31] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.72, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:31] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:27:32] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.70, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:32] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:27:33] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:27:34] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.20, Current queue size is: 0![0m
+[32m[2025-03-07 18:27:34] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5399.07421875[0m
+[33m[2025-03-07 18:27:38] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:27:38] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.65, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:38] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.64, Current queue size is: 0![0m
+[32m[2025-03-07 18:27:38] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:27:38] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5412.73828125[0m
+[32m[2025-03-07 18:27:39] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.71, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:39] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:27:40] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.63, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:40] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:27:43] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:27:43] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.39, Current queue size is: 0![0m
+[32m[2025-03-07 18:27:43] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5399.328125[0m
+[32m[2025-03-07 18:27:43] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 20.59, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:43] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:27:44] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 22.79, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:44] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:27:45] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 20.20, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:45] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:27:48] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 42.67, Current queue size is: 0![0m
+[32m[2025-03-07 18:27:48] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5375.8984375[0m
+[33m[2025-03-07 18:27:48] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:27:50] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 11.17, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:50] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:27:50] [INFO    ] [SxDetectorWarning] - response_data: {'deviceSn': 'BD3202818', 'videoStreamUrl': '', 'imageUrl': 'https://sxkjmall.oss-cn-beijing.aliyuncs.com/a74b7e52ea0972e337cee79498b8be1c01e5e650cb2a2b43c79af7978a0e0c04.png', 'alarmType': '跌倒预警', 'alarmTime': '2025-03-07T18:27:50+08:00'}[0m
+[32m[2025-03-07 18:27:50] [INFO    ] [SxDetectorWarning] - {'code': 0, 'data': True, 'msg': ''}[0m
+[33m[2025-03-07 18:27:50] [WARNING ] [SxVideoStreamPCM] - Warning detected: /fallen/falling/warning?跌倒预警[0m
+[32m[2025-03-07 18:27:51] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.76, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:51] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 69.60, Current queue size is: 0![0m
+[32m[2025-03-07 18:27:51] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:27:51] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5503.93359375[0m
+[32m[2025-03-07 18:27:51] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.84, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:51] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:27:53] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:27:55] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.70, Current queue size is: 0![0m
+[32m[2025-03-07 18:27:55] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5376.1484375[0m
+[32m[2025-03-07 18:27:55] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 22.12, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:55] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:27:58] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:27:59] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.68, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:59] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:27:59] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.86, Current queue size is: 0![0m
+[32m[2025-03-07 18:27:59] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5437.546875[0m
+[32m[2025-03-07 18:27:59] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.66, Current queue size is: 1![0m
+[32m[2025-03-07 18:27:59] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+[33m[2025-03-07 18:28:03] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:28:05] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 11.75, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:05] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 35.09, Current queue size is: 0![0m
+[32m[2025-03-07 18:28:05] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:28:05] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5462.4375[0m
+[32m[2025-03-07 18:28:05] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 11.74, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:05] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:28:05] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 13.01, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:05] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:28:08] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:28:10] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.89, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:10] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.73, Current queue size is: 0![0m
+[32m[2025-03-07 18:28:10] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:28:10] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5826.54296875[0m
+[32m[2025-03-07 18:28:10] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.93, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:10] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:28:10] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.80, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:10] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:28:13] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:28:14] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.43, Current queue size is: 0![0m
+[32m[2025-03-07 18:28:14] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5695.77734375[0m
+[32m[2025-03-07 18:28:18] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.81, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:18] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.23, Current queue size is: 0![0m
+[32m[2025-03-07 18:28:18] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:28:18] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5429.125[0m
+[32m[2025-03-07 18:28:18] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.79, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:18] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:28:18] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.68, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:18] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:28:19] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:28:22] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.72, Current queue size is: 0![0m
+[32m[2025-03-07 18:28:22] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5394.22265625[0m
+[33m[2025-03-07 18:28:24] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:28:26] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.72, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:26] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:28:26] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.98, Current queue size is: 0![0m
+[32m[2025-03-07 18:28:26] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5420.8359375[0m
+[32m[2025-03-07 18:28:26] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.72, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:26] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:28:26] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.54, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:26] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:28:29] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:28:30] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.87, Current queue size is: 0![0m
+[32m[2025-03-07 18:28:30] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5415.1875[0m
+[33m[2025-03-07 18:28:34] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:28:34] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.66, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:34] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:28:34] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.84, Current queue size is: 0![0m
+[32m[2025-03-07 18:28:34] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5499.84375[0m
+[32m[2025-03-07 18:28:34] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.70, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:34] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:28:34] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.63, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:34] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:28:38] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.54, Current queue size is: 0![0m
+[32m[2025-03-07 18:28:38] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5513.98046875[0m
+[33m[2025-03-07 18:28:39] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:28:42] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.77, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:42] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.23, Current queue size is: 0![0m
+[32m[2025-03-07 18:28:42] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:28:42] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5482.6484375[0m
+[32m[2025-03-07 18:28:43] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.74, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:43] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:28:43] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.79, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:43] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:28:44] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:28:47] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.78, Current queue size is: 0![0m
+[32m[2025-03-07 18:28:47] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5405.71484375[0m
+[33m[2025-03-07 18:28:49] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:28:51] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.70, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:51] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:28:51] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.90, Current queue size is: 0![0m
+[32m[2025-03-07 18:28:51] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5439.94921875[0m
+[32m[2025-03-07 18:28:51] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.68, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:51] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:28:51] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.62, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:51] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:28:54] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:28:55] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.47, Current queue size is: 0![0m
+[32m[2025-03-07 18:28:55] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5448.12109375[0m
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.7929294975260535
+overlap_ratio: ----------------------------------------0.7947848005265532
+overlap_ratio: ----------------------------------------0.7908848546794036
+overlap_ratio: ----------------------------------------0.8053913893568784
+overlap_ratio: ----------------------------------------0.796374453432107
+overlap_ratio: ----------------------------------------0.8160092132395032
+overlap_ratio: ----------------------------------------0.7924952108180424
+overlap_ratio: ----------------------------------------0.8117801795447764
+overlap_ratio: ----------------------------------------0.7959514569622156
+overlap_ratio: ----------------------------------------0.8009059896331637
+overlap_ratio: ----------------------------------------0.8066018049844195
+overlap_ratio: ----------------------------------------0.8040808179495412
+overlap_ratio: ----------------------------------------0.8145921383002397
+overlap_ratio: ----------------------------------------0.8075854897397413
+overlap_ratio: ----------------------------------------0.7930303982011923
+overlap_ratio: ----------------------------------------0.7914388645654343
+overlap_ratio: ----------------------------------------0.7962262774719252
+overlap_ratio: ----------------------------------------0.7955006497249275
+overlap_ratio: ----------------------------------------0.7964022888565089
+overlap_ratio: ----------------------------------------0.798531970261559
+overlap_ratio: ----------------------------------------0.7986785345769353
+overlap_ratio: ----------------------------------------0.7999638195385289
+overlap_ratio: ----------------------------------------0.7998125371020156
+overlap_ratio: ----------------------------------------0.7989737751861077
+overlap_ratio: ----------------------------------------0.7992516996259665
+overlap_ratio: ----------------------------------------0.7999615465490478
+overlap_ratio: ----------------------------------------0.8000023914750283
+overlap_ratio: ----------------------------------------0.7921570044941754
+overlap_ratio: ----------------------------------------0.7921391435456644
+overlap_ratio: ----------------------------------------0.79215471639816
+overlap_ratio: ----------------------------------------0.7924765409072091
+overlap_ratio: ----------------------------------------0.7927114423740029
+overlap_ratio: ----------------------------------------0.7932263096937322
+overlap_ratio: ----------------------------------------0.7927596409998491
+overlap_ratio: ----------------------------------------0.7925230158166711
+overlap_ratio: ----------------------------------------0.792362184210851
+overlap_ratio: ----------------------------------------0.7926785072572075
+overlap_ratio: ----------------------------------------0.7926750459383486
+overlap_ratio: ----------------------------------------0.792109712207789
+overlap_ratio: ----------------------------------------0.7910073394064019
+overlap_ratio: ----------------------------------------0.7916267622317162
+overlap_ratio: ----------------------------------------0.7916873841661534
+overlap_ratio: ----------------------------------------0.7916307951726913
+overlap_ratio: ----------------------------------------0.7919500349680504
+overlap_ratio: ----------------------------------------0.791869793032991
+overlap_ratio: ----------------------------------------0.7919298696278734
+overlap_ratio: ----------------------------------------0.7918037292174266
+overlap_ratio: ----------------------------------------0.7915738485133776
+overlap_ratio: ----------------------------------------0.7916174121767474
+overlap_ratio: ----------------------------------------0.7916654073499295
+overlap_ratio: ----------------------------------------0.7915200930005509
+overlap_ratio: ----------------------------------------0.7915813626792326
+overlap_ratio: ----------------------------------------0.7915016109649476
+overlap_ratio: ----------------------------------------0.7911530266244539
+overlap_ratio: ----------------------------------------0.7913634155771886
+overlap_ratio: ----------------------------------------0.7913564262905829
+overlap_ratio: ----------------------------------------0.7907563240452185
+overlap_ratio: ----------------------------------------0.7911222532413317
+overlap_ratio: ----------------------------------------0.7912490826536527
+overlap_ratio: ----------------------------------------0.7911019035649562
+overlap_ratio: ----------------------------------------0.7907407319140232
+overlap_ratio: ----------------------------------------0.7908770256200746
+overlap_ratio: ----------------------------------------0.7905921850737568
+overlap_ratio: ----------------------------------------0.7905451561822806
+overlap_ratio: ----------------------------------------0.790578183279663
+overlap_ratio: ----------------------------------------0.7908328405956536
+overlap_ratio: ----------------------------------------0.7909226725790447
+overlap_ratio: ----------------------------------------0.7909055718654671
+overlap_ratio: ----------------------------------------0.7910218505705189
+overlap_ratio: ----------------------------------------0.7909302370324577
+overlap_ratio: ----------------------------------------0.7909233108896232
+overlap_ratio: ----------------------------------------0.7913135063576511
+overlap_ratio: ----------------------------------------0.7912991319808835
+overlap_ratio: ----------------------------------------0.7911051283865004
+overlap_ratio: ----------------------------------------0.7911255437930276
+overlap_ratio: ----------------------------------------0.7913289417882486
+overlap_ratio: ----------------------------------------0.7912627303703307
+overlap_ratio: ----------------------------------------0.7909103526631835
+overlap_ratio: ----------------------------------------0.7902406616112566
+overlap_ratio: ----------------------------------------0.7899660746304878
+overlap_ratio: ----------------------------------------0.789925296815756
+overlap_ratio: ----------------------------------------0.7899878348119612
+overlap_ratio: ----------------------------------------0.7900822742669809
+overlap_ratio: ----------------------------------------0.7903210803166665
+overlap_ratio: ----------------------------------------0.7901942275295492
+overlap_ratio: ----------------------------------------0.7901946216658347
+overlap_ratio: ----------------------------------------0.7902139220259182
+overlap_ratio: ----------------------------------------0.7951600472455344
+overlap_ratio: ----------------------------------------0.7950758805479042
+overlap_ratio: ----------------------------------------0.7951341509463343
+overlap_ratio: ----------------------------------------0.7954605746008107
+overlap_ratio: ----------------------------------------0.7955594942956401
+overlap_ratio: ----------------------------------------0.7957176959645996
+overlap_ratio: ----------------------------------------0.7951350259633432
+overlap_ratio: ----------------------------------------0.7953048910269025
+overlap_ratio: ----------------------------------------0.7951519881791822
+overlap_ratio: ----------------------------------------0.7951735024125066
+[32m[2025-03-07 18:28:59] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.57, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:59] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.42, Current queue size is: 0![0m
+[32m[2025-03-07 18:28:59] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:28:59] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5482.96875[0m
+[32m[2025-03-07 18:28:59] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.77, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:59] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:28:59] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.82, Current queue size is: 1![0m
+[32m[2025-03-07 18:28:59] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:28:59] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:29:03] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.96, Current queue size is: 0![0m
+[32m[2025-03-07 18:29:03] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5431.140625[0m
+overlap_ratio: ----------------------------------------0.7951165507051583
+overlap_ratio: ----------------------------------------0.7948576120159251
+overlap_ratio: ----------------------------------------0.7949173340211716
+overlap_ratio: ----------------------------------------0.794996274555104
+overlap_ratio: ----------------------------------------0.7947926555009593
+overlap_ratio: ----------------------------------------0.7948243179221345
+overlap_ratio: ----------------------------------------0.7947951998664766
+overlap_ratio: ----------------------------------------0.7946863276776716
+overlap_ratio: ----------------------------------------0.7944146245639161
+overlap_ratio: ----------------------------------------0.794175343080181
+overlap_ratio: ----------------------------------------0.7937958624999679
+overlap_ratio: ----------------------------------------0.7937053128271546
+overlap_ratio: ----------------------------------------0.7933614105401486
+overlap_ratio: ----------------------------------------0.7934893950517272
+overlap_ratio: ----------------------------------------0.7934254712600297
+overlap_ratio: ----------------------------------------0.7934613834863232
+overlap_ratio: ----------------------------------------0.7933980881933834
+overlap_ratio: ----------------------------------------0.7935062451573249
+overlap_ratio: ----------------------------------------0.793582827946221
+overlap_ratio: ----------------------------------------0.793854690775806
+overlap_ratio: ----------------------------------------0.7938678833538378
+overlap_ratio: ----------------------------------------0.7939207042106273
+overlap_ratio: ----------------------------------------0.7938275739528448
+overlap_ratio: ----------------------------------------0.7941258690953491
+overlap_ratio: ----------------------------------------0.7939938543368651
+overlap_ratio: ----------------------------------------0.7938948356428631
+overlap_ratio: ----------------------------------------0.7938813275913218
+overlap_ratio: ----------------------------------------0.7939281179776758
+overlap_ratio: ----------------------------------------0.7942015858782305
+overlap_ratio: ----------------------------------------0.7944226187127268
+overlap_ratio: ----------------------------------------0.794432968904382
+overlap_ratio: ----------------------------------------0.7943659744235583
+overlap_ratio: ----------------------------------------0.7941088551148272
+overlap_ratio: ----------------------------------------0.7939364383039603
+overlap_ratio: ----------------------------------------0.7937501744745267
+overlap_ratio: ----------------------------------------0.7937228565307985
+overlap_ratio: ----------------------------------------0.7934931524579591
+overlap_ratio: ----------------------------------------0.7932584265684527
+overlap_ratio: ----------------------------------------0.7931970866230151
+overlap_ratio: ----------------------------------------0.793004620609186
+overlap_ratio: ----------------------------------------0.7930371824983607
+overlap_ratio: ----------------------------------------0.7927826735370449
+overlap_ratio: ----------------------------------------0.7925669524220329
+overlap_ratio: ----------------------------------------0.7922954241308223
+overlap_ratio: ----------------------------------------0.7912685071059928
+overlap_ratio: ----------------------------------------0.7912199400635096
+overlap_ratio: ----------------------------------------0.7915574842636515
+overlap_ratio: ----------------------------------------0.7912076109879657
+overlap_ratio: ----------------------------------------0.7939427623342964
+overlap_ratio: ----------------------------------------0.7932798075644816
+overlap_ratio: ----------------------------------------0.7988677534025295
+overlap_ratio: ----------------------------------------0.7981336731105461
+overlap_ratio: ----------------------------------------0.7991173929664689
+overlap_ratio: ----------------------------------------0.8251242932180463
+overlap_ratio: ----------------------------------------0.8308334227029528
+overlap_ratio: ----------------------------------------0.7950340141992022
+overlap_ratio: ----------------------------------------0.8130764324371442
+overlap_ratio: ----------------------------------------0.8022844340715666
+overlap_ratio: ----------------------------------------0.8010902748071644
+overlap_ratio: ----------------------------------------0.7939877654922127
+overlap_ratio: ----------------------------------------0.794103511097613
+overlap_ratio: ----------------------------------------0.798735561283484
+overlap_ratio: ----------------------------------------0.8046711158381533
+overlap_ratio: ----------------------------------------0.8127872013179757
+overlap_ratio: ----------------------------------------0.8361212224035739
+overlap_ratio: ----------------------------------------0.821593678844717
+overlap_ratio: ----------------------------------------0.8175708083628898
+overlap_ratio: ----------------------------------------0.8027948346820262
+overlap_ratio: ----------------------------------------0.7941926377084844
+overlap_ratio: ----------------------------------------0.7952037702463025
+overlap_ratio: ----------------------------------------0.7911754415462819
+overlap_ratio: ----------------------------------------0.7917456277328626
+overlap_ratio: ----------------------------------------0.7926315270545323
+overlap_ratio: ----------------------------------------0.7940264549458158
+overlap_ratio: ----------------------------------------0.791997622995166
+overlap_ratio: ----------------------------------------0.7909201816465654
+overlap_ratio: ----------------------------------------0.7892687835554135
+overlap_ratio: ----------------------------------------0.7888330981972128
+overlap_ratio: ----------------------------------------0.7884652076126653
+overlap_ratio: ----------------------------------------0.7917119896570047
+overlap_ratio: ----------------------------------------0.7933525193984348
+overlap_ratio: ----------------------------------------0.7918053471173846
+overlap_ratio: ----------------------------------------0.7928999227000115
+overlap_ratio: ----------------------------------------0.7898266069499875
+overlap_ratio: ----------------------------------------0.7890076587586451
+overlap_ratio: ----------------------------------------0.7881406673142973
+overlap_ratio: ----------------------------------------0.7871862371259674
+overlap_ratio: ----------------------------------------0.7857846971018725
+overlap_ratio: ----------------------------------------0.7849751788916762
+overlap_ratio: ----------------------------------------0.7845205156341059
+overlap_ratio: ----------------------------------------0.7843349385208382
+overlap_ratio: ----------------------------------------0.7839185370400132
+overlap_ratio: ----------------------------------------0.7830636032051667
+overlap_ratio: ----------------------------------------0.7814988150566515
+overlap_ratio: ----------------------------------------0.7837889492348071
+overlap_ratio: ----------------------------------------0.7851079114432157
+overlap_ratio: ----------------------------------------0.7863518962594864
+overlap_ratio: ----------------------------------------0.7884590686758821
+overlap_ratio: ----------------------------------------0.7898468443242626
+overlap_ratio: ----------------------------------------0.7903460554083701
+overlap_ratio: ----------------------------------------0.7948924743525339
+overlap_ratio: ----------------------------------------0.7921950099998777
+overlap_ratio: ----------------------------------------0.7886671059460569
+overlap_ratio: ----------------------------------------0.7761937826998587
+overlap_ratio: ----------------------------------------0.7637664103688661
+overlap_ratio: ----------------------------------------0.765200903892305
+overlap_ratio: ----------------------------------------0.7343217450775079
+overlap_ratio: ----------------------------------------0.709503419934785
+overlap_ratio: ----------------------------------------0.6974784316141872
+overlap_ratio: ----------------------------------------0.6800478129405741
+[33m[2025-03-07 18:29:04] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:29:07] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.69, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:07] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.52, Current queue size is: 0![0m
+[32m[2025-03-07 18:29:07] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:29:07] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5398.4296875[0m
+[32m[2025-03-07 18:29:07] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.71, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:07] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:29:07] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.53, Current queue size is: 2![0m
+[32m[2025-03-07 18:29:07] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:29:10] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:29:11] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 45.45, Current queue size is: 0![0m
+[32m[2025-03-07 18:29:11] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5467.20703125[0m
+overlap_ratio: ----------------------------------------0.6718203363968714
+overlap_ratio: ----------------------------------------0.668984248799793
+overlap_ratio: ----------------------------------------0.6689560696465728
+overlap_ratio: ----------------------------------------0.676379770150667
+overlap_ratio: ----------------------------------------0.6819928146125941
+overlap_ratio: ----------------------------------------0.6816290515095362
+overlap_ratio: ----------------------------------------0.6849146843358114
+overlap_ratio: ----------------------------------------0.7717400488865186
+overlap_ratio: ----------------------------------------0.7968378420918252
+overlap_ratio: ----------------------------------------0.7930817689143929
+overlap_ratio: ----------------------------------------0.7881141396622632
+overlap_ratio: ----------------------------------------0.7836871790153883
+overlap_ratio: ----------------------------------------0.7877531973095179
+overlap_ratio: ----------------------------------------0.8108196459475193
+overlap_ratio: ----------------------------------------0.8188652032531991
+overlap_ratio: ----------------------------------------0.8044663001070346
+overlap_ratio: ----------------------------------------0.8090939452045849
+overlap_ratio: ----------------------------------------0.8144981818809969
+overlap_ratio: ----------------------------------------0.8117487960265239
+overlap_ratio: ----------------------------------------0.8072342037279723
+overlap_ratio: ----------------------------------------0.8078678670242507
+overlap_ratio: ----------------------------------------0.8041253208889512
+overlap_ratio: ----------------------------------------0.8001698216978924
+overlap_ratio: ----------------------------------------0.8010216899057205
+overlap_ratio: ----------------------------------------0.8000716721883
+overlap_ratio: ----------------------------------------0.8010169056982752
+overlap_ratio: ----------------------------------------0.8031118973684958
+overlap_ratio: ----------------------------------------0.8020086611684936
+overlap_ratio: ----------------------------------------0.8029899939429245
+overlap_ratio: ----------------------------------------0.8032935778054975
+overlap_ratio: ----------------------------------------0.8039624487112766
+overlap_ratio: ----------------------------------------0.8058954821335513
+overlap_ratio: ----------------------------------------0.8061661370196215
+overlap_ratio: ----------------------------------------0.8064696121058779
+overlap_ratio: ----------------------------------------0.8063561420651796
+overlap_ratio: ----------------------------------------0.8072211400774201
+overlap_ratio: ----------------------------------------0.808232247971016
+overlap_ratio: ----------------------------------------0.8085643569305888
+overlap_ratio: ----------------------------------------0.8079543959276564
+overlap_ratio: ----------------------------------------0.8054525893618771
+overlap_ratio: ----------------------------------------0.8032349738262347
+overlap_ratio: ----------------------------------------0.7987177884921909
+overlap_ratio: ----------------------------------------0.7972156091281882
+overlap_ratio: ----------------------------------------0.7968281781121596
+overlap_ratio: ----------------------------------------0.8051329965261199
+overlap_ratio: ----------------------------------------0.7999870016116725
+overlap_ratio: ----------------------------------------0.8181683170064425
+overlap_ratio: ----------------------------------------0.7518742455686501
+overlap_ratio: ----------------------------------------0.746153303978891
+overlap_ratio: ----------------------------------------0.7370376150365002
+overlap_ratio: ----------------------------------------0.7444860468365097
+overlap_ratio: ----------------------------------------0.7669736581484584
+overlap_ratio: ----------------------------------------0.7577482761486303
+overlap_ratio: ----------------------------------------0.7386076067904321
+overlap_ratio: ----------------------------------------0.7380423866115189
+overlap_ratio: ----------------------------------------0.8256098372432071
+overlap_ratio: ----------------------------------------0.8318514997589823
+overlap_ratio: ----------------------------------------0.812419218644391
+overlap_ratio: ----------------------------------------0.8047329722887185
+overlap_ratio: ----------------------------------------0.7759564634580017
+overlap_ratio: ----------------------------------------0.7762938573798581
+overlap_ratio: ----------------------------------------0.8379131936099667
+overlap_ratio: ----------------------------------------0.8742640292943505
+overlap_ratio: ----------------------------------------0.7942842378415096
+overlap_ratio: ----------------------------------------0.8577323444612881
+overlap_ratio: ----------------------------------------0.7983974977791806
+overlap_ratio: ----------------------------------------0.7531119761702458
+overlap_ratio: ----------------------------------------0.7358014264016193
+overlap_ratio: ----------------------------------------0.7297850809983146
+overlap_ratio: ----------------------------------------0.7290340275741701
+overlap_ratio: ----------------------------------------0.7422768564043914
+overlap_ratio: ----------------------------------------0.7428977781573338
+overlap_ratio: ----------------------------------------0.7392964495253729
+overlap_ratio: ----------------------------------------0.7309766442018442
+overlap_ratio: ----------------------------------------0.7316129355159949
+overlap_ratio: ----------------------------------------0.7290260799153416
+overlap_ratio: ----------------------------------------0.728054818676997
+overlap_ratio: ----------------------------------------0.7268339976514134
+overlap_ratio: ----------------------------------------0.7268384105284247
+overlap_ratio: ----------------------------------------0.7265260591699724
+overlap_ratio: ----------------------------------------0.727549286114907
+overlap_ratio: ----------------------------------------0.7277952020960313
+overlap_ratio: ----------------------------------------0.7236490089010031
+overlap_ratio: ----------------------------------------0.7290964913905676
+overlap_ratio: ----------------------------------------0.7339552002486259
+overlap_ratio: ----------------------------------------0.7313508652069369
+overlap_ratio: ----------------------------------------0.7361478251790357
+overlap_ratio: ----------------------------------------0.7386515734836362
+overlap_ratio: ----------------------------------------0.7473413167259726
+overlap_ratio: ----------------------------------------0.7453213063987387
+overlap_ratio: ----------------------------------------0.7435479330302561
+overlap_ratio: ----------------------------------------0.7400658313321623
+overlap_ratio: ----------------------------------------0.7391300649201733
+overlap_ratio: ----------------------------------------0.7366758173186551
+overlap_ratio: ----------------------------------------0.7371020585136526
+overlap_ratio: ----------------------------------------0.7393835305537697
+overlap_ratio: ----------------------------------------0.7397197066767948
+overlap_ratio: ----------------------------------------0.7419738649033847
+overlap_ratio: ----------------------------------------0.7409803051008929
+overlap_ratio: ----------------------------------------0.7416457405690249
+overlap_ratio: ----------------------------------------0.7417022620618242
+overlap_ratio: ----------------------------------------0.7415826837057962
+overlap_ratio: ----------------------------------------0.7415932336493518
+overlap_ratio: ----------------------------------------0.7415592418801493
+overlap_ratio: ----------------------------------------0.7416258246817289
+overlap_ratio: ----------------------------------------0.7410310827751049
+overlap_ratio: ----------------------------------------0.7404208085043045
+overlap_ratio: ----------------------------------------0.7392264873001716
+overlap_ratio: ----------------------------------------0.7385508960937336
+overlap_ratio: ----------------------------------------0.7375898097776606
+[33m[2025-03-07 18:29:15] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:29:15] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.80, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:15] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:29:15] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.51, Current queue size is: 0![0m
+[32m[2025-03-07 18:29:15] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5431.09375[0m
+[32m[2025-03-07 18:29:15] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.75, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:15] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:29:15] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.87, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:15] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:29:19] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.84, Current queue size is: 0![0m
+[32m[2025-03-07 18:29:19] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5448.578125[0m
+overlap_ratio: ----------------------------------------0.7384646529498927
+overlap_ratio: ----------------------------------------0.7383923125108478
+overlap_ratio: ----------------------------------------0.7386496171354308
+overlap_ratio: ----------------------------------------0.7386057583784835
+overlap_ratio: ----------------------------------------0.7384677028751867
+overlap_ratio: ----------------------------------------0.7398245991827556
+overlap_ratio: ----------------------------------------0.7408481799413287
+overlap_ratio: ----------------------------------------0.7410630168230855
+overlap_ratio: ----------------------------------------0.742568100413575
+overlap_ratio: ----------------------------------------0.7424629170158419
+overlap_ratio: ----------------------------------------0.7429564137843795
+overlap_ratio: ----------------------------------------0.7431731627012576
+overlap_ratio: ----------------------------------------0.7430738199536757
+overlap_ratio: ----------------------------------------0.7429745790329273
+overlap_ratio: ----------------------------------------0.7430460798952676
+overlap_ratio: ----------------------------------------0.7428781173918171
+overlap_ratio: ----------------------------------------0.7426198625126921
+overlap_ratio: ----------------------------------------0.7426338390861505
+overlap_ratio: ----------------------------------------0.7428399732278708
+overlap_ratio: ----------------------------------------0.7425191044884414
+overlap_ratio: ----------------------------------------0.742488399032676
+overlap_ratio: ----------------------------------------0.7425081618480871
+overlap_ratio: ----------------------------------------0.7423725856130198
+overlap_ratio: ----------------------------------------0.7420822338029974
+overlap_ratio: ----------------------------------------0.7420618952151651
+overlap_ratio: ----------------------------------------0.7420437648964832
+overlap_ratio: ----------------------------------------0.7418899667260871
+overlap_ratio: ----------------------------------------0.7417483255951239
+overlap_ratio: ----------------------------------------0.7417960249883097
+overlap_ratio: ----------------------------------------0.741803367975683
+overlap_ratio: ----------------------------------------0.7419487948697582
+overlap_ratio: ----------------------------------------0.7419429928291967
+overlap_ratio: ----------------------------------------0.7413131405113284
+overlap_ratio: ----------------------------------------0.7411948954460111
+overlap_ratio: ----------------------------------------0.7411536637548193
+overlap_ratio: ----------------------------------------0.7409429530193529
+overlap_ratio: ----------------------------------------0.7404773306998855
+overlap_ratio: ----------------------------------------0.7401999630603149
+overlap_ratio: ----------------------------------------0.7400065864418442
+overlap_ratio: ----------------------------------------0.7397101954737779
+overlap_ratio: ----------------------------------------0.7393706527303532
+overlap_ratio: ----------------------------------------0.7383164073984514
+overlap_ratio: ----------------------------------------0.7384263139975447
+overlap_ratio: ----------------------------------------0.7382387342476329
+overlap_ratio: ----------------------------------------0.7366091453179079
+overlap_ratio: ----------------------------------------0.7361077924278192
+overlap_ratio: ----------------------------------------0.7360069739839269
+overlap_ratio: ----------------------------------------0.7359815749929016
+overlap_ratio: ----------------------------------------0.7358168665122015
+overlap_ratio: ----------------------------------------0.7358920150960317
+overlap_ratio: ----------------------------------------0.7355852969191923
+overlap_ratio: ----------------------------------------0.7393464535556846
+overlap_ratio: ----------------------------------------0.7391664557446317
+overlap_ratio: ----------------------------------------0.7391859863445736
+overlap_ratio: ----------------------------------------0.7395228266390761
+overlap_ratio: ----------------------------------------0.7394011559675697
+overlap_ratio: ----------------------------------------0.737964339924363
+overlap_ratio: ----------------------------------------0.7373684342615042
+overlap_ratio: ----------------------------------------0.7365625243772782
+overlap_ratio: ----------------------------------------0.7366954212611921
+overlap_ratio: ----------------------------------------0.7338206335711588
+overlap_ratio: ----------------------------------------0.7338103714053377
+overlap_ratio: ----------------------------------------0.7337575598755264
+overlap_ratio: ----------------------------------------0.7338234980196475
+overlap_ratio: ----------------------------------------0.7338755341945159
+overlap_ratio: ----------------------------------------0.7336733530042672
+overlap_ratio: ----------------------------------------0.7337901870166277
+overlap_ratio: ----------------------------------------0.7339488650164943
+overlap_ratio: ----------------------------------------0.7337130497441283
+overlap_ratio: ----------------------------------------0.7333027543721036
+overlap_ratio: ----------------------------------------0.7330703636980999
+overlap_ratio: ----------------------------------------0.7331390015434606
+overlap_ratio: ----------------------------------------0.7328357450533504
+overlap_ratio: ----------------------------------------0.732548416571768
+overlap_ratio: ----------------------------------------0.7320540656002733
+overlap_ratio: ----------------------------------------0.7318073568694085
+overlap_ratio: ----------------------------------------0.731825295404659
+overlap_ratio: ----------------------------------------0.7314876541681273
+overlap_ratio: ----------------------------------------0.7324920319033743
+overlap_ratio: ----------------------------------------0.7327477368198728
+overlap_ratio: ----------------------------------------0.7332362388017091
+overlap_ratio: ----------------------------------------0.733671464365938
+overlap_ratio: ----------------------------------------0.7338177656564174
+overlap_ratio: ----------------------------------------0.7337077923180911
+overlap_ratio: ----------------------------------------0.7335955067940279
+overlap_ratio: ----------------------------------------0.7334211428873338
+overlap_ratio: ----------------------------------------0.7334342884330814
+overlap_ratio: ----------------------------------------0.7333206070768511
+overlap_ratio: ----------------------------------------0.7335039066271429
+overlap_ratio: ----------------------------------------0.7335703147142117
+overlap_ratio: ----------------------------------------0.7328665912934209
+overlap_ratio: ----------------------------------------0.7325397717645311
+overlap_ratio: ----------------------------------------0.7326316747579658
+overlap_ratio: ----------------------------------------0.7326600110265646
+overlap_ratio: ----------------------------------------0.7328769248128234
+overlap_ratio: ----------------------------------------0.7331299284985893
+overlap_ratio: ----------------------------------------0.7329829422817149
+overlap_ratio: ----------------------------------------0.7331986961627182
+overlap_ratio: ----------------------------------------0.7333177799042601
+overlap_ratio: ----------------------------------------0.7334010154289494
+overlap_ratio: ----------------------------------------0.73345909335007
+overlap_ratio: ----------------------------------------0.7337933958290425
+overlap_ratio: ----------------------------------------0.7340567910264856
+overlap_ratio: ----------------------------------------0.7339606571406599
+overlap_ratio: ----------------------------------------0.7339202415352036
+overlap_ratio: ----------------------------------------0.7340301961728433
+overlap_ratio: ----------------------------------------0.7343504065637276
+overlap_ratio: ----------------------------------------0.7345923161916605
+overlap_ratio: ----------------------------------------0.7341863760100703
+overlap_ratio: ----------------------------------------0.7342651501195919
+[33m[2025-03-07 18:29:20] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:29:23] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.77, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:23] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:29:23] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.57, Current queue size is: 0![0m
+[32m[2025-03-07 18:29:23] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5379.90234375[0m
+[32m[2025-03-07 18:29:23] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.56, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:23] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:29:23] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.66, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:23] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:29:25] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:29:27] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.91, Current queue size is: 0![0m
+[32m[2025-03-07 18:29:27] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5518.15625[0m
+overlap_ratio: ----------------------------------------0.7335367230768842
+overlap_ratio: ----------------------------------------0.7334441802074767
+overlap_ratio: ----------------------------------------0.7333052952186874
+overlap_ratio: ----------------------------------------0.732795572860077
+overlap_ratio: ----------------------------------------0.7330616372436559
+overlap_ratio: ----------------------------------------0.7334291456018862
+overlap_ratio: ----------------------------------------0.7330347237400583
+overlap_ratio: ----------------------------------------0.7325980037918286
+overlap_ratio: ----------------------------------------0.7322764620499221
+overlap_ratio: ----------------------------------------0.732150820270374
+overlap_ratio: ----------------------------------------0.7311155384922461
+overlap_ratio: ----------------------------------------0.7310158488766266
+overlap_ratio: ----------------------------------------0.7311183969422784
+overlap_ratio: ----------------------------------------0.7313202742937595
+overlap_ratio: ----------------------------------------0.7313270086509194
+overlap_ratio: ----------------------------------------0.7312885804525697
+overlap_ratio: ----------------------------------------0.7313820146387111
+overlap_ratio: ----------------------------------------0.7313801684188823
+overlap_ratio: ----------------------------------------0.7314183615718429
+overlap_ratio: ----------------------------------------0.7313796534008563
+overlap_ratio: ----------------------------------------0.7313242595009923
+overlap_ratio: ----------------------------------------0.7314396918944954
+overlap_ratio: ----------------------------------------0.7314149454027945
+overlap_ratio: ----------------------------------------0.7313263165571082
+overlap_ratio: ----------------------------------------0.7312289868713467
+overlap_ratio: ----------------------------------------0.7310286029865878
+overlap_ratio: ----------------------------------------0.7311965764261242
+overlap_ratio: ----------------------------------------0.7307945587681135
+overlap_ratio: ----------------------------------------0.7308709429979862
+overlap_ratio: ----------------------------------------0.7311251517884807
+overlap_ratio: ----------------------------------------0.7307621385644886
+overlap_ratio: ----------------------------------------0.7306331296904514
+overlap_ratio: ----------------------------------------0.7306675841239045
+overlap_ratio: ----------------------------------------0.730791750166185
+overlap_ratio: ----------------------------------------0.7304595077038877
+overlap_ratio: ----------------------------------------0.7303139067737012
+overlap_ratio: ----------------------------------------0.7294483662392769
+overlap_ratio: ----------------------------------------0.7276199523406883
+overlap_ratio: ----------------------------------------0.7273338004555462
+overlap_ratio: ----------------------------------------0.7266571024920694
+overlap_ratio: ----------------------------------------0.726891455042222
+overlap_ratio: ----------------------------------------0.727099295268157
+overlap_ratio: ----------------------------------------0.726775750707629
+overlap_ratio: ----------------------------------------0.7266647783687957
+overlap_ratio: ----------------------------------------0.7261437183083509
+overlap_ratio: ----------------------------------------0.726162748558645
+overlap_ratio: ----------------------------------------0.7262265174402447
+overlap_ratio: ----------------------------------------0.7260734899338613
+overlap_ratio: ----------------------------------------0.7263074208053714
+overlap_ratio: ----------------------------------------0.7258191046279683
+overlap_ratio: ----------------------------------------0.7258968513256483
+overlap_ratio: ----------------------------------------0.7259771403691799
+overlap_ratio: ----------------------------------------0.7261317640375968
+overlap_ratio: ----------------------------------------0.7260452012604771
+overlap_ratio: ----------------------------------------0.7255204447602529
+overlap_ratio: ----------------------------------------0.7257234676103463
+overlap_ratio: ----------------------------------------0.7257039604721219
+overlap_ratio: ----------------------------------------0.7258015516225397
+overlap_ratio: ----------------------------------------0.7261677360992539
+overlap_ratio: ----------------------------------------0.7263168634003013
+overlap_ratio: ----------------------------------------0.7260469240017333
+overlap_ratio: ----------------------------------------0.7265136168472414
+overlap_ratio: ----------------------------------------0.7270667901395204
+overlap_ratio: ----------------------------------------0.7278610656675961
+overlap_ratio: ----------------------------------------0.7285383663031658
+overlap_ratio: ----------------------------------------0.728382391466555
+overlap_ratio: ----------------------------------------0.728436627143609
+overlap_ratio: ----------------------------------------0.7294562832693031
+overlap_ratio: ----------------------------------------0.7297143610439178
+overlap_ratio: ----------------------------------------0.7314464106892549
+overlap_ratio: ----------------------------------------0.7314373851347226
+overlap_ratio: ----------------------------------------0.7315204411026784
+overlap_ratio: ----------------------------------------0.7319786649127562
+overlap_ratio: ----------------------------------------0.7321623406333966
+overlap_ratio: ----------------------------------------0.7321795386328782
+overlap_ratio: ----------------------------------------0.7321751440368752
+overlap_ratio: ----------------------------------------0.7332374455512783
+overlap_ratio: ----------------------------------------0.7337378952425666
+overlap_ratio: ----------------------------------------0.7333665597295457
+overlap_ratio: ----------------------------------------0.7336368365579344
+overlap_ratio: ----------------------------------------0.7336256596351998
+overlap_ratio: ----------------------------------------0.7337724050107352
+overlap_ratio: ----------------------------------------0.7335419695645626
+overlap_ratio: ----------------------------------------0.7335626759619936
+overlap_ratio: ----------------------------------------0.7332453523066281
+overlap_ratio: ----------------------------------------0.7326051801722084
+overlap_ratio: ----------------------------------------0.7320562079746972
+overlap_ratio: ----------------------------------------0.7311070420417097
+overlap_ratio: ----------------------------------------0.7302005538371915
+overlap_ratio: ----------------------------------------0.7290537910391452
+overlap_ratio: ----------------------------------------0.7288198865549743
+overlap_ratio: ----------------------------------------0.7281811609653004
+overlap_ratio: ----------------------------------------0.7279868011129402
+overlap_ratio: ----------------------------------------0.7276222549588317
+overlap_ratio: ----------------------------------------0.7270360776256692
+overlap_ratio: ----------------------------------------0.7270104705862446
+overlap_ratio: ----------------------------------------0.7267521588346949
+overlap_ratio: ----------------------------------------0.728117230156331
+overlap_ratio: ----------------------------------------0.7295681315601392
+overlap_ratio: ----------------------------------------0.7296656050013998
+overlap_ratio: ----------------------------------------0.7308323065140824
+overlap_ratio: ----------------------------------------0.7311534526752711
+overlap_ratio: ----------------------------------------0.7313478042302975
+overlap_ratio: ----------------------------------------0.7316362065942458
+overlap_ratio: ----------------------------------------0.7314933513067758
+overlap_ratio: ----------------------------------------0.7318495010179006
+overlap_ratio: ----------------------------------------0.7321008567715247
+overlap_ratio: ----------------------------------------0.7320712299128567
+overlap_ratio: ----------------------------------------0.732187112796262
+overlap_ratio: ----------------------------------------0.7320142642228772
+[33m[2025-03-07 18:29:30] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:29:31] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.71, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:31] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:29:31] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.43, Current queue size is: 0![0m
+[32m[2025-03-07 18:29:31] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5405.6171875[0m
+[32m[2025-03-07 18:29:32] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.80, Current queue size is: 2![0m
+[32m[2025-03-07 18:29:32] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:29:32] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.79, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:32] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+overlap_ratio: ----------------------------------------0.7318957215571694
+overlap_ratio: ----------------------------------------0.7322449077870935
+overlap_ratio: ----------------------------------------0.7321941441464898
+overlap_ratio: ----------------------------------------0.7322179213335743
+overlap_ratio: ----------------------------------------0.7322340693407826
+overlap_ratio: ----------------------------------------0.7322286316898653
+overlap_ratio: ----------------------------------------0.7323265358606104
+overlap_ratio: ----------------------------------------0.732374849653924
+overlap_ratio: ----------------------------------------0.7324127368774259
+overlap_ratio: ----------------------------------------0.7323960395701388
+overlap_ratio: ----------------------------------------0.7322730240493026
+overlap_ratio: ----------------------------------------0.7321781507041883
+overlap_ratio: ----------------------------------------0.7321351003230989
+overlap_ratio: ----------------------------------------0.7321453863120808
+overlap_ratio: ----------------------------------------0.7318284777742126
+overlap_ratio: ----------------------------------------0.7318778129889026
+overlap_ratio: ----------------------------------------0.732114270908614
+overlap_ratio: ----------------------------------------0.7320742954763344
+overlap_ratio: ----------------------------------------0.7321349523175011
+overlap_ratio: ----------------------------------------0.7322799373098238
+overlap_ratio: ----------------------------------------0.7313613975726732
+overlap_ratio: ----------------------------------------0.7313268246203337
+overlap_ratio: ----------------------------------------0.731296145869168
+overlap_ratio: ----------------------------------------0.7314224503311546
+overlap_ratio: ----------------------------------------0.7314332925568406
+overlap_ratio: ----------------------------------------0.7314335471898005
+overlap_ratio: ----------------------------------------0.7314668334678754
+overlap_ratio: ----------------------------------------0.7314990452424859
+overlap_ratio: ----------------------------------------0.7316024990342996
+overlap_ratio: ----------------------------------------0.7316147095943177
+overlap_ratio: ----------------------------------------0.7316000366131181
+overlap_ratio: ----------------------------------------0.7316833896921183
+overlap_ratio: ----------------------------------------0.7317316585221558
+overlap_ratio: ----------------------------------------0.7320123453280418
+overlap_ratio: ----------------------------------------0.7320922655883975
+overlap_ratio: ----------------------------------------0.7320960559186834
+overlap_ratio: ----------------------------------------0.732117784894063
+overlap_ratio: ----------------------------------------0.7321953440143368
+overlap_ratio: ----------------------------------------0.7323500501869988
+overlap_ratio: ----------------------------------------0.7323742491124519
+overlap_ratio: ----------------------------------------0.7321447119144968
+overlap_ratio: ----------------------------------------0.732199224991706
+overlap_ratio: ----------------------------------------0.7322284299446797
+overlap_ratio: ----------------------------------------0.7321490142853694
+overlap_ratio: ----------------------------------------0.7321818629911037
+overlap_ratio: ----------------------------------------0.7322827595394763
+overlap_ratio: ----------------------------------------0.7325486574100472
+overlap_ratio: ----------------------------------------0.7326037365139207
+overlap_ratio: ----------------------------------------0.7326831072548029
+overlap_ratio: ----------------------------------------0.7330988274938067
+overlap_ratio: ----------------------------------------0.7331233238164604
+overlap_ratio: ----------------------------------------0.7328540664698104
+overlap_ratio: ----------------------------------------0.7329203604138718
+overlap_ratio: ----------------------------------------0.7329725618727848
+overlap_ratio: ----------------------------------------0.7329888433258702
+overlap_ratio: ----------------------------------------0.7330400364722423
+overlap_ratio: ----------------------------------------0.7330382897654961
+overlap_ratio: ----------------------------------------0.7330886007304773
+overlap_ratio: ----------------------------------------0.7330189224063884
+overlap_ratio: ----------------------------------------0.7330535106983995
+overlap_ratio: ----------------------------------------0.733001925776375
+overlap_ratio: ----------------------------------------0.7329677629843699
+overlap_ratio: ----------------------------------------0.7332598962872775
+overlap_ratio: ----------------------------------------0.7331374195877833
+overlap_ratio: ----------------------------------------0.7332132888033844
+overlap_ratio: ----------------------------------------0.7333097554655182
+overlap_ratio: ----------------------------------------0.7334044591305089
+overlap_ratio: ----------------------------------------0.7335237601142051
+overlap_ratio: ----------------------------------------0.7335431493283048
+overlap_ratio: ----------------------------------------0.7335988755443972
+overlap_ratio: ----------------------------------------0.7335270672175364
+overlap_ratio: ----------------------------------------0.733591921416597
+overlap_ratio: ----------------------------------------0.7335057430401732
+overlap_ratio: ----------------------------------------0.7335490405738877
+overlap_ratio: ----------------------------------------0.7335667520861628
+overlap_ratio: ----------------------------------------0.733605253965469
+overlap_ratio: ----------------------------------------0.7336548786845941
+overlap_ratio: ----------------------------------------0.7336569269357609
+overlap_ratio: ----------------------------------------0.7336453575131294
+overlap_ratio: ----------------------------------------0.7336240520473977
+overlap_ratio: ----------------------------------------0.7316174371990279
+overlap_ratio: ----------------------------------------0.7316486594946509
+overlap_ratio: ----------------------------------------0.7315651928577037
+overlap_ratio: ----------------------------------------0.7316059087667505
+overlap_ratio: ----------------------------------------0.7316862528983055
+overlap_ratio: ----------------------------------------0.7316967215150092
+overlap_ratio: ----------------------------------------0.7318229164740387
+overlap_ratio: ----------------------------------------0.7318848866044708
+overlap_ratio: ----------------------------------------0.7317746826254858
+overlap_ratio: ----------------------------------------0.7316926588219429
+overlap_ratio: ----------------------------------------0.7317196412692797
+overlap_ratio: ----------------------------------------0.7320991194715313
+overlap_ratio: ----------------------------------------0.7319772227542383
+overlap_ratio: ----------------------------------------0.7319619066059108
+overlap_ratio: ----------------------------------------0.7318103064226713
+overlap_ratio: ----------------------------------------0.7318339212536579
+overlap_ratio: ----------------------------------------0.7319480996470046
+overlap_ratio: ----------------------------------------0.7317976281206195
+overlap_ratio: ----------------------------------------0.7317056384908623
+overlap_ratio: ----------------------------------------0.7316936977189403
+overlap_ratio: ----------------------------------------0.7315036757711019
+overlap_ratio: ----------------------------------------0.7317704437204391
+overlap_ratio: ----------------------------------------0.7318211927288168
+overlap_ratio: ----------------------------------------0.7318106140291806
+overlap_ratio: ----------------------------------------0.7315637937270266
+overlap_ratio: ----------------------------------------0.7316330916549119
+overlap_ratio: ----------------------------------------0.7315377296025727
+overlap_ratio: ----------------------------------------0.7315599302477382
+overlap_ratio: ----------------------------------------0.7315970363600258
+overlap_ratio: ----------------------------------------0.731668168334375
+[33m[2025-03-07 18:29:35] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:29:35] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.65, Current queue size is: 0![0m
+[32m[2025-03-07 18:29:35] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5453.265625[0m
+[32m[2025-03-07 18:29:39] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.84, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:39] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.48, Current queue size is: 0![0m
+[32m[2025-03-07 18:29:39] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:29:39] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5432.66796875[0m
+[32m[2025-03-07 18:29:40] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.77, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:40] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:29:40] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.68, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:40] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:29:40] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:29:44] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.47, Current queue size is: 0![0m
+[32m[2025-03-07 18:29:44] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5501.11328125[0m
+[33m[2025-03-07 18:29:45] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:29:46] [INFO    ] [SxDetectorWarning] - response_data: {'deviceSn': 'BD3202818', 'videoStreamUrl': '', 'imageUrl': 'https://sxkjmall.oss-cn-beijing.aliyuncs.com/fd6b7faf1f813bb161ed9884f4874da167c03034f3375827f4b5bb2e103a8887.png', 'alarmType': '跌倒预警', 'alarmTime': '2025-03-07T18:29:46+08:00'}[0m
+[32m[2025-03-07 18:29:46] [INFO    ] [SxDetectorWarning] - {'code': 0, 'data': True, 'msg': ''}[0m
+[33m[2025-03-07 18:29:46] [WARNING ] [SxVideoStreamPCM] - Warning detected: /fallen/falling/warning?跌倒预警[0m
+[32m[2025-03-07 18:29:48] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.86, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:48] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:29:48] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.69, Current queue size is: 0![0m
+[32m[2025-03-07 18:29:48] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5537.80859375[0m
+[32m[2025-03-07 18:29:48] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.78, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:48] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:29:48] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.68, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:48] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+overlap_ratio: ----------------------------------------0.7315924263763928
+overlap_ratio: ----------------------------------------0.7316541532011747
+overlap_ratio: ----------------------------------------0.7316854612552588
+overlap_ratio: ----------------------------------------0.7316469466561824
+overlap_ratio: ----------------------------------------0.7316155930599959
+overlap_ratio: ----------------------------------------0.7315560339142696
+overlap_ratio: ----------------------------------------0.7317065423306892
+overlap_ratio: ----------------------------------------0.7317649657714617
+overlap_ratio: ----------------------------------------0.7313677622519184
+overlap_ratio: ----------------------------------------0.7314359806663698
+overlap_ratio: ----------------------------------------0.7314767509664599
+overlap_ratio: ----------------------------------------0.7314055210012733
+overlap_ratio: ----------------------------------------0.7314845373289744
+overlap_ratio: ----------------------------------------0.7314356026449486
+overlap_ratio: ----------------------------------------0.7315257645272117
+overlap_ratio: ----------------------------------------0.7316018746955613
+overlap_ratio: ----------------------------------------0.731591344648758
+overlap_ratio: ----------------------------------------0.7315452576426253
+overlap_ratio: ----------------------------------------0.731571458459578
+overlap_ratio: ----------------------------------------0.7315981863025548
+overlap_ratio: ----------------------------------------0.7315471396289456
+overlap_ratio: ----------------------------------------0.7316713386820467
+overlap_ratio: ----------------------------------------0.7316959240803401
+overlap_ratio: ----------------------------------------0.7317161416911696
+overlap_ratio: ----------------------------------------0.7318153261367587
+overlap_ratio: ----------------------------------------0.7317228106815372
+overlap_ratio: ----------------------------------------0.7318027276209851
+overlap_ratio: ----------------------------------------0.7314264400952802
+overlap_ratio: ----------------------------------------0.7318205571598283
+overlap_ratio: ----------------------------------------0.7321604346731788
+overlap_ratio: ----------------------------------------0.7335995112282536
+overlap_ratio: ----------------------------------------0.7338980888790436
+overlap_ratio: ----------------------------------------0.7345002926557286
+overlap_ratio: ----------------------------------------0.7344802417205365
+overlap_ratio: ----------------------------------------0.7343489368987092
+overlap_ratio: ----------------------------------------0.7345163644759078
+overlap_ratio: ----------------------------------------0.7343847201815015
+overlap_ratio: ----------------------------------------0.7343326132416057
+overlap_ratio: ----------------------------------------0.734452601318858
+overlap_ratio: ----------------------------------------0.7342828891659838
+overlap_ratio: ----------------------------------------0.7341702130299087
+overlap_ratio: ----------------------------------------0.7344119580034796
+overlap_ratio: ----------------------------------------0.734343702818219
+overlap_ratio: ----------------------------------------0.7334479606225726
+overlap_ratio: ----------------------------------------0.7321434653043282
+overlap_ratio: ----------------------------------------0.7240292760699978
+overlap_ratio: ----------------------------------------0.7171825536943197
+overlap_ratio: ----------------------------------------0.6971886984144876
+overlap_ratio: ----------------------------------------0.6718169872075684
+overlap_ratio: ----------------------------------------0.6663834131779477
+overlap_ratio: ----------------------------------------0.6708131038958474
+overlap_ratio: ----------------------------------------0.7196782380357211
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+[33m[2025-03-07 18:29:50] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:29:52] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.77, Current queue size is: 0![0m
+[32m[2025-03-07 18:29:52] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5485.48828125[0m
+[33m[2025-03-07 18:29:55] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:29:56] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.31, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:56] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 42.43, Current queue size is: 0![0m
+[32m[2025-03-07 18:29:56] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:29:56] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5533.15625[0m
+[32m[2025-03-07 18:29:56] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.40, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:56] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:29:56] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.46, Current queue size is: 1![0m
+[32m[2025-03-07 18:29:56] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+[32m[2025-03-07 18:29:59] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 94.44, Current queue size is: 0![0m
+[32m[2025-03-07 18:29:59] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 6017.796875[0m
+[33m[2025-03-07 18:30:00] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:30:03] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 22.70, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:03] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:30:03] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.85, Current queue size is: 0![0m
+[32m[2025-03-07 18:30:03] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5573.30078125[0m
+[32m[2025-03-07 18:30:03] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 22.41, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:03] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:30:03] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 21.92, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:03] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:30:05] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:30:07] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 45.10, Current queue size is: 0![0m
+[32m[2025-03-07 18:30:07] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5606.7578125[0m
+[33m[2025-03-07 18:30:10] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:30:11] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.76, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:11] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:30:11] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.42, Current queue size is: 0![0m
+[32m[2025-03-07 18:30:11] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5753.796875[0m
+[32m[2025-03-07 18:30:11] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.76, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:11] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:30:11] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.70, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:11] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.0
+overlap_ratio: ----------------------------------------0.6804973663249402
+overlap_ratio: ----------------------------------------0.6824853436694137
+overlap_ratio: ----------------------------------------0.7235568558684452
+overlap_ratio: ----------------------------------------0.7117366489906576
+overlap_ratio: ----------------------------------------0.7181090726807533
+overlap_ratio: ----------------------------------------0.7535243795569619
+overlap_ratio: ----------------------------------------0.7530287395788573
+overlap_ratio: ----------------------------------------0.7497791405872577
+overlap_ratio: ----------------------------------------0.7638369646062194
+overlap_ratio: ----------------------------------------0.7436735587969601
+overlap_ratio: ----------------------------------------0.7479098504072446
+overlap_ratio: ----------------------------------------0.7685580178174484
+overlap_ratio: ----------------------------------------0.7678471851602983
+overlap_ratio: ----------------------------------------0.7675220115227757
+overlap_ratio: ----------------------------------------0.7657567581935723
+overlap_ratio: ----------------------------------------0.7722799199460559
+overlap_ratio: ----------------------------------------0.7647570268857742
+overlap_ratio: ----------------------------------------0.7618035469859352
+overlap_ratio: ----------------------------------------0.7407154493757816
+overlap_ratio: ----------------------------------------0.749229828023182
+overlap_ratio: ----------------------------------------0.7398199661594359
+overlap_ratio: ----------------------------------------0.7498402831907028
+overlap_ratio: ----------------------------------------0.7605755318840158
+overlap_ratio: ----------------------------------------0.7604701302002668
+overlap_ratio: ----------------------------------------0.7193152779868293
+overlap_ratio: ----------------------------------------0.7102114525334084
+overlap_ratio: ----------------------------------------0.7064669216796406
+overlap_ratio: ----------------------------------------0.711231926800153
+overlap_ratio: ----------------------------------------0.7252729704692847
+overlap_ratio: ----------------------------------------0.7327248128343652
+overlap_ratio: ----------------------------------------0.7492906159777729
+overlap_ratio: ----------------------------------------0.7413439040963415
+overlap_ratio: ----------------------------------------0.7590267613191347
+overlap_ratio: ----------------------------------------0.7166473541644526
+overlap_ratio: ----------------------------------------0.7226287104964115
+overlap_ratio: ----------------------------------------0.7196054896394356
+overlap_ratio: ----------------------------------------0.7136610089741406
+overlap_ratio: ----------------------------------------0.7204089938692864
+overlap_ratio: ----------------------------------------0.7285333199222381
+overlap_ratio: ----------------------------------------0.7459227018409852
+overlap_ratio: ----------------------------------------0.745490928985255
+overlap_ratio: ----------------------------------------0.8042548649788017
+overlap_ratio: ----------------------------------------0.8157493191471649
+overlap_ratio: ----------------------------------------0.8129870392526077
+overlap_ratio: ----------------------------------------0.8125873536890255
+overlap_ratio: ----------------------------------------0.8092484746070556
+overlap_ratio: ----------------------------------------0.8106184174355836
+overlap_ratio: ----------------------------------------0.8123766344825583
+overlap_ratio: ----------------------------------------0.8122492274349831
+overlap_ratio: ----------------------------------------0.8134126080293861
+overlap_ratio: ----------------------------------------0.8130173196212885
+overlap_ratio: ----------------------------------------0.8118311101896452
+overlap_ratio: ----------------------------------------0.8130610396268934
+overlap_ratio: ----------------------------------------0.8125368079687908
+overlap_ratio: ----------------------------------------0.8129410644750695
+overlap_ratio: ----------------------------------------0.8109680127791996
+overlap_ratio: ----------------------------------------0.8080582139791215
+overlap_ratio: ----------------------------------------0.8073933267248953
+overlap_ratio: ----------------------------------------0.807955629115376
+overlap_ratio: ----------------------------------------0.8075190510953708
+overlap_ratio: ----------------------------------------0.7875027971517966
+overlap_ratio: ----------------------------------------0.7809102212240318
+overlap_ratio: ----------------------------------------0.7810233061446034
+overlap_ratio: ----------------------------------------0.7587825256042806
+overlap_ratio: ----------------------------------------0.7670109704536919
+overlap_ratio: ----------------------------------------0.7695620448001266
+overlap_ratio: ----------------------------------------0.7690409448293742
+overlap_ratio: ----------------------------------------0.7759660545902997
+overlap_ratio: ----------------------------------------0.7735970830830277
+overlap_ratio: ----------------------------------------0.7760647865104263
+overlap_ratio: ----------------------------------------0.7473532508035011
+overlap_ratio: ----------------------------------------0.744442836966679
+overlap_ratio: ----------------------------------------0.7436359965475344
+overlap_ratio: ----------------------------------------0.7448125776251909
+overlap_ratio: ----------------------------------------0.7488447096864774
+overlap_ratio: ----------------------------------------0.7548099658137336
+overlap_ratio: ----------------------------------------0.7582362276195652
+overlap_ratio: ----------------------------------------0.7516746227610236
+overlap_ratio: ----------------------------------------0.7695281266963406
+overlap_ratio: ----------------------------------------0.7695912839202881
+overlap_ratio: ----------------------------------------0.7616774480053785
+overlap_ratio: ----------------------------------------0.7660290506482063
+overlap_ratio: ----------------------------------------0.7637279359701132
+overlap_ratio: ----------------------------------------0.7684100238610083
+overlap_ratio: ----------------------------------------0.7635309193593757
+overlap_ratio: ----------------------------------------0.7580028931671929
+overlap_ratio: ----------------------------------------0.7386163452683286
+overlap_ratio: ----------------------------------------0.7109033801504332
+overlap_ratio: ----------------------------------------0.7231822054918273
+[32m[2025-03-07 18:30:15] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.69, Current queue size is: 0![0m
+[32m[2025-03-07 18:30:15] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5567.81640625[0m
+[33m[2025-03-07 18:30:16] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:30:19] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.67, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:19] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.96, Current queue size is: 0![0m
+[32m[2025-03-07 18:30:19] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:30:19] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5561.66015625[0m
+[32m[2025-03-07 18:30:19] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.61, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:19] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:30:19] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.61, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:19] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:30:21] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:30:24] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.18, Current queue size is: 0![0m
+[32m[2025-03-07 18:30:24] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5673.05859375[0m
+[33m[2025-03-07 18:30:26] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:30:28] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.71, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:28] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.10, Current queue size is: 0![0m
+[32m[2025-03-07 18:30:28] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5536.48828125[0m
+[32m[2025-03-07 18:30:28] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:30:28] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.70, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:28] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:30:28] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.71, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:28] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:30:31] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:30:32] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.59, Current queue size is: 0![0m
+[32m[2025-03-07 18:30:32] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5527.7265625[0m
+[32m[2025-03-07 18:30:36] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.79, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:36] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.99, Current queue size is: 0![0m
+[32m[2025-03-07 18:30:36] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:30:36] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5527.76953125[0m
+[32m[2025-03-07 18:30:36] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.76, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:36] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:30:36] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.75, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:36] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:30:36] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:30:40] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.87, Current queue size is: 0![0m
+[32m[2025-03-07 18:30:40] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5527.8125[0m
+[33m[2025-03-07 18:30:41] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:30:44] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.65, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:44] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.17, Current queue size is: 0![0m
+[32m[2025-03-07 18:30:44] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:30:44] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5596.09765625[0m
+[32m[2025-03-07 18:30:44] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.68, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:44] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:30:44] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.68, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:44] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:30:47] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:30:48] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.93, Current queue size is: 0![0m
+[32m[2025-03-07 18:30:48] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5561.6796875[0m
+[33m[2025-03-07 18:30:52] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:30:52] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.64, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:52] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:30:52] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.79, Current queue size is: 0![0m
+[32m[2025-03-07 18:30:52] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5527.546875[0m
+[32m[2025-03-07 18:30:52] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.62, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:52] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:30:52] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.55, Current queue size is: 1![0m
+[32m[2025-03-07 18:30:52] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:30:56] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.93, Current queue size is: 0![0m
+[32m[2025-03-07 18:30:56] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5527.75390625[0m
+[33m[2025-03-07 18:30:57] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:31:00] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.64, Current queue size is: 1![0m
+[32m[2025-03-07 18:31:00] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.00, Current queue size is: 0![0m
+[32m[2025-03-07 18:31:00] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:31:00] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5553.609375[0m
+[32m[2025-03-07 18:31:00] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.75, Current queue size is: 1![0m
+[32m[2025-03-07 18:31:00] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:31:00] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.64, Current queue size is: 1![0m
+[32m[2025-03-07 18:31:00] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:31:02] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:31:07] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.59, Current queue size is: 1![0m
+[32m[2025-03-07 18:31:07] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.71, Current queue size is: 0![0m
+[32m[2025-03-07 18:31:07] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:31:07] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5458.3671875[0m
+[32m[2025-03-07 18:31:07] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.57, Current queue size is: 1![0m
+[32m[2025-03-07 18:31:07] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:31:07] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.56, Current queue size is: 1![0m
+[32m[2025-03-07 18:31:07] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:31:07] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:31:11] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.91, Current queue size is: 0![0m
+[32m[2025-03-07 18:31:11] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5505.52734375[0m
+[33m[2025-03-07 18:31:12] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:31:15] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.69, Current queue size is: 1![0m
+[32m[2025-03-07 18:31:15] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.95, Current queue size is: 0![0m
+[32m[2025-03-07 18:31:15] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:31:15] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5538.8515625[0m
+[32m[2025-03-07 18:31:15] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.62, Current queue size is: 1![0m
+[32m[2025-03-07 18:31:15] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:31:15] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.62, Current queue size is: 1![0m
+[32m[2025-03-07 18:31:15] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[33m[2025-03-07 18:31:17] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:31:19] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 43.75, Current queue size is: 0![0m
+[32m[2025-03-07 18:31:19] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5566.0546875[0m
+[33m[2025-03-07 18:31:22] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
+[32m[2025-03-07 18:31:23] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fire/smoke/warning?烟火预警 - Production FPS: 14.66, Current queue size is: 1![0m
+[32m[2025-03-07 18:31:23] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.13, Current queue size is: 0![0m
+[32m[2025-03-07 18:31:23] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:31:23] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5600.44921875[0m
+[32m[2025-03-07 18:31:23] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/fallen/falling/warning?跌倒预警 - Production FPS: 14.65, Current queue size is: 1![0m
+[32m[2025-03-07 18:31:23] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:31:23] [INFO    ] [SxVideoStreamPCM] - Stream BD3202818/violence/warning?暴力预警 - Production FPS: 14.59, Current queue size is: 1![0m
+[32m[2025-03-07 18:31:23] [INFO    ] [SxVideoStreamPCM] - device_sn: BD3202818, real_topic_list--------------------- ['/violence/warning?暴力预警', '/fallen/falling/warning?跌倒预警', '/fire/smoke/warning?烟火预警'][0m
+[32m[2025-03-07 18:31:27] [INFO    ] [SxVideoStreamPCM] - processing frame, actual consumer fps: 44.19, Current queue size is: 0![0m
+[32m[2025-03-07 18:31:27] [INFO    ] [SxVideoStreamPCM] - memory_usage: ------------------------------------ 5682.09765625[0m
+[33m[2025-03-07 18:31:28] [WARNING ] [SxVideoStreamPCM] - Production queue is empty![0m
