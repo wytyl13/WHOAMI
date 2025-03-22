@@ -1,8 +1,26 @@
+# 忽略特定目录
 whoami/models
-problems.txt
 whoami/logs
+retrieval_data
+whoami/out
+retrieval_storage
+
+# 忽略特定配置文件
 whoami/scripts/health_report/sql_config.yaml
 whoami/scripts/detect/detect_config.yaml
 whoami/scripts/test/ollama_config.yaml
 whoami/scripts/test/search_config.yaml
-whoami/out
+whoami/scripts/test/ollama_config_qwen.yaml
+whoami/scripts/test/ollama_config_deepseek.yaml
+whoami/tool/llm_application/info_extract_prompt.yaml
+
+# 忽略特定文件
+problems.txt
+
+# 忽略test目录下的特定文件
+test/cert.pem
+test/key.pem
+
+# 忽略项目中任何目录的.log文件
+**/*.log
+**/*.txt

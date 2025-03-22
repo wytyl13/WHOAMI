@@ -15,6 +15,9 @@ from typing import (
 )
 from pathlib import Path
 import asyncio
+import copy
+from datetime import datetime, timedelta
+
 
 from llama_index.core.node_parser import SimpleNodeParser
 from llama_index.core.schema import Document
@@ -109,40 +112,75 @@ class EnhanceRetrieval(BaseTool):
         
         return nodes
     
-    async def _run(self, text_list: List[Dict[str, str]], top_k: int = 3, query: str = None, message_history: List[Dict[str, str]] = None):
-        nodes = self.retrieve(text_list=text_list, top_k=top_k, query=query)
-        context_texts = [node.node.text for node in nodes]
-        context = "\n\n".join(context_texts)
-        sources = []
-        for node in nodes:
-            # 优先使用我们存储的original_source，然后是source
-            source = node.node.metadata.get('original_source')
-            if not source:
-                source = node.node.metadata.get('source')
-            if not source:
-                # 如果都没有，使用节点ID作为后备
-                source = str(node.node.id_)
-            sources.append(source)
-        
+    async def _run(
+            self, 
+            text_list: List[Dict[str, str]], 
+            top_k: int = 3, 
+            query: str = None, 
+            message_history: List[Dict[str, str]] = None,
+            retrieval_flag: Optional[bool] = False,
+            enhance_role: Optional[str] = None,
+            rewritten_query: Optional[str] = None,
+            prompt: Optional[str] = None
+        ):
         prompt = f"""
-        你是舜熙科技的客服助手。请基于以下上下文信息，以专业、简洁的口吻回答用户问题。
+            你是舜熙科技的客服助手。请基于以下用户历史会话信息，以专业、简洁的口吻回答用户问题。
 
-        上下文信息:
-        {context}
+            指导原则:
+            1. 直接回答问题，不要包含分析过程
+            2. 如果上下文中没有相关信息，请礼貌表示不知道
+            3. 只回答与舜熙科技相关的问题
+            4. 保持礼貌友好的专业客服语气
+            5. 必要时可以引导用户访问舜熙科技官网: https://shunxikj.com/
+            """ if prompt is None else prompt
+        
+        
+        if retrieval_flag:
+            nodes = self.retrieve(text_list=text_list, top_k=top_k, query=query)
+            context_texts = [node.node.text for node in nodes]
+            context = "\n\n".join(context_texts)
+            sources = []
+            for node in nodes:
+                # 优先使用我们存储的original_source，然后是source
+                source = node.node.metadata.get('original_source')
+                if not source:
+                    source = node.node.metadata.get('source')
+                if not source:
+                    # 如果都没有，使用节点ID作为后备
+                    source = str(node.node.id_)
+                sources.append(source)
+            text_list = context
+            prompt = f"""
+            你是舜熙科技的客服助手。请基于以下上下文信息，以专业、简洁的口吻回答用户问题。
 
-        指导原则:
-        1. 直接回答问题，不要包含分析过程
-        2. 如果上下文中没有相关信息，请礼貌表示不知道
-        3. 只回答与舜熙科技相关的问题
-        4. 保持礼貌友好的专业客服语气
-        5. 必要时可以引导用户访问舜熙科技官网: https://shunxikj.com/
+            上下文信息:
+            {context}
 
-        用户问题: {query}
-        """
-        current_message = {"role": "user", "content": query}
-        message_history.append(current_message)
-        self.logger.info(f"message_history --------------------------------------------------  {message_history}")
-        chat_stream = self.llm._whoami_text_stream(messages=message_history, timeout=30, user_stop_words=[])
+            指导原则:
+            1. 直接回答问题，不要包含分析过程
+            2. 如果上下文中没有相关信息，请礼貌表示不知道
+            3. 只回答与舜熙科技相关的问题
+            4. 保持礼貌友好的专业客服语气
+            5. 必要时可以引导用户访问舜熙科技官网: https://shunxikj.com/
+
+            用户问题: {rewritten_query}
+            """
+        else:
+            try:
+                text_list = str(text_list)
+            except Exception as e:
+                raise ValueError(f"fail to init text_list! {str(e)}") from e
+        enhance_role = "数据库检索内容/检索结果" if (enhance_role is None or enhance_role == "") else enhance_role
+        current_time = datetime.now()
+        current_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
+        message = prompt + f"当前系统时间：{current_time}" + f"\n\n{enhance_role}: {text_list}" + f"\n\n历史会话消息：{message_history}" + f"\n\n用户当前问题：{rewritten_query}"
+        namespace_message_history = [{"role": "user", "content": message}]
+        # namespace_message_history = copy.deepcopy(message_history)
+        # if text_list != '[]':
+        #     namespace_message_history.append({"role": enhance_role, "content": text_list})
+        # namespace_message_history.append({"role": "user", "content": rewritten_query})
+        self.logger.info(f"namespace_message_history --------------------------------------------------  {namespace_message_history}")
+        chat_stream = self.llm._whoami_text_stream(messages=namespace_message_history, timeout=30, user_stop_words=[])
 
         if not chat_stream:
             self.logger.error("Stream is empty or None!")

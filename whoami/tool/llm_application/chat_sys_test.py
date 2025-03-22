@@ -27,6 +27,9 @@ from whoami.tool.llm_application.sx_coversation_history import SxConversationHis
 from whoami.tool.search.google_search import GoogleSearch
 from whoami.utils.utils import Utils
 from whoami.tool.llm_application.enhance_retrieval import EnhanceRetrieval
+from whoami.tool.llm_application.health_report_chat import HealthReportChat
+
+
 
 google_search = GoogleSearch(snippet_flag=1, search_config_path='/work/ai/WHOAMI/whoami/scripts/test/search_config.yaml')
 
@@ -37,6 +40,7 @@ class ChatSys(BaseTool):
     sql_provider: Optional[SqlProvider] = None
     full_response: Optional[list[Dict[str, str]]] = None
     enhance_ : Optional[EnhanceRetrieval] = None
+    health_report_chat: Optional[HealthReportChat] = None
     
     def __init__(
         self, 
@@ -60,6 +64,7 @@ class ChatSys(BaseTool):
                 sql_config_path=sql_config_path
             )
         self.enhance_ = EnhanceRetrieval(llm=llm)
+        self.health_report_chat = HealthReportChat()
         # if self.sql_provider is None:
         #     raise ValueError("Attribution sql_provide must not be null!")
 
@@ -85,7 +90,7 @@ class ChatSys(BaseTool):
         return chat_messages
 
 
-    async def _run(self, messages_history: list[Dict[str, str]], question: str = None):
+    async def _run(self, messages_history: list[Dict[str, str]], question: str = None, direct_flag: int = 0):
         self.logger.info(f"messages_history ---------------------------------------------------  {messages_history}")
         # 清空之前的响应收集
         self.full_response = []
@@ -108,11 +113,15 @@ class ChatSys(BaseTool):
         self.logger.info(handle_web_content)
         """
         handle_web_content = []
-        async for chunk in self.enhance_._run(
-            text_list=handle_web_content, 
+        
+        chat_stream = self.enhance_._run(
             message_history=messages_history, 
             query=question
-        ):
+        ) if direct_flag else self.health_report_chat._run(
+            message_history=messages_history, 
+            query=question
+        )
+        async for chunk in chat_stream:
             # 收集完整响应
             self.full_response.append(chunk)
             # 返回当前块

@@ -9,6 +9,24 @@ from typing import Dict, Optional, Union
 
 
 from whoami.configs.model_config import ModelConfig
+from whoami.utils.utils import StrEnum
+
+class LayerNormType(StrEnum):
+    default = "default"
+    """
+    The default LayerNorm implementation, equivalent to Pytorch's built-in version.
+    """
+
+    low_precision = "low_precision"
+    """
+    A low-precision version of the default LayerNorm.
+    """
+    
+    rms = "rms"
+    """
+    An RMSNorm implementation. When using torch.compile this is probably the fastest implementation.
+    """
+
 
 
 class TransformerModelConfig(ModelConfig):
@@ -84,7 +102,20 @@ class TransformerModelConfig(ModelConfig):
     
     residual_dropout: float = 0.1
     """
-    The dropout probabiliyty for the MLP and attention output within each block.
+    The dropout probability for the MLP and attention output within each block.
+    This dropout is dedicated to be used for the out of MLP layer and attention.
+    Notice it is not the attention matrix.
+    The attention matrix: (Q @ K.T) / sqrt(d_k), d_k = d_model / n_head.
+    The attention probs = softmax(The attention matrix)
+    attention_dropout(The attention probs)
+    
+    attention_output = attention_probs @ V
+    
+    x_ = x + residual_dropout(attention_output)
+    
+    x__ = layer_norm(x_)
+    x___ = mlp(x__)
+    x____ = x__ + residual_dropout(x___)
     """
     
     block_group_size: int = 1
@@ -103,3 +134,34 @@ class TransformerModelConfig(ModelConfig):
     """
 
     layer_norm_eps: float = 1e-05
+    
+    layer_norm_with_affine: bool = True
+    """
+    Whether to include bias and weight parameters for the layer norms.
+    This is only affects layer norms that are immediately followed by a linear layer in the forward pass,
+    so everything expect QK-norms. To turn off affines for QK norms as well, set attribute attention_layer_norm_with_affine to False.
+    """
+    
+    bias_for_layer_norm: Optional[bool] = None
+    """
+    Whether or not to include bias parameters in layer norm.
+    This is separate from the include_bias parameter, because of a ROCm crash when biases are disabled in layer norm.
+    When this is None (the default), it inherits the setting from include_bias.
+    """
+    
+    include_bias: bool = True
+    """
+    Whether or not to include bias parameters in linear layers.
+    In PaLM, they got rid of all bias terms because they found that large models tend to have near 0 bias terms anyway.
+    """
+    
+    layer_norm_type: LayerNormType = LayerNormType.default
+    """
+    The layernorm implementation to use.
+    """
+    
+    
+    mlp_hidden_size: Optional[int] = None
+    """
+    Set the exact hidden size for the MLP. Otherwise the inner MLP hidden size will be set to `mlp_ratio * d_model`.
+    """

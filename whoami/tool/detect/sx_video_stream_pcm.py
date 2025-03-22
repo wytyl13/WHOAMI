@@ -30,24 +30,44 @@ config_path = '/work/ai/WHOAMI/whoami/scripts/detect/detect_config.yaml'
 
 production_id_safe_region = {
     "BC8796159/fallen/falling/warning?跌倒预警": [
-        (
-          2141.8550724637685,
-          590.7536231884058
-        ),
-        (
-          2294.0289855072465,
-          583.5072463768116
-        ),
-        (
-          2115.768115942029,
-          1290.7536231884058
-        ),
-        (
-          1666.4927536231883,
-          1280.608695652174
-        )
+        [
+            (
+                2141.8550724637685,
+                590.7536231884058
+            ),
+            (
+                2294.0289855072465,
+                583.5072463768116
+            ),
+            (
+                2115.768115942029,
+                1290.7536231884058
+            ),
+            (
+                1666.4927536231883,
+                1280.608695652174
+            )
+        ],
+        [
+            (
+                127.36231884057986,
+                842.927536231884
+            ),
+            (
+                237.50724637681176,
+                813.9420289855072  
+            ),
+            (
+                505.6231884057972,
+                1247.2753623188407
+            ),
+            (
+                280.9855072463769,
+                1286.4057971014493
+            )
+        ]
     ],
-    "BD3202818/fallen/falling/warning?跌倒预警": [
+    "BD3202818/fallen/falling/warning?跌倒预警": [[
         (
             195.47826086956536,
             337.1304347826088
@@ -72,7 +92,7 @@ production_id_safe_region = {
             180.98550724637695,
             719.7391304347826
         )
-    ]
+    ]]
 }
 
 class SxVideoStreamPCM(ProducerConsumerManager):
@@ -639,13 +659,21 @@ class SxVideoStreamPCM(ProducerConsumerManager):
                 self.logger.error(f"Error in frame processor: {str(e)}")
                 time.sleep(0.1)  # Short delay on error
 
-    def _filter_safe_region(self, result, polygon_points):
+    def _filter_safe_region(self, result, polygon_regions):
         for item in result:
             boxes = item.boxes.xyxy
             for box in boxes:
                 try:
-                    if self.coordinate_transform.calculate_overlap_ratio(point1=(box[0].item(), box[1].item()), point2=(box[2].item(), box[3].item()), polygon_points=polygon_points):
-                        return True
+                    box_point1 = (box[0].item(), box[1].item())
+                    box_point2 = (box[2].item(), box[3].item())
+                    # Check against each polygon in the list
+                    for polygon_points in polygon_regions:
+                        if self.coordinate_transform.calculate_overlap_ratio(
+                            point1=box_point1, 
+                            point2=box_point2, 
+                            polygon_points=polygon_points
+                        ):
+                            return True
                 except Exception as e:
                     error_info = f"Fail to cal coordinate transform overlap ratio {str(e)}"
                     self.logger.info(error_info)
@@ -689,7 +717,7 @@ class SxVideoStreamPCM(ProducerConsumerManager):
                 current_production_id = task_info.device_sn + topic
                 if current_production_id in production_id_safe_region:
                     # 过滤安全区域
-                    if self._filter_safe_region(result, production_id_safe_region[task_info.device_sn + topic]):
+                    if self._filter_safe_region(result, polygon_regions=production_id_safe_region[task_info.device_sn + topic]):
                         continue
                 # Get and process any warnings
                 warning_flag, warning_information = self.sx_video_stream_detector.get_warning_information(result)

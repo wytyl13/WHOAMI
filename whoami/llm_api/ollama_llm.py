@@ -24,7 +24,7 @@ class OllamaLLM(BaseLLM):
     ):
         self.__init__ollama__(config)
         self.config = config
-        self.use_system_prompt = False
+        self.use_system_prompt = True
         self.suffix_url = "/chat"
         self.http_method = "post"
         self.client = GeneralAPIRequestor(base_url=config.base_url)
@@ -87,6 +87,9 @@ class OllamaLLM(BaseLLM):
             return {"content": "", "done": False}
 
     def _const_kwargs(self, messages: list[dict], stream: bool = False, user_stop_words: list = []) -> dict:
+        
+        # 合并默认终止符和用户提供的终止符
+        # 提取system消息
         kwargs = {
             "model": self.model, 
             "messages": messages, 
@@ -97,9 +100,8 @@ class OllamaLLM(BaseLLM):
             "stream": stream
         }
         
-        # Only add stop words if they exist
         if user_stop_words:
-            kwargs["options"]["stop"] = user_stop_words
+            kwargs["options"]["stop_words"] = user_stop_words
         
         self.logger.debug(f"Constructed kwargs: {kwargs}")
         return kwargs
@@ -122,7 +124,6 @@ class OllamaLLM(BaseLLM):
             start_time = time.time()
             self.logger.debug(f"Starting _whoami_text with timeout {timeout}")
             self.logger.debug(f"Request params: {self._const_kwargs(messages=messages, user_stop_words=user_stop_words)}")
-            
             resp, _, _ = await self.client.arequest(
                 method=self.http_method,
                 url=self.suffix_url,
@@ -147,7 +148,6 @@ class OllamaLLM(BaseLLM):
                 }
                 
             resp_dict = self._decode_and_load(resp)
-            
             # Convert to OpenAI-like format for compatibility
             if "choices" not in resp_dict:
                 content = self.get_choice_text(resp_dict)
@@ -162,10 +162,12 @@ class OllamaLLM(BaseLLM):
                 }
             
             self.logger.debug(f"Processed response: {resp_dict}")
-            return resp_dict
+            # return resp_dict
+            return content
         except Exception as e:
             self.logger.error(f"Error in _whoami_text: {e}")
             # Return a formatted error response
+            return f"Error: {str(e)}"
             return {
                 "choices": [
                     {
@@ -179,6 +181,16 @@ class OllamaLLM(BaseLLM):
     async def _whoami_text_stream(self, messages: List[Dict[str, str]], timeout: int, user_stop_words: List[str]) -> AsyncGenerator[str, None]:
         """Streaming text completion that yields chunks of the response"""
         try:
+            
+            # 记录请求开始和参数
+            self.logger.info(f"Starting streaming request with timeout {timeout}")
+            self.logger.info(f"Messages: {messages}")
+            
+            # 记录请求参数
+            params = self._const_kwargs(messages=messages, user_stop_words=user_stop_words, stream=True)
+            self.logger.info(f"Request params: {params}")
+            
+            
             start_time = time.time()
             self.logger.debug(f"Starting streaming request with timeout {timeout}")
             
@@ -186,23 +198,39 @@ class OllamaLLM(BaseLLM):
                 method=self.http_method,
                 url=self.suffix_url,
                 stream=True,
-                params=self._const_kwargs(messages=messages, user_stop_words=user_stop_words, stream=True),
+                params=params,
                 request_timeout=timeout,
             )
+            
+            # 检查响应类型
+            # self.logger.info(f"Received response of type: {type(stream_resp)}")
+            # self.logger.info(f"Response has __aiter__: {hasattr(stream_resp, '__aiter__')}")
             
             self.logger.debug("Stream response object received, starting to process chunks")
             
             # Process each chunk from the stream
-            async for raw_chunk in stream_resp:
-                chunk = self._decode_and_load(raw_chunk)
-                
-                if not chunk.get("done", False):
+            if hasattr(stream_resp, '__aiter__'):
+                async for raw_chunk in stream_resp:
+                    # self.logger.info(f"Raw first chunk sample: {str(raw_chunk)[:1000]}")
+                    chunk = self._decode_and_load(raw_chunk)
+                    # self.logger.info(f"Decoded chunk structure: {json.dumps(chunk, default=str)[:200]}")
+                    
+                    if not chunk.get("done", False):
+                        content = self.get_choice_text(chunk)
+                        yield content if content else ""
+                        # if content:  # Only yield non-empty content
+                        #     self.logger.debug(f"Yielding chunk: {content[:50]}..." if len(content) > 50 else f"Yielding chunk: {content}")
+                        #     yield content
+            else:
+                # Handle case where stream_resp is bytes or another non-iterable
+                self.logger.warning(f"stream_resp is not an async iterable, got {type(stream_resp)}")
+                if isinstance(stream_resp, bytes):
+                    chunk = self._decode_and_load(stream_resp)
                     content = self.get_choice_text(chunk)
-                    if content:  # Only yield non-empty content
-                        self.logger.debug(f"Yielding chunk: {content[:50]}..." if len(content) > 50 else f"Yielding chunk: {content}")
-                        self.logger.info(f"content ------------------------- {content}")
+                    if content:
                         yield content
-            
+                else:
+                    yield f"Error: Unexpected response type {type(stream_resp)}"
             elapsed = time.time() - start_time
             self.logger.debug(f"Streaming completed in {elapsed:.2f} seconds")
             

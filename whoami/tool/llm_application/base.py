@@ -4,8 +4,12 @@ from llama_index.llms.ollama import Ollama
 from whoami.configs.llm_config import LLMConfig
 from pathlib import Path
 from llama_index.core.query_engine import SQLTableRetrieverQueryEngine
+from whoami.llm_api.ollama_llm import OllamaLLM
 
-llm=Ollama(model="qwen2.5:7b-instruct", request_timeout=360.0)
+
+# llm=Ollama(model="qwen2.5:7b-instruct", request_timeout=360.0)
+
+llm=OllamaLLM(config=LLMConfig.from_file(Path('/work/ai/WHOAMI/whoami/scripts/test/ollama_config.yaml')))
 
 def multiply(a: float, b: float) -> float:
     """Useful for multiplying two numbers."""
@@ -29,14 +33,15 @@ async def main():
     # # print(str(response))
     async for chunk in response:
         print(chunk.delta, end="", flush=True)
-db_connection = "mysql+pymysql://(root):{2xryuf@I73T}@{192.168.0.10}:{3366}/{shunxikeji}"
-sql_query_engine = SQLTableRetrieverQueryEngine(db_connection, table_retriever=)
+# db_connection = "mysql+pymysql://(root):{2xryuf@I73T}@{192.168.0.10}:{3366}/{shunxikeji}"
+# sql_query_engine = SQLTableRetrieverQueryEngine(db_connection, table_retriever=)
 
-user_query = "用户的问题"
-retrieved_data = sql_query_engine.query(user_query)
+# user_query = "用户的问题"
+# retrieved_data = sql_query_engine.query(user_query)
 # Run the agent
 if __name__ == "__main__":
     # response = llm.whoami_text("What is 1234 * 4567?", stream=True)
     # for chunk in response:
     #     print(chunk.delta, end="", flush=True)
-    print(retrieved_data)
+    # print(retrieved_data)
+    pass

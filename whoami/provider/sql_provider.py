@@ -30,9 +30,14 @@ from contextlib import contextmanager
 import traceback
 import urllib.parse
 from sqlalchemy import and_
+from datetime import datetime, date
+
 
 from whoami.provider.base_provider import BaseProvider
 from whoami.configs.sql_config import SqlConfig
+from whoami.tool.health_report.device_info import DeviceInfo
+from whoami.tool.health_report.institution_elderly_bed import InstitutionElderlyBed
+from whoami.tool.health_report.elderly_info import ElderlyInfo
 
 # 定义基类
 class Base(DeclarativeBase):
@@ -289,7 +294,8 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
         self, 
         condition: Optional[Dict[str, Any]],
         fields: Optional[List[str]] = None,
-        exclude_fields: Optional[List[str]] = None
+        exclude_fields: Optional[List[str]] = None,
+        date_range: Optional[Dict[str, str]] = None
     ) -> Optional[Dict[str, Any]]:
         with self.get_db_session() as session:
             try:
@@ -319,6 +325,28 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                         # Assuming that keys in condition match the model's attributes
                         query = query.filter(getattr(self.model, key) == value)
 
+                # Apply date range filter
+                if date_range:
+                    date_field = date_range.get('date_field')
+                    start_date_str = date_range.get('start_date')
+                    end_date_str = date_range.get('end_date')
+
+                    if not date_field:
+                        raise ValueError("date_field must be specified for date range filtering")
+
+                    # Convert string dates to datetime objects
+                    try:
+                        if start_date_str:
+                            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+                            query = query.filter(getattr(self.model, date_field) >= start_date)
+                        
+                        if end_date_str:
+                            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+                            query = query.filter(getattr(self.model, date_field) <= end_date)
+                    except ValueError as e:
+                        raise ValueError(f"Invalid date format. Use YYYY-MM-DD. {str(e)}")
+
+
                 # 执行查询
                 records = query.all()
 
@@ -341,6 +369,617 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 error_info = f"Failed to get records by condition: {condition}"
                 self.logger.error(error_info)
                 raise ValueError(error_info) from e
+    
+    
+    def get_device_info(
+        self, 
+        device_sn: str = None,
+        elderly_name: str = None,
+        dept_id: str = None,
+        room_id: str = None,
+        bed_id: str = None
+    ):
+        """
+        根据条件查询设备和老人的关联信息
+        
+        查询优先级: device_sn > elderly_name > 其他条件
+        
+        Args:
+            device_sn (str, optional): 设备SN码
+            elderly_name (str, optional): 老人姓名
+            dept_id (str, optional): 部门ID过滤条件
+            room_id (str, optional): 房间ID过滤条件
+            bed_id (str, optional): 床位ID过滤条件
+        
+        Returns:
+            list[dict]: 包含设备和老人信息的字典列表
+        """
+        result = []
+        with self.get_db_session() as session:
+            try:
+                # 1. 优先按device_sn查询
+                if device_sn:
+                    result = self._query_by_device_sn(session, device_sn)
+                    if not result:
+                        return [{
+                            "device_sn": device_sn,
+                            "elderly_name": "",
+                            "dept_id": "",
+                            "dept_name": "",
+                            "room_id": "",
+                            "room_name": "",
+                            "bed_id": "",
+                            "bed_name": ""
+                        }]
+                # 2. 其次按elderly_name查询
+                if elderly_name:
+                    result = self._query_by_elderly_name(session, elderly_name, dept_id, room_id, bed_id)
+                    if result:
+                        return result
+                
+                # 3. 最后按其他条件组合查询
+                if dept_id:
+                    # 如果有dept_id和room_id和bed_id，可以精确查询到床位信息
+                    if room_id and bed_id:
+                        result = self._query_by_bed_info(session, dept_id, room_id, bed_id)
+                    # 如果只有dept_id和room_id，查询房间信息
+                    elif room_id:
+                        result = self._query_by_room_info(session, dept_id, room_id)
+                    # 如果只有dept_id，查询部门信息
+                    else:
+                        result = self._query_by_dept_info(session, dept_id)
+                
+                return result
+            
+            except Exception as e:
+                self.logger.error(f"查询设备和老人关联信息失败: 错误: {str(e)}")
+                return []
+    
+    
+    def _query_by_device_sn(self, session, device_sn: str) -> list[dict]:
+        """根据设备SN查询关联信息"""
+        result = []
+        
+        # 查询设备信息
+        device_info = session.query(DeviceInfo).filter(
+            DeviceInfo.device_sn == device_sn,
+        ).first()
+        self.logger.info(f"device_info:  {device_info}")
+        if not device_info:
+            return []
+        
+        # 获取床位关联的老人信息
+        if device_info.bed_id:
+            elderly_bed = session.query(InstitutionElderlyBed).filter(
+                InstitutionElderlyBed.institution_bed_id == device_info.bed_id,
+                InstitutionElderlyBed.deleted == b'0'
+            ).first()
+            
+            if elderly_bed:
+                # 查询老人详细信息
+                elderly_info = session.query(ElderlyInfo).filter(
+                    ElderlyInfo.elderly_name == elderly_bed.elderly_name,
+                    DeviceInfo.device_name == "睡眠检测",
+                    ElderlyInfo.deleted == b'0'
+                ).first()
+                
+                # 组合结果
+                info_dict = self._combine_info(device_info, elderly_bed, elderly_info)
+                if info_dict:
+                    result.append(info_dict)
+        
+        return result
+        
+        
+    def _query_by_elderly_name(self, session, elderly_name: str, dept_id: str = None, room_id: str = None, bed_id: str = None) -> list[dict]:
+        """根据老人姓名查询关联信息"""
+        result = []
+        # 构建查询条件
+        query = session.query(InstitutionElderlyBed).filter(
+            InstitutionElderlyBed.elderly_name == elderly_name,
+        )
+        
+        # 添加额外过滤条件
+        if dept_id:
+            query = query.filter(InstitutionElderlyBed.dept_id == dept_id)
+        if room_id:
+            query = query.filter(InstitutionElderlyBed.institution_room_id == room_id)
+        if bed_id:
+            query = query.filter(InstitutionElderlyBed.institution_bed_id == bed_id)
+        
+        elderly_bed = query.first()
+        if not elderly_bed:
+            return []
+        
+        # 查询老人详细信息
+        elderly_info = session.query(ElderlyInfo).filter(
+            ElderlyInfo.elderly_name == elderly_bed.elderly_name,
+            ElderlyInfo.deleted == b'0'
+        ).first()
+        
+        # 查询设备信息
+        device_info = session.query(DeviceInfo).filter(
+            DeviceInfo.bed_id == elderly_bed.institution_bed_id,
+            DeviceInfo.device_name == "睡眠检测",
+            DeviceInfo.deleted == b'0'
+        ).first()
+        
+        # 如果没有找到设备信息，尝试通过room_id查询
+        if not device_info and elderly_bed.institution_room_id:
+            device_info = session.query(DeviceInfo).filter(
+                DeviceInfo.room_id == elderly_bed.institution_room_id,
+                DeviceInfo.deleted == b'0'
+            ).first()
+        
+        self.logger.warning(device_info)
+        self.logger.warning(elderly_bed)
+        self.logger.warning(elderly_info)
+        # 组合结果
+        info_dict = self._combine_info(device_info, elderly_bed, elderly_info)
+        if info_dict:
+            result.append(info_dict)
+        self.logger.warning(result)
+        return result
+    
+    
+    def _query_by_bed_info(self, session, dept_id: str, room_id: str, bed_id: str) -> list[dict]:
+        """根据床位信息查询关联信息"""
+        result = []
+        
+        # 查询床位关联的老人信息
+        elderly_bed = session.query(InstitutionElderlyBed).filter(
+            InstitutionElderlyBed.dept_id == dept_id,
+            InstitutionElderlyBed.institution_room_id == room_id,
+            InstitutionElderlyBed.institution_bed_id == bed_id,
+        ).first()
+
+        if not elderly_bed:
+            return []
+        
+        # 查询老人详细信息
+        elderly_info = session.query(ElderlyInfo).filter(
+            ElderlyInfo.elderly_name == elderly_bed.elderly_name,
+            ElderlyInfo.deleted == b'0'
+        ).first()
+        
+        # 查询设备信息
+        device_info = session.query(DeviceInfo).filter(
+            DeviceInfo.dept_id == dept_id,
+            DeviceInfo.room_id == room_id,
+            DeviceInfo.bed_id == bed_id,
+            DeviceInfo.device_name == "睡眠检测",
+        ).first()
+        
+        # 组合结果
+        info_dict = self._combine_info(device_info, elderly_bed, elderly_info)
+        if info_dict:
+            result.append(info_dict)
+        
+        return result
+    
+    
+    def _query_by_room_info(self, session, dept_id: str, room_id: str) -> list[dict]:
+        """根据房间信息查询该房间内所有床位和老人信息"""
+        result = []
+        
+        # 查询房间关联的所有床位和老人信息
+        elderly_beds = session.query(InstitutionElderlyBed).filter(
+            InstitutionElderlyBed.dept_id == dept_id,
+            InstitutionElderlyBed.institution_room_id == room_id,
+            InstitutionElderlyBed.deleted == b'0'
+        ).all()
+        
+        if not elderly_beds:
+            return []
+        
+        # 遍历所有床位信息，查询详细信息并组合
+        for elderly_bed in elderly_beds:
+            # 查询老人详细信息
+            elderly_info = session.query(ElderlyInfo).filter(
+                ElderlyInfo.elderly_name == elderly_bed.elderly_name,
+                ElderlyInfo.deleted == b'0'
+            ).first()
+            
+            # 查询设备信息
+            device_info = session.query(DeviceInfo).filter(
+                DeviceInfo.dept_id == dept_id,
+                DeviceInfo.room_id == room_id,
+                DeviceInfo.bed_id == elderly_bed.institution_bed_id,
+                DeviceInfo.device_name == "睡眠检测",
+                DeviceInfo.deleted == b'0'
+            ).first()
+            
+            # 组合结果
+            info_dict = self._combine_info(device_info, elderly_bed, elderly_info)
+            if info_dict:
+                result.append(info_dict)
+        
+        return result
+    
+    
+    def _query_by_dept_info(self, session, dept_id: str) -> list[dict]:
+        """根据部门信息查询该部门下所有人员信息"""
+        result = []
+        
+        # 查询部门下所有老人床位信息
+        elderly_beds = session.query(InstitutionElderlyBed).filter(
+            InstitutionElderlyBed.dept_id == dept_id,
+            InstitutionElderlyBed.deleted == b'0'
+        ).all()
+        
+        if not elderly_beds:
+            return []
+        
+        # 遍历所有床位信息，查询详细信息并组合
+        for elderly_bed in elderly_beds:
+            # 查询老人详细信息
+            elderly_info = session.query(ElderlyInfo).filter(
+                ElderlyInfo.elderly_name == elderly_bed.elderly_name,
+                ElderlyInfo.deleted == b'0'
+            ).first()
+            
+            # 查询设备信息
+            device_info = None
+            if elderly_bed.institution_bed_id:
+                device_info = session.query(DeviceInfo).filter(
+                    DeviceInfo.dept_id == dept_id,
+                    DeviceInfo.bed_id == elderly_bed.institution_bed_id,
+                    DeviceInfo.device_name == "睡眠检测",
+                    DeviceInfo.deleted == b'0'
+                ).first()
+            
+            # 如果没有找到设备信息，尝试通过room_id查询
+            if not device_info and elderly_bed.institution_room_id:
+                device_info = session.query(DeviceInfo).filter(
+                    DeviceInfo.dept_id == dept_id,
+                    DeviceInfo.room_id == elderly_bed.institution_room_id,
+                    DeviceInfo.device_name == "睡眠检测",
+                    DeviceInfo.deleted == b'0'
+                ).first()
+            
+            # 组合结果
+            info_dict = self._combine_info(device_info, elderly_bed, elderly_info)
+            if info_dict:
+                result.append(info_dict)
+        
+        return result
+    
+    
+    def _combine_info(self, device_info, elderly_bed, elderly_info) -> dict:
+        """组合设备、床位和老人信息"""
+        if not (device_info or elderly_bed):
+            return None
+        
+        result = {}
+        
+        # 添加设备信息
+        if device_info:
+            result.update({
+                "device_sn": device_info.device_sn,
+                "device_type": device_info.device_type,
+                "device_name": device_info.device_name,
+                "device_status": device_info.device_status,
+                "dept_id": device_info.dept_id,
+                "room_id": device_info.room_id,
+                "bed_id": device_info.bed_id
+            })
+        
+        # 添加老人床位信息
+        if elderly_bed:
+            result.update({
+                "elderly_id": elderly_bed.elderly_id,
+                "elderly_name": elderly_bed.elderly_name,
+                "institution_room_id": elderly_bed.institution_room_id,
+                "institution_bed_id": elderly_bed.institution_bed_id
+            })
+        
+        # 添加老人详细信息
+        if elderly_info:
+            result.update({
+                "elderly_id_card": elderly_info.elderly_id_card,
+                "elderly_sex": elderly_info.elderly_sex,
+                "elderly_age": elderly_info.elderly_age,
+                "elderly_birthday": elderly_info.elderly_birthday,
+                "elderly_address": elderly_info.elderly_address,
+                "contacts": elderly_info.contacts
+            })
+        
+        return result
+    
+    
+    
+    
+    def _get_device_based_name(
+        self, 
+        person_name: str,
+        dept_id: str = None,
+        room_id: str = None,
+        bed_id: str = None
+    ):
+        # 根据老人姓名查询设备SN的函数
+        """
+        根据老人姓名查询关联的所有设备SN
+        
+        Args:
+        person_name (str): 老人姓名
+        dept_id (str, optional): 部门ID过滤条件
+        room_id (str, optional): 房间ID过滤条件
+        bed_id (str, optional): 床位ID过滤条件
+        
+        Returns:
+            str: 单个设备SN；如果没有找到则返回空字符串
+        """
+        with self.get_db_session() as session:
+            try:
+                # 1. 首先在老人表中查找老人信息
+                person_query = session.query(InstitutionElderlyBed)
+                person_query = person_query.filter(
+                    InstitutionElderlyBed.elderly_name == person_name,
+                    InstitutionElderlyBed.deleted == b'0'
+                )
+                
+                # 如果传入了额外的过滤条件，则添加到查询中
+                if dept_id is not None:
+                    person_query = person_query.filter(InstitutionElderlyBed.dept_id == dept_id)
+                if room_id is not None:
+                    person_query = person_query.filter(InstitutionElderlyBed.institution_room_id == room_id)
+                if bed_id is not None:
+                    person_query = person_query.filter(InstitutionElderlyBed.institution_bed_id == bed_id)
+                
+                person_records = person_query.all()
+                
+                if not person_records:
+                    return ""
+                
+                for person in person_records:
+                    # 策略1: 通过elderly_id直接匹配
+                    device_query = session.query(DeviceInfo.device_sn).filter(
+                        DeviceInfo.elderly_id == person.elderly_id,
+                        DeviceInfo.deleted == b'0'
+                    )
+                    
+                    # 如果传入了dept_id，则添加dept_id过滤条件
+                    if dept_id is not None:
+                        device_query = device_query.filter(DeviceInfo.dept_id == dept_id)
+                    
+                    device = device_query.first()
+                    if device:
+                        return device[0]
+                    
+                    # 策略2: 通过room_id匹配
+                    if person.institution_room_id:
+                        device_query = session.query(DeviceInfo.device_sn).filter(
+                            DeviceInfo.room_id == person.institution_room_id,
+                            DeviceInfo.deleted == b'0'
+                        )
+                        
+                        # 如果传入了dept_id，则添加dept_id过滤条件
+                        if dept_id is not None:
+                            device_query = device_query.filter(DeviceInfo.dept_id == dept_id)
+                        
+                        device = device_query.first()
+                        if device:
+                            return device[0]
+                    
+                    # 策略3: 通过bed_id匹配
+                    if person.institution_bed_id:
+                        device_query = session.query(DeviceInfo.device_sn).filter(
+                            DeviceInfo.bed_id == person.institution_bed_id,
+                            DeviceInfo.deleted == b'0'
+                        )
+                        
+                        # 如果传入了dept_id，则添加dept_id过滤条件
+                        if dept_id is not None:
+                            device_query = device_query.filter(DeviceInfo.dept_id == dept_id)
+                        
+                        device = device_query.first()
+                        if device:
+                            return device[0]
+                
+                # 如果所有策略都未找到设备，返回空字符串
+                return ""
+            
+            except Exception as e:
+                self.logger.error(f"根据老人姓名查询设备失败: {person_name}, 错误: {str(e)}")
+                return ""
+    
+    
+    def _get_elderly_name_by_device_sn(
+        self, 
+        device_sn: str,
+        dept_id: str = None,
+        room_id: str = None,
+        bed_id: str = None
+    ):
+        """
+        根据设备SN查询关联的老人姓名
+        
+        Args:
+            device_sn (str): 设备序列号
+            dept_id (str, optional): 部门ID过滤条件
+            room_id (str, optional): 房间ID过滤条件
+            bed_id (str, optional): 床位ID过滤条件
+        
+        Returns:
+            str: 老人姓名；如果没有找到则返回空字符串
+        """
+        with self.get_db_session() as session:
+            try:
+                # 1. 首先在设备信息表中查找设备
+                device_query = session.query(DeviceInfo).filter(
+                    DeviceInfo.device_sn == device_sn,
+                    DeviceInfo.deleted == b'0'
+                )
+                
+                # 添加额外的过滤条件
+                if dept_id is not None:
+                    device_query = device_query.filter(DeviceInfo.dept_id == dept_id)
+                if room_id is not None:
+                    device_query = device_query.filter(DeviceInfo.room_id == room_id)
+                if bed_id is not None:
+                    device_query = device_query.filter(DeviceInfo.bed_id == bed_id)
+                
+                device = device_query.first()
+                
+                if device:
+                    # 优先使用elderly_name字段
+                    if device.elderly_name:
+                        return device.elderly_name
+                    
+                    # 如果elderly_name为空，尝试通过elderly_id查询
+                    if device.elderly_id:
+                        elderly = session.query(InstitutionElderlyBed).filter(
+                            InstitutionElderlyBed.elderly_id == device.elderly_id,
+                            InstitutionElderlyBed.deleted == b'0'
+                        ).first()
+                        
+                        if elderly:
+                            return elderly.elderly_name
+                    
+                    # 尝试通过room_id查询
+                    if device.room_id:
+                        elderly = session.query(InstitutionElderlyBed).filter(
+                            InstitutionElderlyBed.institution_room_id == device.room_id,
+                            InstitutionElderlyBed.deleted == b'0'
+                        ).first()
+                        
+                        if elderly:
+                            return elderly.elderly_name
+                    
+                    # 尝试通过bed_id查询
+                    if device.bed_id:
+                        elderly = session.query(InstitutionElderlyBed).filter(
+                            InstitutionElderlyBed.institution_bed_id == device.bed_id,
+                            InstitutionElderlyBed.deleted == b'0'
+                        ).first()
+                        
+                        if elderly:
+                            return elderly.elderly_name
+                
+                # 如果所有策略都未找到老人，返回空字符串
+                return ""
+            
+            except Exception as e:
+                self.logger.error(f"根据设备SN查询老人姓名失败: {device_sn}, 错误: {str(e)}")
+                return ""
+    
+    
+    def get_elderly_info_by_device_sn(
+        self, 
+        device_sn: str,
+        dept_id: str = None,
+        room_id: str = None,
+        bed_id: str = None
+    ):
+        """
+        根据设备SN查询关联的老人完整信息
+        
+        Args:
+            device_sn (str): 设备序列号
+            dept_id (str, optional): 部门ID过滤条件
+            room_id (str, optional): 房间ID过滤条件
+            bed_id (str, optional): 床位ID过滤条件
+        
+        Returns:
+            dict: 老人信息字典，包含姓名、性别、年龄、地址、电话、部门编号、房间编号、床位编号等信息；
+                  如果没有找到则返回空字典
+        """
+        with self.get_db_session() as session:
+            try:
+                # 1. 首先在设备信息表中查找设备
+                device_query = session.query(DeviceInfo).filter(
+                    DeviceInfo.device_sn == device_sn,
+                    DeviceInfo.deleted == b'0'
+                )
+                
+                # 添加额外的过滤条件
+                if dept_id is not None:
+                    device_query = device_query.filter(DeviceInfo.dept_id == dept_id)
+                if room_id is not None:
+                    device_query = device_query.filter(DeviceInfo.room_id == room_id)
+                if bed_id is not None:
+                    device_query = device_query.filter(DeviceInfo.bed_id == bed_id)
+                
+                device = device_query.first()
+                
+                if not device:
+                    return {}
+                
+                # 初始化结果字典，添加设备相关信息
+                result = {
+                    "device_sn": device_sn,
+                    "dept_id": device.dept_id,
+                    "room_id": device.room_id,
+                    "bed_id": device.bed_id
+                }
+                
+                # 2. 获取老人ID
+                elderly_id = device.elderly_id
+                
+                # 3. 如果设备上有老人ID，直接查询老人信息
+                if elderly_id:
+                    elderly_info = session.query(ElderlyInfo).filter(
+                        ElderlyInfo.id == elderly_id,
+                        ElderlyInfo.deleted == b'0'
+                    ).first()
+                    
+                    if elderly_info:
+                        result.update({
+                            "elderly_id": elderly_id,
+                            "elderly_name": elderly_info.elderly_name,
+                            "elderly_sex": elderly_info.elderly_sex,
+                            "elderly_age": elderly_info.elderly_age,
+                            "elderly_address": elderly_info.elderly_address,
+                            "contacts": elderly_info.contacts,
+                            "elderly_id_card": elderly_info.elderly_id_card
+                        })
+                        return result
+                
+                # 4. 如果设备没有直接关联老人ID，尝试通过床位信息查询
+                elderly_bed = None
+                
+                # 尝试通过bed_id查询
+                if device.bed_id:
+                    elderly_bed = session.query(InstitutionElderlyBed).filter(
+                        InstitutionElderlyBed.institution_bed_id == device.bed_id,
+                        InstitutionElderlyBed.deleted == b'0'
+                    ).first()
+                
+                # 如果床位信息没有找到，尝试通过room_id查询
+                if not elderly_bed and device.room_id:
+                    elderly_bed = session.query(InstitutionElderlyBed).filter(
+                        InstitutionElderlyBed.institution_room_id == device.room_id,
+                        InstitutionElderlyBed.deleted == b'0'
+                    ).first()
+                
+                # 5. 如果找到床位信息，再查询老人详细信息
+                if elderly_bed:
+                    result.update({
+                        "elderly_id": elderly_bed.elderly_id,
+                        "elderly_name": elderly_bed.elderly_name
+                    })
+                    
+                    # 查询老人详细信息
+                    elderly_info = session.query(ElderlyInfo).filter(
+                        ElderlyInfo.id == elderly_bed.elderly_id,
+                        ElderlyInfo.deleted == b'0'
+                    ).first()
+                    
+                    if elderly_info:
+                        result.update({
+                            "elderly_sex": elderly_info.elderly_sex,
+                            "elderly_age": elderly_info.elderly_age,
+                            "elderly_address": elderly_info.elderly_address,
+                            "contacts": elderly_info.contacts,
+                            "elderly_id_card": elderly_info.elderly_id_card
+                        })
+                
+                return result
+            
+            except Exception as e:
+                self.logger.error(f"根据设备SN查询老人完整信息失败: {device_sn}, 错误: {str(e)}")
+                return {}
+    
     
     def get_field_names_and_descriptions(self) -> Dict[str, str]:
         field_info = {}
