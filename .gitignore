@@ -18,8 +18,8 @@ whoami/tool/llm_application/info_extract_prompt.yaml
 problems.txt
 
 # 忽略test目录下的特定文件
-test/cert.pem
-test/key.pem
+tests/cert.pem
+tests/key.pem
 
 # 忽略项目中任何目录的.log文件
 **/*.log
