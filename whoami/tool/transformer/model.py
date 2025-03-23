@@ -100,7 +100,7 @@ class LayerNormBase(nn.Module):
         raise NotImplementedError
         
         
-    def build(cls, config: TransformerModelConfig, size: Optional[int] = None, **kwargs) -> LayerNormBase:
+    def build(cls, config: TransformerModelConfig, size: Optional[int] = None, **kwargs) -> 'LayerNormBase':
         if config.layer_norm_type == LayerNormType.default:
             return LayerNorm(config, size=size, low_precision=False, **kwargs)
         elif config.layer_norm_type == LayerNormType.low_precision:
@@ -233,9 +233,33 @@ class TLMoBlock(nn.Module):
         self._activation_checkpoint_fn: Optional[Callable] = None
         
         # why residual_dropout? not attention_dropout?
+        # Dropout
         self.dropout = Dropout(config.residual_dropout)
         
-        
+        # Layer norms.
+        self.k_norm: Optional[LayerNormBase] = None
+        self.q_norm: Optional[LayerNormBase] = None
+        if config.attention_layer_norm:
+            assert config.effective_n_kv_heads is not None
+            # 注意力层的输出Key的维度不会受effective_n_kv_heads的影响
+            # 每个查询头的维度(config.d_model // config.n_heads)*KV服务的查询头的数量(effective_n_kv_heads)就等于一个key应该归一化的尺寸size
+            # 但是这里注意，虽然注意力层归一化的size不受effective_n_kv_heads的影响，我们依然要保证k归一化和q归一化的尺度一致
+            # 何为一致？
+            # 两种选择？归一化应用于完整的QKV投影输出(size=d_model)，分头归一化（size=d_model//n_heads）
+            # 但是一般的自注意力输出归一化的维度是：
+            # Q SIZE=d_model
+            # K size=(d_model//n_heads)*effective_n_kv_heads
+            # 标准transformer一般不对V进行归一化
+            # 一般是对注意力输出归一化，而不需要对注意力矩阵（参数）归一化
+            self.k_norm = LayerNormBase.build(
+                config,
+                size=(config.d_model // config.n_heads) * config.effective_n_kv_heads,
+                elementwise_affine=config.attention_layer_norm_with_affine
+            )
+            self.q_norm = LayerNormBase.build(
+                config,
+                elementwise_affine=config.attention_layer_norm_with_affine
+            )
 
 
 

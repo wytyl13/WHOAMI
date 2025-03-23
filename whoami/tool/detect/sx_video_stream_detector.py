@@ -248,6 +248,7 @@ class SxVideoStreamDetector(VideoStreamDetector):
     def get_warning_information(self, results):
         """set the warning information based on the predict result implemented by inherited class."""
         warning_flag = False
+        image = None
         try:
             for index, result in enumerate(results):
                 predict_result = result.to_json()

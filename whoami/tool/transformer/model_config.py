@@ -135,6 +135,13 @@ class TransformerModelConfig(ModelConfig):
 
     layer_norm_eps: float = 1e-05
     
+    
+    attention_layer_norm_with_affine: bool = True
+    """
+    Toggle affine transform for the QK norms.
+    """
+    
+    
     layer_norm_with_affine: bool = True
     """
     Whether to include bias and weight parameters for the layer norms.
@@ -165,3 +172,35 @@ class TransformerModelConfig(ModelConfig):
     """
     Set the exact hidden size for the MLP. Otherwise the inner MLP hidden size will be set to `mlp_ratio * d_model`.
     """
+    
+    attention_layer_norm: Optional[bool] = False
+    """
+    Apply layer norm to the keys and queries within the attention mechanism.
+    This can help stabilize training.
+    """
+    
+
+
+
+    def effective_n_kv_heads(self) -> int:
+        """
+        QKV
+        if effective_n_kv_heads == n_heads, MHA 
+        if effective_n_kv_heads == 1, MQA
+        if 1 < effective_n_kv_heads < n_heads, GQA
+        MHA: 
+            在标准多头注意力中
+            每个查询头Q都有自己匹配的KV，每组QKV是完全独立的，每个注意力头可以独立地关注输入的不同方面
+        MQA:
+            一个KV头服务所有查询头
+        GQA:
+            一个KV头服务多个查询头
+        这样一来，KV头服务的查询头越多，可学习的参数越少
+        但是注意：这只是影响自注意力层的可学习参数，不影响输出
+        """
+        if self.n_kv_heads is None:
+            # default n_heads.
+            return self.n_heads
+        else:
+            return self.n_kv_heads
+    

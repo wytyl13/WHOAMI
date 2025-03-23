@@ -149,24 +149,28 @@ class SxVideoStreamPCM(ProducerConsumerManager):
 
         # Start new streams
         for topic in topics_to_start:
+            topic_name = topic.split('?')[0]
+            topic_model_key = device_sn + topic_name
+            consumer_tool = self.consumer_tool_pool.get_consumer_tool(topic_model_key) # 修改
             try:
-                topic_name = topic.split('?')[0]
                 # Get detector from pool
-                consumer_tool = self.consumer_tool_pool.get_consumer_tool(topic_name)
                 if consumer_tool is None:
-                    raise ValueError(f'Invalid consumer tool! consumer_tool: {consumer_tool}, topic_name: {topic_name}, consumer_tool_pool: {self.consumer_tool_pool}')
+                    raise ValueError(f'Invalid consumer tool! consumer_tool: {consumer_tool}, topic: {topic}, topic_name: {topic_name}, consumer_tool_pool: {self.consumer_tool_pool}')
                 # Start the stream with the video manager
+                # 注意这里不能传递topic_model_key，而是需要经过处理传递实际使用的topic_model_key，因为在实际从线程池中获取模型实例的时候
+                # 如果topic_model_key不存在则使用默认的实例m，如果在while循环中再获取真实的topic_model_key将会有大量的时间消耗
                 self.start_produce_worker(
                     device_sn=device_sn,
                     topic=topic,  # Use the full topic string
                     stream_url=video_stream_url,
                     detector=consumer_tool,
-                    topic_list_flag=topic_list_flag
+                    topic_list_flag=topic_list_flag,
+                    topic_model_key=self.consumer_tool_pool.get_consumer_tool_name(topic_model_key)
                 )
                 f"Production line started: topic: {topic}, video_stream_url: {video_stream_url}"
             except Exception as e:
                 # If stream start fails, return detector to pool
-                self.consumer_tool_pool.release_consumer_tool(topic_name, consumer_tool)
+                self.consumer_tool_pool.release_consumer_tool(topic_model_key, consumer_tool) # 修改
                 raise ValueError(f"Failed to start stream for {topic}: Error in start new streams: {str(e)}") from e
         
         if not topic_list and not topics_to_start:
@@ -192,7 +196,8 @@ class SxVideoStreamPCM(ProducerConsumerManager):
             topic: str = None,
             stream_url: str = None,
             detector: Detector = None,
-            topic_list_flag: bool = False
+            topic_list_flag: bool = False,
+            topic_model_key: str = None
         ):
         production_id = device_sn + topic
 
@@ -216,7 +221,12 @@ class SxVideoStreamPCM(ProducerConsumerManager):
                 self.logger.warning(f"The same video stream line have started {production_id}!")
                 return
 
-            self.producer_pool.submit(self._read_stream_worker, production_id, topic_list_flag)
+            self.producer_pool.submit(
+                self._read_stream_worker, 
+                production_id, 
+                topic_list_flag,
+                topic_model_key
+            )
             self.logger.info(f"Started video stream {production_id}!")
 
 
@@ -362,13 +372,20 @@ class SxVideoStreamPCM(ProducerConsumerManager):
         self.logger.info(f"Reader for stream {production_id} stopped")
     
 
-    def _read_stream_worker(self, production_id, topic_list_flag: bool = False):
+    def _read_stream_worker(
+        self, 
+        production_id, 
+        topic_list_flag: bool = False, 
+        topic_model_key: str = None
+    ):
         """Worker function that reads frames from a video stream"""
+        self.logger.info(f"topic_model_key---------------------------: {topic_model_key}")
         try:
             if production_id not in self.active_production_lines:
                 self.logger.error(f"Stream {production_id} not found in active streams")
                 return
             production_info: ProductionLineInfo = self.active_production_lines[production_id]
+            self.logger.info(f"Starting reader for stream {production_id}")
             device_sn = production_info.device_sn
             topic = production_info.topic
             stream_url = production_info.stream_url
@@ -456,7 +473,12 @@ class SxVideoStreamPCM(ProducerConsumerManager):
                     
                     current_time = time.perf_counter()
                     topic_to_frame_instance = topic if not topic_list_flag else real_topic_list
-                    frame_task = FrameTaskInfo(device_sn=device_sn, topic=topic_to_frame_instance, frame=frame.copy())
+                    frame_task = FrameTaskInfo(
+                        device_sn=device_sn, 
+                        topic=topic_to_frame_instance, 
+                        frame=frame.copy(), 
+                        topic_model_key=topic_model_key
+                    )
                     try:
                         self.production_queue.put(frame_task, timeout=0.1)
                         frame_count += 1
@@ -510,11 +532,16 @@ class SxVideoStreamPCM(ProducerConsumerManager):
 
         # Release the consumer tool back to the pool if need.
         try:
-            if self.consumer_tool_pool and hasattr(ProductionLineInfo, 'topic') and hasattr(ProductionLineInfo, 'detector'):
+            if self.consumer_tool_pool and hasattr(production_info, 'topic') and hasattr(production_info, 'detector'):
+                # self.logger.info(f"release_consumer_tool: -----------------------------------------------------------------------")
+                # self.logger.info(f"release_consumer_tool: {production_id}, {device_sn}")
+                # self.logger.info(f"release_consumer_tool: -----------------------------------------------------------------------")
                 topic = production_info.topic
                 tool_ = production_info.detector
+                topic_name = topic.split('?')[0]
+                topic_model_key = device_sn + topic_name
                 if tool_:
-                    self.consumer_tool_pool.release_consumer_tool(topic.split('?')[0], tool_)
+                    self.consumer_tool_pool.release_consumer_tool(topic_model_key, tool_) # 修改
         except Exception as e:
             raise ValueError(f"Fail to release the consumer tool back to the pool! topic: {topic}, {str(e)}")
 
@@ -546,31 +573,35 @@ class SxVideoStreamPCM(ProducerConsumerManager):
                 # Get frame from queue
                 try:
                     frame_task_info: FrameTaskInfo = self.production_queue.get(timeout=0.1)
-                    topics = frame_task_info.topic
-                    topics = [topics] if isinstance(topics, str) else topics
+                    topic_model_keys = frame_task_info.topic_model_key
+                    topic_model_keys = [topic_model_keys] if isinstance(topic_model_keys, str) else topic_model_keys
 
                     # Initialize new topic batch if need.
-                    for topic in topics:
-                        if topic not in topic_batches:
-                            topic_batches[topic] = []
-                            topic_batch_times[topic] = current_time
+                    for topic_model_key in topic_model_keys:
+                        if topic_model_key not in topic_batches:
+                            topic_batches[topic_model_key] = []
+                            topic_batch_times[topic_model_key] = current_time
                         
                         # Add frame to its topic batch
-                        topic_batches[topic].append(frame_task_info)
+                        topic_batches[topic_model_key].append(frame_task_info)
                 except queue.Empty:
                     if current_time - last_queue_empty_time > 5 * max_batch_wait_time:
                         self.logger.warning(f"Production queue is empty!")
                         last_queue_empty_time = current_time
                     continue
-
+                
+                
                 topics_to_process = []
-                for topic, batch in topic_batches.items():
-                    if len(batch) >= max_batch_size or (current_time - topic_batch_times[topic] > max_batch_wait_time and batch):
-                        topics_to_process.append(topic)
+                try:
+                    for topic_model_key, batch in topic_batches.items():
+                        if len(batch) >= max_batch_size or (current_time - topic_batch_times[topic_model_key] > max_batch_wait_time and batch):
+                            topics_to_process.append(topic_model_key)
+                except Exception as e:
+                    raise ValueError("FAIL TO GET topics_to_process") from e
                 
                 # Process the selected topic batches.
-                for topic in topics_to_process:
-                    batch = topic_batches[topic]
+                for topic_model_key in topics_to_process:
+                    batch = topic_batches[topic_model_key]
                     # 检查线程池是否已经关闭
                     if self.consumer_pool._broken or self.consumer_pool._shutdown:
                         self.logger.error("Thread pool has been shut down")
@@ -589,8 +620,8 @@ class SxVideoStreamPCM(ProducerConsumerManager):
                         raise RuntimeError(error_info) from runtime_err
                     
                     # Clear the processed batch
-                    topic_batches[topic] = []
-                    topic_batch_times[topic] = current_time
+                    topic_batches[topic_model_key] = []
+                    topic_batch_times[topic_model_key] = current_time
 
                 # 计算消费线程fps
                 elapsed_time  = current_time - last_actual_cal_time
@@ -688,10 +719,14 @@ class SxVideoStreamPCM(ProducerConsumerManager):
             return
         
         # All frames in the batch have the same topic
+        # 有可能存在topic不同但是topic_model相同的情况
+        # 但是frame_tasks_info中的所有元素topic_model肯定是相同的，因此使用不同的production_line_info肯定可以获取到相同的detector
         sample_task = frame_tasks_info[0]
         topic = sample_task.topic
         production_id = sample_task.device_sn + topic
         # Skip if production line is no longer active
+        # 这里使用第一个元素的production_id不是科学的，因为frame_tasks_info中的所有元素可能存在不相同的production_id
+        # 但是这个细微差别可以忽略不计
         if production_id not in self.active_production_lines:
             self.logger.warning(f"Stream was stopped while frame was in queue for {production_id}")
             return
@@ -701,7 +736,8 @@ class SxVideoStreamPCM(ProducerConsumerManager):
         if not detector:
             self.logger.error(f"No detector found for {production_id}")
             return
-
+        # log_info = {"topic": topic, "model_path": detector.model_path, "conf": detector.conf}
+        # self.logger.info(f"log_info: ---------------------------------------  {log_info}")
         try:
             # Extract frames from task info
             frames = [task.frame for task in frame_tasks_info]
@@ -720,7 +756,10 @@ class SxVideoStreamPCM(ProducerConsumerManager):
                     if self._filter_safe_region(result, polygon_regions=production_id_safe_region[task_info.device_sn + topic]):
                         continue
                 # Get and process any warnings
-                warning_flag, warning_information = self.sx_video_stream_detector.get_warning_information(result)
+                try:
+                    warning_flag, warning_information = self.sx_video_stream_detector.get_warning_information(result)
+                except Exception as e:
+                    self.logger.error(str(e))
                 if warning_flag:
                     warning_status = self.detector_warning.warning(
                         warning_information, 

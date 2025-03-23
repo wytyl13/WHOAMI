@@ -61,12 +61,30 @@ def test_sx_video_stream_pcm(
     device_sn,
     topic_list
 ):
-    model_paths = {
-        "/fire/smoke/warning": ModelInfo("/work/ai/WHOAMI/whoami/models/detect/fire_smoke_yolov10m_v2_epochs_250.pt", UltraliticsDetector, [0, 1], 0.5),
-        "/fallen/falling/warning": ModelInfo("/work/ai/WHOAMI/whoami/models/detect/fall_yolov10_7000_218.pt", UltraliticsDetector, [0], 0.91),
-        "/mouse/warning": ModelInfo("/work/ai/WHOAMI/whoami/models/detect/mouse_yolov10l_epochs_250.pt", UltraliticsDetector, [0], 0.95),
-        "/violence/warning": ModelInfo("/work/ai/WHOAMI/whoami/models/detect/fight_yolov10m_199_epoch.pt", UltraliticsDetector, [0], 0.97),
-    }
+    conf_dict = CONFIG["conf"]
+    model_path_dict = CONFIG["model_path"]
+    class_list_dict = CONFIG["class_list"]
+    topic_list = TOPIC_DICT
+    
+        
+    # model_paths = {
+    #     "/fire/smoke/warning": ModelInfo("/work/ai/WHOAMI/whoami/models/detect/fire_smoke_yolov10m_v2_epochs_250.pt", UltraliticsDetector, [0, 1], 0.5),
+    #     "/fallen/falling/warning": ModelInfo("/work/ai/WHOAMI/whoami/models/detect/fall_yolov10_7000_218.pt", UltraliticsDetector, [0], 0.91),
+    #     "/mouse/warning": ModelInfo("/work/ai/WHOAMI/whoami/models/detect/mouse_yolov10l_epochs_250.pt", UltraliticsDetector, [0], 0.95),
+    #     "/violence/warning": ModelInfo("/work/ai/WHOAMI/whoami/models/detect/fight_yolov10m_199_epoch.pt", UltraliticsDetector, [0], 0.97),
+    # }
+    
+    model_paths = {}
+    for conf_key, conf_value in conf_dict.items():
+        for topic_name in topic_list:
+            topic_key = conf_key + topic_name
+            model_paths[topic_key] = ModelInfo(
+                model_path="/work/ai/WHOAMI/whoami/"+model_path_dict[topic_name],
+                model_type_class=UltraliticsDetector,
+                classes=class_list_dict[topic_name],
+                conf=conf_value[topic_name]
+            )
+    print(f"model_paths: --------------------------------------\n {model_paths}")
     consumer_tool_pool = ConsumerToolPool(model_paths=model_paths)
     sx_video_stream_pcm = SxVideoStreamPCM(consumer_tool_pool=consumer_tool_pool)
 

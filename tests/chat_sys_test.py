@@ -1,6 +1,7 @@
 import pytest
 from pathlib import Path
 from fastapi import FastAPI
+from fastapi import APIRouter
 from dataclasses import dataclass, field
 import uvicorn
 from llama_index.llms.ollama import Ollama
@@ -38,7 +39,8 @@ app.add_middleware(
     allow_methods=["*"],  # 允许所有HTTP方法
     allow_headers=["*"],  # 允许所有头
 )
-
+# 添加路径前缀
+prefix_router = APIRouter(prefix="/ai/chat_sys")
 @dataclass
 class RequestDataChat:
     question: str = None
@@ -94,7 +96,7 @@ def group_by_user_id(data):
 
 
 def test_rag():
-    @app.post('/chat_health_report')
+    @prefix_router.post('/chat_health_report')
     async def chat_health_report(request_data: RequestDataChat):
         # logger.info(request_data)
         try:
@@ -163,7 +165,7 @@ def test_rag():
 
         return response
 
-    @app.post('/get_conversation_history')
+    @prefix_router.post('/get_conversation_history')
     async def get_conversation_history(request_data: RequestDataConversationHistory):
         result = []
         try:
@@ -187,7 +189,7 @@ def test_rag():
         return R.success(result)
 
 
-    @app.post('/truncate_conversation_history')
+    @prefix_router.post('/truncate_conversation_history')
     def truncate_conversation_history(request_data: TruncateConversationHistory):
         try:
             user_id = request_data.user_id
@@ -211,6 +213,7 @@ def test_rag():
     
     # 启动支持 HTTPS 的服务器
     print(f"以 HTTPS 模式启动服务器在 https://0.0.0.0:8889")
+    app.include_router(prefix_router)
     uvicorn.run(
         app, 
         host='0.0.0.0', 
