@@ -9,6 +9,7 @@ import re
 import copy
 import json
 import datetime
+import asyncio
 
 
 from whoami.tool.base.base_tool import BaseTool
@@ -170,15 +171,409 @@ class HealthReportChat(BaseTool):
             return obj.isoformat()  # Convert datetime to ISO format string
         else:
             return obj
-        
 
-    async def _run(
+
+    async def _run_bake_combine(
         self, 
         query: Optional[str] = None,
-        message_history: List[Dict[str, str]] = None
+        message_history: List[Dict[str, str]] = None,
+        user_id: Optional[str] = None,
+        stream_flag: int = 1
     ):
         query = query if query is not None else self.query
         self.full_response = []
+        
+        """
+        # 有向无环图
+        query -> tool1 重写 -> tool2识别用户意图（1、咨询客服。2、系统操作的一些东西。3、睡眠报告。4、其它）-> 路由
+                            -> tool3 
+        Tool.add(query)
+        tool2.add(query, tool1)
+
+        ToolManager  
+            路由（硬编码路由，运行路由，总是被执行，受限制被执行）
+            串行、并行
+
+        路由状态：
+
+        """
+        
+        self.logger.info(f"【开始处理】: query: {query}\n\n")
+        self.logger.info(f"【正在处理】：开始阶段1 - 重写query： {query}")
+        query_rewrite_result = await self.information_extract_json.query_rewrite(query=query, message_history=message_history)
+        rewritten_query = query_rewrite_result["rewritten_query"]
+        rewritten_query = query if rewritten_query == "" else rewritten_query
+        self.logger.info(f"【正在处理】：完成阶段1 - 重写query，重写结果 {rewritten_query}\n\n")
+        stage = 2
+        # get health_report status
+        self.logger.info(f"【正在处理】：开始阶段{stage} - 是否需要数据库辅助？\n\n")
+        intent_database_result = await self.information_extract_json.analyze_intent_database_combine(query=rewritten_query, message_history=message_history)
+        
+        sleep_report_related_status = intent_database_result.get("is_sleep_report_related", True)
+        need_database_status = intent_database_result.get("need_database", True)
+
+        chat_stream = None
+        stage += 1
+        if not sleep_report_related_status:
+            # Not health_report, call the llm directly.
+            self.logger.info(f"【正在处理】：完成阶段{stage} - 和睡眠报告无关，直接回答用户！\n\n")
+            chat_stream = self.enhance_retrieval._run(
+                text_list=[], 
+                message_history=message_history, 
+                query=query,
+                rewritten_query=rewritten_query
+            )
+                
+        else:
+            # Yes health_report, enhance retrieval generate the health_report.
+            if not need_database_status:
+                stage += 1
+                self.logger.info(f"【正在处理】：完成阶段{stage} - 不需要数据库辅助，直接回答\n\n")
+                
+                # 根据历史消息回答重写问题
+                chat_stream = self.enhance_retrieval._run(
+                    text_list=[], 
+                    message_history=message_history, 
+                    query=query,
+                    rewritten_query=rewritten_query
+                )
+            else:
+                stage += 1
+                self.logger.info(f"【正在处理】：开始阶段{stage} - 需要数据库辅助 - 并行提取用户查询信息！\n\n")
+                if user_id is None:
+                    name_id_result = await self.information_extract_json.extract_name_id(query=rewritten_query, message_history=[])
+                    self.logger.info(name_id_result)
+                name_id_result = {"found": True, "type": "id", "value": user_id, "confidence": 1.0}
+                time_info_result = await self.information_extract_json.extract_time_info(query=rewritten_query, message_history=[])
+                self.logger.info(time_info_result)
+                name_id = None
+                name_type = None
+                time_info = None
+                if name_id_result["found"]:
+                    name_id = name_id_result["value"]
+                    name_type = name_id_result["type"]
+                else:
+                    response = "请告诉我您要查询哪个用户！"
+                    if stream_flag == 1:
+                        yield response
+                    else:
+                        # 非流式输出
+                        self.full_response.append(response)
+                        yield response
+                        return
+                    return
+                    
+                if time_info_result["found"]:
+                    time_info = time_info_result["time_range"]
+                else:
+                    response = "请告诉我您要查询的时间范围！"
+                    if stream_flag == 1:
+                        yield response
+                    else:
+                        # 非流式输出
+                        self.full_response.append(response)
+                        yield response
+                        return
+                    return
+                self.logger.info(f"【正在处理】：完成阶段{stage} - 提取到的信息为：name_id: {name_id}, time_info: {time_info}！\n\n")
+            
+                
+                # 检索增强生成
+                stage += 1
+                self.logger.info(f"【正在处理】：开始阶段{stage} 用户信息数据库检索！\n\n")
+                
+                # 首先需要根据用户的编号获取用户的所有信息
+                # 其次也要根据用户的姓名获取用户的所有信息
+                # 最后还要兼容用户输入的模糊信息，比如查询某个房间的所有老人睡眠情况
+                # 查询某个床位的老人睡眠情况
+                
+                device_sn = name_id if name_type == "id" else None
+                elderly_name = name_id if name_type == "name" else None
+                dept_id = None
+                room_id = None
+                bed_id = None
+                
+                try:
+                    elderly_info = self.sql_provider.get_device_info(
+                        device_sn=device_sn, 
+                        elderly_name=elderly_name,
+                        dept_id=dept_id,
+                        room_id=room_id,
+                        bed_id=bed_id
+                    )
+                    self.logger.info(f"【正在处理】：完成阶段{stage} 用户{elderly_name}信息：{elderly_info}！\n\n")
+                    stage += 1
+                    if not elderly_info:
+                        response = "用户信息获取失败！"
+                        if stream_flag == 1:
+                            yield response
+                        else:
+                            # 非流式输出
+                            self.full_response.append(response)
+                            yield response
+                            return
+                        return  
+                except Exception as e:
+                    error_info = f"用户信息获取失败！{str(e)}"
+                    self.logger.error(f"【正在处理】：完成阶段{stage}, {error_info}\n\n")
+                    if stream_flag == 1:
+                        yield response
+                    else:
+                        # 非流式输出
+                        self.full_response.append(response)
+                        yield response
+                        return
+                    return 
+                
+                self.logger.info(f"【正在处理】：开始阶段{stage} 用户睡眠数据库检索！\n\n")
+                field_descriptions = self.sql_provider.get_field_names_and_descriptions()
+                sql_result_list = []
+                try:
+                    start_date = time_info["start"]
+                    end_date = time_info["end"]
+                except Exception as e:
+                    response = "请提供具体时间！"
+                    if stream_flag == 1:
+                        yield response
+                    else:
+                        # 非流式输出
+                        self.full_response.append(response)
+                        yield response
+                        return
+                    return
+                for item in elderly_info:
+                    # 去数据库检索 elderly_info
+                    device_sn = item["device_sn"]
+                    elderly_name = item["elderly_name"]
+                    if device_sn is None or device_sn == "":
+                        response = f"抱歉！{elderly_name}没有绑定监测设备！"
+                        if stream_flag == 1:
+                            yield response
+                        else:
+                            # 非流式输出
+                            self.full_response.append(response)
+                            yield response
+                            return
+                        return
+                    
+                    try:
+                        sql_result = self.sql_provider.get_record_by_condition(
+                            condition={"device_sn": device_sn}, 
+                            exclude_fields=[
+                                'health_advice',
+                                'sleep_stage_image_x_y',
+                                'body_move_image_x_y',
+                                'breath_exception_image_sixty_x_y',
+                                'heart_bpm_image_x_y',
+                                'breath_bpm_image_x_y',
+                                'breath_exception_image_x_y',
+                                'deep_sleep_second',
+                                'total_num_second',
+                                'total_num_second_on_bed',
+                                'sleep_second',
+                                'deep_sleep_second',
+                                'waking_second',
+                                'to_sleep_second',
+                                'leave_bed_total_second',
+                                'save_file_path',
+                                'creator',
+                                'create_time',
+                                'updater',
+                                'update_time',
+                                'deleted',
+                                'tenant_id',
+                                'id'
+                            ],
+                            date_range={"date_field": "query_date", "start_date": start_date, "end_date": end_date}
+                        )
+                    except Exception as e:
+                        self.logger.error(f"Fail to exec sql check! {str(e)}")
+                        response = "数据库查询失败！"
+                        if stream_flag == 1:
+                            yield response
+                        else:
+                            # 非流式输出
+                            self.full_response.append(response)
+                            yield response
+                            return
+                        return
+                    new_sql_result = []
+                    for result in sql_result:
+                        result = self.convert_keys_to_chinese(field_descriptions, result)
+                        new_sql_result.append(result)
+                    if not new_sql_result:
+                        response = f"抱歉！{elderly_name}: 设备编号{device_sn}没有监测数据！"
+                        if stream_flag == 1:
+                            yield response
+                        else:
+                            # 非流式输出
+                            self.full_response.append(response)
+                            yield response
+                            return
+                        return
+                    sql_result_list.append({"elderly_info": item, "sql_result": new_sql_result})
+                self.logger.info(f"【正在处理】：完成阶段{stage} 用户睡眠数据库检索结果：{sql_result_list}\n\n")
+                # system_prompt = """
+                # 你是一名专业的睡眠健康分析师，擅长解读睡眠监测数据。
+                # 【重要规则】：
+
+                # 首先必须确认系统中实际包含的数据日期范围，格式如："系统中包含的数据：2025年3月14日至2025年3月20日的记录，共7天。"
+                # 时间参考处理：
+
+                # 注意历史会话消息中提供的"当前系统时间"作为时间参考点
+                # 将相对时间表述（如"昨天"、"当天"、"最近一周"）基于提供的系统时间计算
+                # 如果未提供系统时间，则基于数据中最新的日期作为"今天"
+
+
+                # 时间段处理规则：
+
+                # 对于"最近X天/周/月"的查询：确认系统中是否有足够的数据
+                # 对于具体日期的查询（如"2025年3月15日"）：确认该日期的数据是否存在
+                # 对于相对表述（如"昨天"、"前天"、"当天"）：基于系统时间或最新数据日期推算
+                # 对于日期范围（如"3月15日至3月18日"）：验证范围内所有日期是否有数据
+
+
+                # 数据完整性说明：
+
+                # 如数据不足或缺失，明确指出："系统中[有/没有]覆盖[请求时间段]的完整数据。实际可用数据为[起始日期]至[结束日期]，共[X]天。以下分析基于这些可用数据。"
+                # 对于部分可用的情况，清楚说明哪些日期有数据，哪些没有
+
+
+                # 数据分析原则：
+
+                # 严格使用系统中实际存在的数据字段和数值
+                # 不创造不存在的指标名称或数值
+                # 保持数据的原始精度
+                # 按时间顺序呈现数据趋势
+                # 提供客观的整体评估和具体可行的建议
+
+
+                # 回复格式要求：
+
+                # 使用简洁专业的语言
+                # 适当使用分段和列表呈现数据
+                # 重点突出异常值和重要变化
+
+
+
+                # 记住：你的分析必须完全基于系统提供的实际数据，不添加不存在的数据，也不使用不存在的字段名称。
+                # """
+                system_prompt = """
+                你是专业睡眠健康分析师。请根据以下规则分析睡眠数据：
+
+                1. 首先确认可用数据范围："系统数据：YYYY年MM月DD日至YYYY年MM月DD日，共X天。"
+
+                2. 时间处理：
+                - 基于系统时间或最新数据日期计算相对时间
+                - 验证查询时间段数据是否完整
+
+                3. 数据完整性：
+                - 若数据不足，说明："系统[有/无]覆盖[请求时间段]的完整数据。可用数据为[起始日期]至[结束日期]，共[X]天。"
+
+                4. 分析原则：
+                - 仅使用实际存在的数据字段和数值
+                - 保持原始精度
+                - 提供时间顺序的趋势分析
+
+                5. 核心分析：
+                - 睡眠效率和质量评分
+                - 睡眠结构（总时长、深睡比例）
+                - 关键异常指标
+                - 生理数据（心率、呼吸率、体动）
+                
+                6. 格式要求：
+                - 纯文本，不使用特殊符号（如※★◆等）
+                - 简洁专业语言
+                - 总回复控制在300个token以内
+                - 重点突出异常值和关键变化
+                - 提供2-3条具体可行建议
+                """
+                # database_message_history = []
+                # if not any(msg.get('role') == 'system' and "你是一名专业的睡眠分析师" in msg.get('content', '') for msg in database_message_history):
+                #     database_message_history.append({"role": "system", "content": system_prompt})
+                
+                text_list = [{f"用户询问的关于{name_id}的数据库检索信息": f"{str(elderly_info)}\n\n"}]
+                for item in sql_result_list:
+                    item_sql_result = item["sql_result"]
+                    elderly_info = item["elderly_info"]
+                    elderly_name_i = elderly_info.get("elderly_name", None)
+                    device_sn_i = elderly_info.get("device_sn", None)
+                    for i in item_sql_result:
+                        query_date = i["查询日期"]
+                        text_list.append({"报告姓名": elderly_name_i, "报告编号": device_sn_i, "报告日期": str(query_date), "睡眠报告" : i})
+                
+                text_list = self.convert_dates_to_strings(text_list)
+                
+                # 仅根据检索消息和重写query回答用户问题
+                chat_stream = self.enhance_retrieval_qwen._run(
+                    text_list=text_list, 
+                    message_history=[], 
+                    query=query,
+                    rewritten_query=rewritten_query,
+                    prompt=system_prompt,
+                    stream_flag=stream_flag
+                )
+            
+        if not chat_stream or chat_stream is None:
+            self.logger.error("Stream is empty or None!")
+            chat_stream = self.string_to_chat_stream("抱歉！您的问题太深奥了！以至于我无法回答！")
+        try:
+            if stream_flag == 1:
+                async for chunk in chat_stream:
+                    # 只处理非空内容
+                    if chunk:
+                        # 返回当前块
+                        self.full_response.append(chunk)
+                        yield chunk
+                # 记录完整响应
+                complete_response = "".join(self.full_response)
+                self.logger.info(f"Complete response length: {len(complete_response)}")
+                self.logger.info(f"First 100 chars: {complete_response[:100]}")
+            else:
+                complete_response = ""
+                async for chunk in chat_stream:
+                    if chunk:
+                        self.full_response.append(chunk)
+                        complete_response += chunk
+                self.logger.info(f"Complete response length: {len(complete_response)}")
+                self.logger.info(f"First 100 chars: {complete_response[:100]}")
+                # 非流式输出，一次性yield完整响应并返回
+                yield complete_response
+                return  # 返回无值，提前结束生成器
+        except Exception as e:
+            self.logger.error(f"处理流时出错: {str(e)}")
+            error_message = f"Error: {str(e)}"
+            if stream_flag == 1:
+                yield error_message
+            else:
+                yield error_message
+                return  # 返回无值，提前结束生成器
+            
+            
+    async def _run_bake(
+        self, 
+        query: Optional[str] = None,
+        message_history: List[Dict[str, str]] = None,
+        user_id: Optional[str] = None,
+        stream_flag: int = 1
+    ):
+        query = query if query is not None else self.query
+        self.full_response = []
+        
+        """
+        # 有向无环图
+        query -> tool1 重写 -> tool2识别用户意图（1、咨询客服。2、系统操作的一些东西。3、睡眠报告。4、其它）-> 路由
+                            -> tool3 
+        Tool.add(query)
+        tool2.add(query, tool1)
+
+        ToolManager  
+            路由（硬编码路由，运行路由，总是被执行，受限制被执行）
+            串行、并行
+
+        路由状态：
+        """
+        
         self.logger.info(f"【开始处理】: query: {query}\n\n")
         self.logger.info(f"【正在处理】：开始阶段1 - 重写query： {query}")
         query_rewrite_result = await self.information_extract_json.query_rewrite(query=query, message_history=message_history)
@@ -225,8 +620,10 @@ class HealthReportChat(BaseTool):
                 self.logger.info(f"【正在处理】：完成阶段{stage} - 需要数据库辅助，开始检索\n\n")
                 stage += 1
                 self.logger.info(f"【正在处理】：开始阶段{stage} - 并行提取用户查询信息！\n\n")
-                name_id_result = await self.information_extract_json.extract_name_id(query=rewritten_query, message_history=[])
-                self.logger.info(name_id_result)
+                if user_id is None:
+                    name_id_result = await self.information_extract_json.extract_name_id(query=rewritten_query, message_history=[])
+                    self.logger.info(name_id_result)
+                name_id_result = {"found": True, "type": "id", "value": user_id, "confidence": 1.0}
                 time_info_result = await self.information_extract_json.extract_time_info(query=rewritten_query, message_history=[])
                 self.logger.info(time_info_result)
                 name_id = None
@@ -428,8 +825,359 @@ class HealthReportChat(BaseTool):
         except Exception as e:
             self.logger.error(f"处理流时出错: {str(e)}")
             yield f"Error: {str(e)}"
-
             
+            
+    async def _run(
+        self, 
+        query: Optional[str] = None,
+        message_history: List[Dict[str, str]] = None,
+        user_id: Optional[str] = None,
+        stream_flag: Optional[int] = None
+    ):
+        query = query if query is not None else self.query
+        self.full_response = []
+        
+        """
+        # 有向无环图
+        query -> tool1 重写 -> tool2识别用户意图（1、咨询客服。2、系统操作的一些东西。3、睡眠报告。4、其它）-> 路由
+                            -> tool3 
+        Tool.add(query)
+        tool2.add(query, tool1)
+
+        ToolManager  
+            路由（硬编码路由，运行路由，总是被执行，受限制被执行）
+            串行、并行
+
+        路由状态：
+
+        
+        """
+        
+        self.logger.info(f"【开始处理】: query: {query}\n\n")
+        self.logger.info(f"【正在处理】：开始阶段1 - 重写query： {query}")
+        query_rewrite_result = await self.information_extract_json.query_rewrite(query=query, message_history=message_history)
+        rewritten_query = query_rewrite_result["rewritten_query"]
+        rewritten_query = query if rewritten_query == "" else rewritten_query
+        self.logger.info(f"【正在处理】：完成阶段1 - 重写query，重写结果 {rewritten_query}\n\n")
+        
+        
+        # 并行执行三个任务
+        stage = 2
+        self.logger.info(f"【正在处理】：开始阶段{stage} - 并行执行多个分析任务\n\n")
+        intent_health_report_task = self.information_extract_json.analyze_intent_health_report(query=rewritten_query, message_history=[])
+        intent_database_task = self.information_extract_json.analyze_intent_database(query=rewritten_query, message_history=message_history)
+        time_info_task = self.information_extract_json.extract_time_info(query=rewritten_query, message_history=[])
+        # 等待所有任务完成
+        intent_health_report_result, intent_database_result, time_info_result = await asyncio.gather(
+            intent_health_report_task,
+            intent_database_task,
+            time_info_task
+        )
+        
+        # 处理结果
+        is_health_report_related = intent_health_report_result["is_related"]
+        need_database = intent_database_result.get("need_database", True) if is_health_report_related else False
+        self.logger.info(f"【正在处理】：完成阶段{stage} - 并行分析任务结果：\n"
+                         f"- 是否询问睡眠报告相关内容？{is_health_report_related}\n"
+                         f"- 是否需要数据库辅助？{need_database}\n"
+                         f"- 时间提取结果：{time_info_result}\n\n")
+        chat_stream = None
+        stage += 1
+        # 根据并行任务的结果决定流程
+        if not is_health_report_related:
+            # 不是健康报告相关，直接调用LLM回答
+            self.logger.info(f"【正在处理】：开始阶段{stage} - 无需数据库辅助，直接回答用户！\n\n")
+            chat_stream = self.enhance_retrieval._run(
+                text_list=[], 
+                message_history=message_history, 
+                query=query,
+                rewritten_query=rewritten_query
+            )
+        else:
+            # 是健康报告相关
+            if not need_database:
+                # 不需要数据库辅助
+                self.logger.info(f"【正在处理】：开始阶段{stage} - 健康报告相关但不需要数据库辅助，直接回答\n\n")
+                chat_stream = self.enhance_retrieval._run(
+                    text_list=[], 
+                    message_history=message_history, 
+                    query=query,
+                    rewritten_query=rewritten_query
+                )
+            else:
+                # 需要数据库辅助
+                self.logger.info(f"【正在处理】：开始阶段{stage} - 需要数据库辅助，处理时间和用户信息\n\n")
+                stage += 1
+                # 我们已经并行获取了时间信息，现在处理用户ID信息
+                if user_id is None:
+                    # 已经有了并行任务的结果，直接使用，无需再次提取
+                    name_id_result = await self.information_extract_json.extract_name_id(query=rewritten_query, message_history=[])
+                    self.logger.info(name_id_result)
+                name_id_result = {"found": True, "type": "id", "value": user_id, "confidence": 1.0}
+                
+                # 处理用户ID和时间信息
+                name_id = None
+                name_type = None
+                time_info = None
+                if name_id_result["found"]:
+                    name_id = name_id_result["value"]
+                    name_type = name_id_result["type"]
+                else:
+                    response = "请告诉我您要查询哪个用户！"
+                    if stream_flag == 1:
+                        yield response
+                    else:
+                        # 非流式输出
+                        self.full_response.append(response)
+                        yield response
+                        return
+                    return
+                
+                if time_info_result["found"]:
+                    time_info = time_info_result["time_range"]
+                else:
+                    response = "请告诉我您要查询的时间范围！"
+                    if stream_flag == 1:
+                        yield response
+                    else:
+                        # 非流式输出
+                        self.full_response.append(response)
+                        yield response
+                        return
+                    return
+                
+                self.logger.info(f"【正在处理】：完成阶段{stage} - 提取到的信息为：name_id: {name_id}, time_info: {time_info}！\n\n")
+                
+                # 检索增强生成
+                stage += 1
+                self.logger.info(f"【正在处理】：开始阶段{stage} 用户信息数据库检索！\n\n")
+                
+                device_sn = name_id if name_type == "id" else None
+                elderly_name = name_id if name_type == "name" else None
+                dept_id = None
+                room_id = None
+                bed_id = None
+                
+                try:
+                    elderly_info = self.sql_provider.get_device_info(
+                        device_sn=device_sn, 
+                        elderly_name=elderly_name,
+                        dept_id=dept_id,
+                        room_id=room_id,
+                        bed_id=bed_id
+                    )
+                    self.logger.info(f"【正在处理】：完成阶段{stage} 用户{elderly_name}信息：{elderly_info}！\n\n")
+                    stage += 1
+                    if not elderly_info:
+                        response = "用户信息获取失败！"
+                        if stream_flag == 1:
+                            yield response
+                        else:
+                            # 非流式输出
+                            self.full_response.append(response)
+                            yield response
+                            return
+                        return   
+                except Exception as e:
+                    error_info = f"用户信息获取失败！{str(e)}"
+                    self.logger.error(f"【正在处理】：完成阶段{stage}, {error_info}\n\n")
+                    if stream_flag == 1:
+                        yield response
+                    else:
+                        # 非流式输出
+                        self.full_response.append(response)
+                        yield response
+                        return
+                    return 
+                
+                self.logger.info(f"【正在处理】：开始阶段{stage} 用户睡眠数据库检索！\n\n")
+                field_descriptions = self.sql_provider.get_field_names_and_descriptions()
+                sql_result_list = []
+                try:
+                    start_date = time_info["start"]
+                    end_date = time_info["end"]
+                except Exception as e:
+                    response = "请提供具体时间！"
+                    if stream_flag == 1:
+                        yield response
+                    else:
+                        # 非流式输出
+                        self.full_response.append(response)
+                        yield response
+                        return
+                    return
+                for item in elderly_info:
+                    # 去数据库检索 elderly_info
+                    device_sn = item["device_sn"]
+                    elderly_name = item["elderly_name"]
+                    if device_sn is None or device_sn == "":
+                        response = f"抱歉！{elderly_name}没有绑定监测设备！"
+                        if stream_flag == 1:
+                            yield response
+                        else:
+                            # 非流式输出
+                            self.full_response.append(response)
+                            yield response
+                            return
+                        return
+                    
+                    try:
+                        sql_result = self.sql_provider.get_record_by_condition(
+                            condition={"device_sn": device_sn}, 
+                            exclude_fields=[
+                                'health_advice',
+                                'sleep_stage_image_x_y',
+                                'body_move_image_x_y',
+                                'breath_exception_image_sixty_x_y',
+                                'heart_bpm_image_x_y',
+                                'breath_bpm_image_x_y',
+                                'breath_exception_image_x_y',
+                                'deep_sleep_second',
+                                'total_num_second',
+                                'total_num_second_on_bed',
+                                'sleep_second',
+                                'deep_sleep_second',
+                                'waking_second',
+                                'to_sleep_second',
+                                'leave_bed_total_second',
+                                'save_file_path',
+                                'creator',
+                                'create_time',
+                                'updater',
+                                'update_time',
+                                'deleted',
+                                'tenant_id',
+                                'id'
+                            ],
+                            date_range={"date_field": "query_date", "start_date": start_date, "end_date": end_date}
+                        )
+                    except Exception as e:
+                        self.logger.error(f"Fail to exec sql check! {str(e)}")
+                        response = "数据库查询失败！"
+                        if stream_flag == 1:
+                            yield response
+                        else:
+                            # 非流式输出
+                            self.full_response.append(response)
+                            yield response
+                            return
+                        return
+                    new_sql_result = []
+                    for result in sql_result:
+                        result = self.convert_keys_to_chinese(field_descriptions, result)
+                        new_sql_result.append(result)
+                    if not new_sql_result:
+                        response = f"抱歉！{elderly_name}: 设备编号{device_sn}没有监测数据！"
+                        if stream_flag == 1:
+                            yield response
+                        else:
+                            # 非流式输出
+                            self.full_response.append(response)
+                            yield response
+                            return
+                        return
+                    sql_result_list.append({"elderly_info": item, "sql_result": new_sql_result})
+                self.logger.info(f"【正在处理】：完成阶段{stage} 用户睡眠数据库检索结果：{sql_result_list}\n\n")
+                system_prompt = """
+                你是一名专业的睡眠健康分析师，擅长解读睡眠监测数据。
+                【重要规则】：
+
+                首先必须确认系统中实际包含的数据日期范围，格式如："系统中包含的数据：2025年3月14日至2025年3月20日的记录，共7天。"
+                时间参考处理：
+
+                注意历史会话消息中提供的"当前系统时间"作为时间参考点
+                将相对时间表述（如"昨天"、"当天"、"最近一周"）基于提供的系统时间计算
+                如果未提供系统时间，则基于数据中最新的日期作为"今天"
+
+
+                时间段处理规则：
+
+                对于"最近X天/周/月"的查询：确认系统中是否有足够的数据
+                对于具体日期的查询（如"2025年3月15日"）：确认该日期的数据是否存在
+                对于相对表述（如"昨天"、"前天"、"当天"）：基于系统时间或最新数据日期推算
+                对于日期范围（如"3月15日至3月18日"）：验证范围内所有日期是否有数据
+
+
+                数据完整性说明：
+
+                如数据不足或缺失，明确指出："系统中[有/没有]覆盖[请求时间段]的完整数据。实际可用数据为[起始日期]至[结束日期]，共[X]天。以下分析基于这些可用数据。"
+                对于部分可用的情况，清楚说明哪些日期有数据，哪些没有
+
+
+                数据分析原则：
+
+                严格使用系统中实际存在的数据字段和数值
+                不创造不存在的指标名称或数值
+                保持数据的原始精度
+                按时间顺序呈现数据趋势
+                提供客观的整体评估和具体可行的建议
+
+
+                回复格式要求：
+
+                使用简洁专业的语言
+                适当使用分段和列表呈现数据
+                重点突出异常值和重要变化
+
+
+
+                记住：你的分析必须完全基于系统提供的实际数据，不添加不存在的数据，也不使用不存在的字段名称。
+                """
+                text_list = [{f"用户询问的关于{name_id}的数据库检索信息": f"{str(elderly_info)}\n\n"}]
+                for item in sql_result_list:
+                    item_sql_result = item["sql_result"]
+                    elderly_info = item["elderly_info"]
+                    elderly_name_i = elderly_info.get("elderly_name", None)
+                    device_sn_i = elderly_info.get("device_sn", None)
+                    for i in item_sql_result:
+                        query_date = i["查询日期"]
+                        text_list.append({"报告姓名": elderly_name_i, "报告编号": device_sn_i, "报告日期": str(query_date), "睡眠报告" : i})
+                
+                text_list = self.convert_dates_to_strings(text_list)
+                # 仅根据检索消息和重写query回答用户问题
+                chat_stream = self.enhance_retrieval_qwen._run(
+                    text_list=text_list, 
+                    message_history=[], 
+                    query=query,
+                    rewritten_query=rewritten_query,
+                    prompt=system_prompt
+                )
+        if not chat_stream or chat_stream is None:
+            self.logger.error("Stream is empty or None!")
+            chat_stream = self.string_to_chat_stream("抱歉！您的问题太深奥了！以至于我无法回答！")
+        try:
+            if stream_flag == 1:
+                async for chunk in chat_stream:
+                    # 只处理非空内容
+                    if chunk:
+                        # 返回当前块
+                        self.full_response.append(chunk)
+                        yield chunk
+                # 记录完整响应
+                complete_response = "".join(self.full_response)
+                self.logger.info(f"Complete response length: {len(complete_response)}")
+                self.logger.info(f"First 100 chars: {complete_response[:100]}")
+            else:
+                complete_response = ""
+                async for chunk in chat_stream:
+                    if chunk:
+                        self.full_response.append(chunk)
+                        complete_response += chunk
+                self.logger.info(f"Complete response length: {len(complete_response)}")
+                self.logger.info(f"First 100 chars: {complete_response[:100]}")
+                # 非流式输出，一次性yield完整响应并返回
+                yield complete_response
+                return  # 返回无值，提前结束生成器
+        except Exception as e:
+            self.logger.error(f"处理流时出错: {str(e)}")
+            error_message = f"Error: {str(e)}"
+            if stream_flag == 1:
+                yield error_message
+            else:
+                yield error_message
+                return  # 返回无值，提前结束生成器
+                
+                
 
 async def main():
     health_report_chat = HealthReportChat(query="睡眠")

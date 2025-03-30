@@ -7,7 +7,14 @@
 """
 import torch
 import torch.nn as nn
-from typing import Dict, Optional, Union, Callable
+from typing import (
+    Dict, 
+    Optional, 
+    Union, 
+    Callable,
+    cast,
+    Tuple
+)
 from functools import partial
 import torch.nn.functional as F
 from abc import abstractmethod
@@ -28,6 +35,7 @@ from whoami.tool.transformer.exceptions import TLMoCOnfigurationError
 from whoami.tool.base.base_tool import BaseTool
 from whoami.tool.transformer.check_point_config import ActivationCheckpointStrategy
 from whoami.tool.transformer.model_config import LayerNormType
+from whoami.tool.transformer.model_config import ActivationType
 
 def activation_checkpoint_function(cfg: TransformerModelConfig):
     
@@ -50,6 +58,19 @@ class BufferCache(dict, MutableMapping[str, torch.Tensor]):
     """
     Cache for attention biases and other things that would normally be stored as buffers.
     """
+
+
+def _non_meta_init_device(config: TransformerModelConfig) -> torch.device:
+    if config.init_device is not None and config.init_device != "meta":
+        return torch.device(config.init_device)
+    else:
+        if torch.backends.mps.is_available():
+            return torch.device("mps")
+        elif torch.cuda.is_available():
+            return torch.device("cuda")
+        else:
+            return torch.device("cpu")
+
 
 
 class Dropout(nn.Dropout):
@@ -209,6 +230,77 @@ class RMSLayerNorm(LayerNormBase):
             return x
             
             
+            
+            
+class Activation(nn.Module):
+    def __init__(self, config: TransformerModelConfig):
+        super().__init__()
+        self.config = config
+        
+        
+    @abstractmethod
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        raise NotImplemented
+    
+    
+    @property
+    @abstractmethod
+    def output_multiplier(self) -> float:
+        raise NotImplementedError
+    
+    
+    def build(cls, config: TransformerModelConfig) -> 'Activation':
+        if config.activation_type == ActivationType.gelu:
+            # cast function just static type transform.
+            return cast(Activation, GELU(approximate="none"))
+        elif config.activation_type == ActivationType.relu:
+            return cast(Activation, ReLU(inplace=True))
+        elif config.activation_type == ActivationType.swiglu:
+            return SwiGLU(config)
+
+
+class GELU(nn.GELU):
+    # Why define this attribution? In order to cast to Activation.
+    @property
+    def output_multiplier(self) -> float:
+        return 1.0
+    
+    
+class ReLU(nn.ReLU):
+    def output_multiplier(self) -> float:
+        return 1.0
+    
+    
+class SwiGLU(Activation):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x, gate = x.chunk(2, dim=1)
+        return F.silu(gate) * x
+    
+    
+    @property
+    def output_multiplier(self) -> float:
+        # 输出维度占比输入维度
+        return 0.5
+    
+    
+class RotaryEmbedding(nn.Module):
+    """
+    Rotary positional embeddings (RoPE)
+    """     
+    def __init__(self, config: TransformerModelConfig, cache: BufferCache):
+        super().__init__()
+        self.config = config
+        self.__cache = cache
+        self.get_rotary_embedding(config.max_sequence_length, _non_meta_init_device(config))
+    
+    
+    def get_rotary_embedding(self, seq_len: int, device: torch.device) -> Tuple[torch.Tensor, torch.Tensor]:
+        
+    
+        
+
+
+    
 class TLMoBlock(nn.Module):
     """
     A base class for transformer block implementations.
@@ -261,9 +353,46 @@ class TLMoBlock(nn.Module):
                 elementwise_affine=config.attention_layer_norm_with_affine
             )
 
+        if config.clip_qkv is not None:
+            assert config.clip_qkv > 0
+        
+        # Activcation function
+        self.act: Activation = Activation.build(config)
+        assert (self.act.output_multiplier * self.hidden_size) % 1 == 0
+        
+        # 两个投影层，一个投影注意力机制，一个投影前馈（目的是为了保证transformer模块的输入和输出维度一致）
 
-
+        # 上下文：
+            # 输入 -> 多头自注意力 -> 拼接多头输出 -> self.attn_out -> 残差 -> 层归一化
+        self.attn_out = nn.Linear(
+            config.d_model, config.d_model, bias=config.include_bias, device=config.init_device
+        )
+        
+        # 上下文：
+            # 输入 -> FF扩展层 -> 激活函数 -> self.ff_out -> 残差连接 -> 层归一化
+        # 为什么要考虑激活函数的output_multiplier？
+        # 因为hidden_size是固定的，而不同的激活函数有不同的output_multiplier
+        # 而激活函数的输出维度是output_multiplier*self.hidden_size
+        # 一般的激活函数output_multiplier是1，也即激活函数的输出维度即hidden_size
+        # 但是swiglu激活函数不同，他的输出维度一般是hidden_size的一半，因此在进入attn_out
+        # 层的输入不同的激活函数维度不同。
+        self.ff_out = nn.Linear(
+            int(self.act.output_multiplier * self.hidden_size),
+            config.d_model,
+            bias=config.include_bias,
+            device=config.init_device
+        )
+        
+        # private customer attribution _is_residual, what means is residual fr this feed forward.
+        self.ff_out._is_residual = True
+        
+        # Rotary embeddings.
+        if self.config.rope:
+            self.rotary_emb = RotaryEmbedding(config, self.__cache)
             
+    
+        
+    
 
 class TLMo(nn.Module):
     config: Optional[TransformerModelConfig] = None

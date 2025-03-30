@@ -226,6 +226,6 @@ class BaseTool(ABC, BaseModel):
         
         # 处理其他复杂类型或未知类型
         return {'type': 'object'}
-    
+        
     
     

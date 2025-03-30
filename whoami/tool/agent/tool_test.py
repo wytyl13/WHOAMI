@@ -6,6 +6,19 @@ from whoami.tool.agent.workflow import WorkFlow
 from whoami.tool.agent.tool_node import ToolNode
 from whoami.tool.agent.execution_enum import ExecutionResult
 
+
+# too1(a, b), tool2(a)
+# c
+
+
+# context
+# 我要计算1+2
+# too1： 加法计算  两个int型参数
+# tool2: 乘法计算   1个参数是整型
+
+# context
+# a, b, c
+
 # 可选：为工具创建参数schema
 class CalculatorSchema(BaseModel):
     numbers: List[float] = Field(
@@ -26,7 +39,7 @@ class CalculatorAdd(BaseTool):
     """一个简单的计算器工具"""
     name: str = "Calculator"
     description: str = "执行基本数学运算，加法"
-    # args_schema: BaseModel = CalculatorSchema
+    args_schema: BaseModel = CalculatorSchema
     
     def execute(self, numbers: List[float]) -> float:
         return sum(numbers)
@@ -61,10 +74,11 @@ if __name__ == '__main__':
     calculator_add = CalculatorAdd()
     calculator_multi = CalculatorAddMulti()
     calculator_add_multi_plus = CalculatorAddMultiPlus()
-    workflow = WorkFlow()
+    
     calculator_add_node = ToolNode(calculator_add)
     calculator_multi_node = ToolNode(calculator_multi).add_dependency(calculator_add_node)
     
+    workflow = WorkFlow()
     
     calculator_add_node_plus = ToolNode(calculator_add_multi_plus)
     
@@ -81,6 +95,11 @@ if __name__ == '__main__':
     # A节点的输出不可能定义或者智能定义为number1，因为A节点的定义有可能在当前节点的定义之前，而且A节点的定义是基于某个工具，该工具的定义是为了定义不同的节点，因为不同的节点可能使用
     # 相同的工具不同的初始化参数去定义，而相同的工具的返回值是固定的（是否可以在定义节点的时候改变工具的返回值），假如我在定义节点的时候已经知道了依赖该节点的节点需要什么样的返回参数？
     # 那么我可以动态修改对应工具的返回参数，那么工具会很容易找到该节点的返回参数去赋值给自己的参数
+    # 工作流需要人定义。（Agent）
+    # 
+    # 任务：
+    #   输入 （ai报告生成 + tool）   输出工作流{a, b, c}
+    # 大模型完成    # 输入到工作流  （Agent）
     # 也就是说我需要先定义工作流，然后使用工作流节点之间的依赖关系去定义节点，然后节点再去动态修改tool的返回值
     
     # 这样可以实现吗？
@@ -92,7 +111,7 @@ if __name__ == '__main__':
     # 这样就可以实现动态获取
     # 我真是一个人才
     
-    calculator_add_node_plus = calculator_add_node_plus.add_dependency(calculator_add_node, ["numbers2"])
+    calculator_add_node_plus = calculator_add_node_plus.add_dependency(calculator_add_node, ["numbers1"])
     calculator_add_node_plus = calculator_add_node_plus.add_dependency(calculator_multi_node, ["numbers2"])
     
     print(calculator_add_node.dependencies)
@@ -109,10 +128,71 @@ if __name__ == '__main__':
     for dep_node, required_inputs in calculator_add_node_plus.dependencies:
         print(f"乘法plus节点依赖 {dep_node.tool.name} 需要的输入字段: {required_inputs}")
 
+    20 
+
+
     new_workflow = workflow.add_node(calculator_add_node)
     new_workflow = new_workflow.add_node(calculator_multi_node)
     new_workflow = new_workflow.add_node(calculator_add_node_plus)
 
     print(new_workflow.visualize())
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    new_workflow = new_workflow.add_node(calculator_add_node_plus)
     context = new_workflow.execute()
+    
+    # always
+    # chuanxing bingxing
+    # 
+    
+    # AGENT
+
+    # BaseTool
+    # Customer_Tool(BaseTool)
+    # ToolNode
+    # Workflow
+    a -> b -> -d
+        e
+        finally----------------------------------------------------------------------
+        g
+
+    Workflow.add(a)
+    Workflow.add(b)
+    Workflow.add(d)
+    
+    
+    #  BaseTool
+    # Customer_Tool(BaseTool)
+    # 
+    {
+        "a" -> "b" -> "c"
+    }
+    
+    
+    
+
+
+
+
+
+
+    
+    
     print(context)
+    

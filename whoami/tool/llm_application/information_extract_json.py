@@ -236,9 +236,10 @@ class InformationExtractJson(BaseJsonProcessor):
         current_time = datetime.now()
         current_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
         user_message_history = [{"role": "system", "content": f"当前系统时间：{current_time}"}]
+        self.logger.info(f"message_history: ------------------------------------- {message_history}")
         user_message_history.extend([message for message in message_history if message["role"] == "user"])
-        return await self.extract_info(query, "query_rewrite", message_history=user_message_history)
     
+        return await self.extract_info(query, "query_rewrite", message_history=user_message_history)
     
     async def analyze_intent_health_report(self, query, message_history=None):
         """分析查询意图"""
@@ -248,6 +249,15 @@ class InformationExtractJson(BaseJsonProcessor):
     async def analyze_intent_database(self, query, message_history=None):
         """根据历史会话消息分析是否需要进行数据库检索"""
         return await self.extract_info(query, "intent_database", message_history)
+
+    async def analyze_intent_database_combine(self, query, message_history=None):
+        """判断是否需要数据库检索（包含睡眠报告相关意图识别）"""
+        current_time = datetime.now()
+        current_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
+        user_message_history = [{"role": "system", "content": f"当前系统时间：{current_time}"}]
+        self.logger.info(f"message_history: ------------------------------------- {message_history}")
+        user_message_history.extend([message for message in message_history if message["role"] == "user"])
+        return await self.extract_info(query, "intent_database_combine", message_history=user_message_history)
 
 
     def _run(self, *args, **kwargs):

@@ -128,9 +128,12 @@ def test_rag():
             
         # 创建异步生成器以便与StreamingResponse一起使用
         async def response_generator():
-            async for text_chunk in chat_sys._run(messages_history=messages, question=question):
+            async for text_chunk in chat_sys._run(messages_history=messages, question=question, direct_flag=0, stream_flag=1, user_id='13D4F349200080712111959C07'):
                 yield f"data: {text_chunk}\n\n"
                 await asyncio.sleep(0.01)  # 小延迟，避免过快消耗
+
+        
+
 
         # 创建一个包装生成器，在流完成后保存数据
         async def wrapped_generator():
@@ -206,6 +209,79 @@ def test_rag():
         except Exception as e:
             return R.fail(f"Fail to truncate conversation history! {str(e)}")
         return R.success(f"Successfully truncated conversation history, {result}")
+    
+    
+    @prefix_router.post('/chat_health_report_gw')
+    async def chat_health_report_gw(request_data: RequestDataChat):
+        # logger.info(request_data)
+        try:
+            question = request_data.question
+            conversation_id = request_data.conversation_id
+            user_id = request_data.user_id
+            messages = request_data.messages
+        except Exception as e:
+            return R.fail(f"传参错误！{request_data}")
+
+        if question is None or question == "":
+            return R.fail("question must not be null")
+            
+        # question = utils.remove_stopwords(question, stop_words=STOPWORDS_1)
+        # question = '舜熙科技' + question if '舜熙' not in question else question
+        if conversation_id is None or conversation_id == "":
+            conversation_id = user_id
+        
+        if conversation_id is None or conversation_id == "":
+            return R.fail("conversation_id must not be null")
+        
+        if user_id is None or user_id == "":
+            return R.fail("user_id must not be null")
+        
+        messages = [] if messages is None or messages == "" or not messages else messages
+        if not messages:
+            result = sql_provider.get_record_by_condition(condition={"user_id": user_id, "conversation_id": conversation_id})
+            if result:
+                result = group_by_user_id(result)
+                messages = result[0]["messages"][-20:] # 仅使用最后10条数据
+            
+        # 创建异步生成器以便与StreamingResponse一起使用
+        async def response_generator():
+            async for text_chunk in chat_sys._run(messages_history=messages, question=question, direct_flag=1):
+                yield f"data: {text_chunk}\n\n"
+                await asyncio.sleep(0.01)  # 小延迟，避免过快消耗
+
+        # 创建一个包装生成器，在流完成后保存数据
+        async def wrapped_generator():
+            try:
+                # 手动消费内部生成器并传递每个块
+                async for chunk in response_generator():
+                    yield chunk
+            except Exception as e:
+                print(f"流处理出错: {str(e)}")
+                raise
+            finally:
+                # 无论成功还是失败，确保在流完成后保存数据
+                print("流式响应完成，准备保存对话到数据库...")
+                try:
+                    await chat_sys.save_qa_to_db(
+                        conversation_id=conversation_id,
+                        user_id=user_id,
+                        question=question
+                    )
+                    print(f"对话保存完成，full_response长度: {len(''.join(chat_sys.full_response))}")
+                except Exception as e:
+                    print(f"保存对话失败: {str(e)}")
+
+        # 返回流式响应
+        response =  StreamingResponse(
+            wrapped_generator(),
+            media_type="text/event-stream"
+        )
+        
+        # 简单添加CORS头
+        response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return response
+    
     
     # 指定证书文件路径
     ssl_certfile = "cert.pem"

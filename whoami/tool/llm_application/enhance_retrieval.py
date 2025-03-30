@@ -121,7 +121,8 @@ class EnhanceRetrieval(BaseTool):
             retrieval_flag: Optional[bool] = False,
             enhance_role: Optional[str] = None,
             rewritten_query: Optional[str] = None,
-            prompt: Optional[str] = None
+            prompt: Optional[str] = None,
+            stream_flag: int = 1
         ):
         prompt = f"""
             你是舜熙科技的客服助手。请基于以下用户历史会话信息，以专业、简洁的口吻回答用户问题。
@@ -133,8 +134,7 @@ class EnhanceRetrieval(BaseTool):
             4. 保持礼貌友好的专业客服语气
             5. 必要时可以引导用户访问舜熙科技官网: https://shunxikj.com/
             """ if prompt is None else prompt
-        
-        
+        rewritten_query = query if rewritten_query is None else rewritten_query
         if retrieval_flag:
             nodes = self.retrieve(text_list=text_list, top_k=top_k, query=query)
             context_texts = [node.node.text for node in nodes]
@@ -180,32 +180,33 @@ class EnhanceRetrieval(BaseTool):
         #     namespace_message_history.append({"role": enhance_role, "content": text_list})
         # namespace_message_history.append({"role": "user", "content": rewritten_query})
         self.logger.info(f"namespace_message_history --------------------------------------------------  {namespace_message_history}")
-        chat_stream = self.llm._whoami_text_stream(messages=namespace_message_history, timeout=30, user_stop_words=[])
-
-        if not chat_stream:
-            self.logger.error("Stream is empty or None!")
-            yield "Error: Could not obtain streaming response from LLM."
-            return
-        try:
-            async for chunk in chat_stream:
-                # 只处理非空内容
-                if chunk:
-                    # 返回当前块
-                    yield chunk
-        except Exception as e:
-            self.logger.error(f"处理流时出错: {str(e)}")
-            yield f"Error: {str(e)}"
-
-
-
-        # response = await self.llm._whoami_text(messages=message_history, timeout=30, user_stop_words=[])
         
-        # return {
-        #     "query": query,
-        #     "response": response,
-        #     "sources": sources,
-        #     "context": context
-        # }
+        if stream_flag == 1:
+            # 使用流式输出接口
+            chat_stream = self.llm._whoami_text_stream(messages=namespace_message_history, timeout=30, user_stop_words=[])
+            if not chat_stream:
+                self.logger.error("Stream is empty or None!")
+                yield "Error: Could not obtain streaming response from LLM."
+                return
+            try:
+                async for chunk in chat_stream:
+                    # 只处理非空内容
+                    if chunk:
+                        # 返回当前块
+                        yield chunk
+            except Exception as e:
+                self.logger.error(f"处理流时出错: {str(e)}")
+                yield f"Error: {str(e)}"
+        else:
+            # 使用非流式输出接口
+            try:
+                response = await self.llm._whoami_text(messages=namespace_message_history, timeout=30, user_stop_words=[])
+                yield response
+                return  # 一次性返回完整响应后结束
+            except Exception as e:
+                self.logger.error(f"非流式处理时出错: {str(e)}")
+                yield f"Error: {str(e)}"
+                return
 
 if __name__ == "__main__":
     llm = OllamaLLM(config=LLMConfig.from_file(Path('/work/ai/WHOAMI/whoami/scripts/test/ollama_config.yaml')))

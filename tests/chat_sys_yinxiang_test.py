@@ -11,6 +11,10 @@ from typing import (
 from fastapi.responses import StreamingResponse
 import asyncio
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, StreamingResponse
+import json
+
+
 
 from whoami.llm_api.ollama_llm import OllamaLLM
 from whoami.configs.llm_config import LLMConfig
@@ -92,6 +96,7 @@ def group_by_user_id(data):
     # Convert the dictionary to a list if needed
     return list(result.values())
 
+stream_flag = 0
 
 def test_rag():
     @app.post('/chat_health_report')
@@ -118,7 +123,6 @@ def test_rag():
         
         if user_id is None or user_id == "":
             return R.fail("user_id must not be null")
-        
         messages = [] if messages is None or messages == "" or not messages else messages
         if not messages:
             result = sql_provider.get_record_by_condition(condition={"user_id": user_id, "conversation_id": conversation_id})
@@ -127,39 +131,64 @@ def test_rag():
                 messages = result[0]["messages"][-10:] # 仅使用最后10条数据
             
         # 创建异步生成器以便与StreamingResponse一起使用
-        async def response_generator():
-            async for text_chunk in chat_sys._run(messages_history=messages, question=question):
-                yield f"data: {text_chunk}\n\n"
-                await asyncio.sleep(0.01)  # 小延迟，避免过快消耗
+        if stream_flag:
+            async def response_generator():
+                async for text_chunk in chat_sys._run(messages_history=messages, question=question, user_id=user_id, stream_flag=stream_flag):
+                    yield f"data: {text_chunk}\n\n"
+                    await asyncio.sleep(0.01)  # 小延迟，避免过快消耗
 
-        # 创建一个包装生成器，在流完成后保存数据
-        async def wrapped_generator():
-            try:
-                # 手动消费内部生成器并传递每个块
-                async for chunk in response_generator():
-                    yield chunk
-            except Exception as e:
-                print(f"流处理出错: {str(e)}")
-                raise
-            finally:
-                # 无论成功还是失败，确保在流完成后保存数据
-                print("流式响应完成，准备保存对话到数据库...")
+            # 创建一个包装生成器，在流完成后保存数据
+            async def wrapped_generator():
                 try:
-                    await chat_sys.save_qa_to_db(
-                        conversation_id=conversation_id,
-                        user_id=user_id,
-                        question=question
-                    )
-                    print(f"对话保存完成，full_response长度: {len(''.join(chat_sys.full_response))}")
+                    # 手动消费内部生成器并传递每个块
+                    async for chunk in response_generator():
+                        yield chunk
                 except Exception as e:
-                    print(f"保存对话失败: {str(e)}")
+                    print(f"流处理出错: {str(e)}")
+                    raise
+                finally:
+                    # 无论成功还是失败，确保在流完成后保存数据
+                    print("流式响应完成，准备保存对话到数据库...")
+                    try:
+                        await chat_sys.save_qa_to_db(
+                            conversation_id=conversation_id,
+                            user_id=user_id,
+                            question=question
+                        )
+                        print(f"对话保存完成，full_response长度: {len(''.join(chat_sys.full_response))}")
+                    except Exception as e:
+                        print(f"保存对话失败: {str(e)}")
 
-        # 返回流式响应
-        response =  StreamingResponse(
-            wrapped_generator(),
-            media_type="text/event-stream"
-        )
-        
+            # 返回流式响应
+            response =  StreamingResponse(
+                wrapped_generator(),
+                media_type="text/event-stream"
+            )
+        else:
+            # 对于非流式响应，收集单个完整响应
+            response_content = ""
+            response_generator = chat_sys._run(messages_history=messages, question=question, user_id=user_id, stream_flag=stream_flag)
+            async for chunk in response_generator:
+                response_content = chunk
+                break
+            # 保存对话到数据库
+            print("非流式响应完成，准备保存对话到数据库...")
+            try:
+                # 确保full_response已经设置，否则手动设置
+                await chat_sys.save_qa_to_db(
+                    conversation_id=conversation_id,
+                    user_id=user_id,
+                    question=question
+                )
+                print(f"对话保存完成，response长度: {len(response_content)}")
+            except Exception as e:
+                print(f"保存对话失败: {str(e)}")
+            
+            # 返回JSON响应
+            response = JSONResponse(
+                content={"success": True, "data": response_content, "code": 200}
+            )
+            
         # 简单添加CORS头
         response.headers["Access-Control-Allow-Origin"] = "*"
 
@@ -207,9 +236,6 @@ def test_rag():
             return R.fail(f"Fail to truncate conversation history! {str(e)}")
         return R.success(f"Successfully truncated conversation history, {result}")
     
-    # 指定证书文件路径
-    ssl_certfile = "cert.pem"
-    ssl_keyfile = "key.pem"
     
     # 启动支持 HTTPS 的服务器
     print(f"以 HTTPS 模式启动服务器在 https://0.0.0.0:8888")
@@ -217,6 +243,4 @@ def test_rag():
         app, 
         host='0.0.0.0', 
         port=8888,
-        ssl_certfile=ssl_certfile,
-        ssl_keyfile=ssl_keyfile
     )

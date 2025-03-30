@@ -90,7 +90,14 @@ class ChatSys(BaseTool):
         return chat_messages
 
 
-    async def _run(self, messages_history: list[Dict[str, str]], question: str = None, direct_flag: int = 0):
+    async def _run(
+        self, 
+        messages_history: list[Dict[str, str]], 
+        question: Optional[str] = None, 
+        direct_flag: int = 0,
+        user_id: Optional[str] = None, 
+        stream_flag: Optional[int] = None
+    ):
         self.logger.info(f"messages_history ---------------------------------------------------  {messages_history}")
         # 清空之前的响应收集
         self.full_response = []
@@ -114,24 +121,78 @@ class ChatSys(BaseTool):
         """
         handle_web_content = []
         
-        chat_stream = self.enhance_._run(
-            message_history=messages_history, 
-            query=question
-        ) if direct_flag else self.health_report_chat._run(
-            message_history=messages_history, 
-            query=question
-        )
-        async for chunk in chat_stream:
-            # 收集完整响应
-            self.full_response.append(chunk)
-            # 返回当前块
-            yield chunk
-            
-        # 记录完整响应
-        complete_response = "".join(self.full_response)
-        self.logger.info(f"Complete response length: {len(complete_response)}")
-        self.logger.info(f"First 100 chars: {complete_response[:100]}")
-
+        # 处理非流式模式，需要改变函数签名，使用普通异步函数
+        # 对于非流式输出，使用单独的处理流程
+        if stream_flag == 0:
+            if direct_flag:
+                # 由于非流式模式下，我们需要手动收集enhance_._run生成的所有块
+                temp_response = []
+                async for chunk in self.enhance_._run(
+                    text_list=[], 
+                    message_history=messages_history, 
+                    query=question
+                ):
+                    if chunk:
+                        temp_response.append(chunk)
+                
+                complete_response = "".join(temp_response)
+                self.full_response = [complete_response]
+                self.logger.info(f"Complete non-stream response length: {len(complete_response)}")
+                yield complete_response
+                return
+            else:
+                # 手动收集health_report_chat._run生成的所有块
+                temp_response = []
+                async for chunk in self.health_report_chat._run(
+                    message_history=messages_history,
+                    query=question,
+                    user_id=user_id,
+                    stream_flag=1  # 内部仍用流式，但我们会收集完整响应
+                ):
+                    if chunk:
+                        temp_response.append(chunk)
+                
+                complete_response = "".join(temp_response)
+                self.full_response = [complete_response]
+                self.logger.info(f"Complete non-stream response length: {len(complete_response)}")
+                yield complete_response
+                return
+                
+        
+        # 流式处理逻辑
+        # 根据direct_flag选择不同的处理方式
+        if direct_flag:
+            chat_stream = self.enhance_._run(
+                text_list=[],
+                message_history=messages_history, 
+                query=question,
+            )
+        else:
+            # 流式输出
+            chat_stream = self.health_report_chat._run(
+                message_history=messages_history, 
+                query=question,
+                user_id=user_id,
+                stream_flag=1
+            )
+        
+        try:
+            async for chunk in chat_stream:
+                # 收集完整响应
+                if chunk:
+                    self.full_response.append(chunk)
+                # 返回当前块
+                yield chunk
+                
+            # 记录完整响应
+            complete_response = "".join(self.full_response)
+            self.logger.info(f"Complete response length: {len(complete_response)}")
+            self.logger.info(f"First 100 chars: {complete_response[:100]}")
+        except Exception as e:
+            self.logger.error(f"处理流时出错: {str(e)}")
+            error_message = f"Error: {str(e)}"
+            self.full_response.append(error_message)
+            yield error_message
 
     async def save_qa_to_db(self, conversation_id, user_id, question):
         """异步保存问题和回答到数据库"""

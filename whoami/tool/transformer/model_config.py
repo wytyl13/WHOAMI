@@ -11,6 +11,13 @@ from typing import Dict, Optional, Union
 from whoami.configs.model_config import ModelConfig
 from whoami.utils.utils import StrEnum
 
+
+class ActivationType(StrEnum):
+    gelu = "gelu"
+    relu = "relu"
+    swiglu = "swigle"
+
+
 class LayerNormType(StrEnum):
     default = "default"
     """
@@ -26,8 +33,6 @@ class LayerNormType(StrEnum):
     """
     An RMSNorm implementation. When using torch.compile this is probably the fastest implementation.
     """
-
-
 
 class TransformerModelConfig(ModelConfig):
     """
@@ -49,6 +54,16 @@ class TransformerModelConfig(ModelConfig):
 
     n_kv_heads: Optional[int] = None
     """
+    X ->(w_q) Query, 
+    X ->(w_k) Key
+    X ->(w_v) Value
+    
+    
+    b_head = 8
+    n_kv_heads = 4
+    X ->(w_q) Query   8
+    X ->(w_k) Key (2)
+    X ->(w_v) Value (2)
     The number of heads to use for keys and values. Defaults to `n_heads`.
     Set this to ``None`` or ``n_heads`` for normal multi-head attention.
     Set this to 1 for multi-query attention.
@@ -178,8 +193,18 @@ class TransformerModelConfig(ModelConfig):
     Apply layer norm to the keys and queries within the attention mechanism.
     This can help stabilize training.
     """
-    
 
+
+    activation_type: ActivationType = ActivationType.swiglu
+    """
+    The activation function to use within the MLP layers.
+    """
+
+    
+    max_sequence_length: int = 1024
+    """
+    The maximum input sequence length supported by the model.
+    """
 
 
     def effective_n_kv_heads(self) -> int:

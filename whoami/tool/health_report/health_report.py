@@ -48,7 +48,7 @@ from whoami.tool.health_report.sx_data_provider import SxDataProvider
 from whoami.provider.base_provider import BaseProvider
 from whoami.provider.base_ import ModelType
 from whoami.tool.health_report.sleep_indices import SleepIndices
-from whoami.llm_api.ollama_llm import OllamLLM
+from whoami.llm_api.ollama_llm import OllamaLLM
 from whoami.configs.llm_config import LLMConfig
 from whoami.tool.health_report.standard_breath_heart import StandardBreathHeart
 from whoami.utils.utils import Utils
@@ -63,7 +63,7 @@ utils = Utils()
 
 
 
-llm = OllamLLM(
+llm = OllamaLLM(
     LLMConfig.from_file(Path("/work/ai/WHOAMI/whoami/scripts/test/ollama_config.yaml")),
     temperature=0.8
 )
@@ -134,8 +134,8 @@ class HealthReport(BaseProvider):
                 current_date = datetime.strptime(self.query_date, '%Y-%m-%d')
                 current_date_str = current_date.strftime('%Y-%m-%d')
                 pre_date_str = (current_date - timedelta(days=1)).strftime('%Y-%m-%d')
-                start = pre_date_str + ' 20:00:00'
-                end = current_date_str + ' 09:00:00'
+                start = pre_date_str + ' 18:00:00'
+                end = current_date_str + ' 07:00:00'
                 self.logger.info(start)
                 self.logger.info(end)
                 sql_query = f"SELECT in_out_bed, signal_intensity, breath_line, heart_line, breath_bpm, heart_bpm, state, body_move_data, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
