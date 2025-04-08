@@ -20,7 +20,7 @@ from whoami.llm_api.ollama_llm import OllamaLLM
 from whoami.tool.llm_application.information_extract_json import InformationExtractJson
 from whoami.provider.sql_provider import SqlProvider
 from whoami.tool.health_report.sleep_indices import SleepIndices
-
+from whoami.tool.llm_application.planning_agent import PlanningAgent
 
 CONFIG_PATH = "/work/ai/WHOAMI/whoami/tool/llm_application/info_extract_prompt.yaml"
 SQL_CONFIG_PATH = "/work/ai/WHOAMI/whoami/scripts/health_report/sql_config.yaml"
@@ -34,12 +34,14 @@ class HealthReportChat(BaseTool):
     full_response: Optional[List[str]] = None
     sql_provider: Optional[SqlProvider] = None
     sql_provider_user_info: Optional[SqlProvider] = None
+    planning_agent: Optional[PlanningAgent] = None
     
     def __init__(
         self, 
         query: Optional[str] = None,
         sql_provider: Optional[SqlProvider] = None,
-        sql_provider_user_info: Optional[SqlProvider] = None
+        sql_provider_user_info: Optional[SqlProvider] = None,
+        planning_agent: Optional[PlanningAgent] = None
     ):
         super().__init__()
         self.query = query
@@ -52,7 +54,7 @@ class HealthReportChat(BaseTool):
         self.sql_provider = sql_provider if sql_provider is not None else self.sql_provider
         self.sql_provider_user_info = sql_provider_user_info if sql_provider_user_info is None else self.sql_provider_user_info
         self.full_response = []
-        
+        self.planning_agent = planning_agent
         if self.sql_provider is None:
             self.sql_provider = SqlProvider(model=SleepIndices, sql_config_path=SQL_CONFIG_PATH)
             
@@ -146,6 +148,34 @@ class HealthReportChat(BaseTool):
         data_dict.update(converted_dict)
         
         return data_dict
+
+
+
+    def convert_history_planning_agent(self, message_history):
+        """
+        从对话列表中提取所有用户内容和助手回复内容的对组
+        
+        参数:
+        conversation_list (list): 包含对话字典的列表
+        
+        返回:
+        list: 二维数组，每个内部数组包含用户内容和对应的助手回复内容
+        """
+        result = []
+        
+        # 遍历对话列表，寻找连续的用户和助手对话
+        for i in range(0, len(message_history) - 1, 2):
+            # 检查是否是完整的用户-助手对话对
+            if (i + 1 < len(message_history) and 
+                message_history[i]['role'] == 'user' and 
+                message_history[i + 1]['role'] == 'assistant'):
+                
+                user_content = message_history[i]['content']
+                assistant_content = message_history[i + 1]['content']
+                
+                result.append([user_content, assistant_content])
+        
+        return result
 
 
     async def string_to_chat_stream(self, text):
@@ -826,8 +856,22 @@ class HealthReportChat(BaseTool):
             self.logger.error(f"处理流时出错: {str(e)}")
             yield f"Error: {str(e)}"
             
-            
+    
     async def _run(
+        self, 
+        query: Optional[str] = None,
+        message_history: List[Dict[str, str]] = None,
+        user_id: Optional[str] = None,
+        stream_flag: Optional[int] = None
+    ):
+        query = query if query is not None else self.query
+        self.full_response = []
+        self.logger.info(f"message_history： ----------------------------- {message_history}")
+        chat_history = self.convert_history_planning_agent(message_history)
+        status, result, chat_history = await self.planning_agent.agent_execute_with_retry(query, chat_history=chat_history)
+        yield result
+        return
+    async def _run_(
         self, 
         query: Optional[str] = None,
         message_history: List[Dict[str, str]] = None,
@@ -849,8 +893,6 @@ class HealthReportChat(BaseTool):
             串行、并行
 
         路由状态：
-
-        
         """
         
         self.logger.info(f"【开始处理】: query: {query}\n\n")
@@ -891,7 +933,9 @@ class HealthReportChat(BaseTool):
                 text_list=[], 
                 message_history=message_history, 
                 query=query,
-                rewritten_query=rewritten_query
+                rewritten_query=rewritten_query,
+                top_k=3,
+                retrieval_flag=1
             )
         else:
             # 是健康报告相关
@@ -902,7 +946,9 @@ class HealthReportChat(BaseTool):
                     text_list=[], 
                     message_history=message_history, 
                     query=query,
-                    rewritten_query=rewritten_query
+                    rewritten_query=rewritten_query,
+                    top_k=3,
+                    retrieval_flag=1
                 )
             else:
                 # 需要数据库辅助
@@ -1123,7 +1169,7 @@ class HealthReportChat(BaseTool):
 
                 记住：你的分析必须完全基于系统提供的实际数据，不添加不存在的数据，也不使用不存在的字段名称。
                 """
-                text_list = [{f"用户询问的关于{name_id}的数据库检索信息": f"{str(elderly_info)}\n\n"}]
+                database_retrieval_data = [{f"用户询问的关于{name_id}的数据库检索信息": f"{str(elderly_info)}\n\n"}]
                 for item in sql_result_list:
                     item_sql_result = item["sql_result"]
                     elderly_info = item["elderly_info"]
@@ -1131,16 +1177,19 @@ class HealthReportChat(BaseTool):
                     device_sn_i = elderly_info.get("device_sn", None)
                     for i in item_sql_result:
                         query_date = i["查询日期"]
-                        text_list.append({"报告姓名": elderly_name_i, "报告编号": device_sn_i, "报告日期": str(query_date), "睡眠报告" : i})
+                        database_retrieval_data.append({"报告姓名": elderly_name_i, "报告编号": device_sn_i, "报告日期": str(query_date), "睡眠报告" : i})
                 
-                text_list = self.convert_dates_to_strings(text_list)
+                database_retrieval_data = self.convert_dates_to_strings(database_retrieval_data)
                 # 仅根据检索消息和重写query回答用户问题
                 chat_stream = self.enhance_retrieval_qwen._run(
-                    text_list=text_list, 
+                    text_list=[], 
                     message_history=[], 
                     query=query,
                     rewritten_query=rewritten_query,
-                    prompt=system_prompt
+                    prompt=system_prompt,
+                    database_retrieval_data=database_retrieval_data,
+                    top_k=3,
+                    retrieval_flag=0
                 )
         if not chat_stream or chat_stream is None:
             self.logger.error("Stream is empty or None!")

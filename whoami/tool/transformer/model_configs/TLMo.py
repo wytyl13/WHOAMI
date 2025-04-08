@@ -5,36 +5,17 @@
 @Author : weiyutao
 @File : model_config.py
 """
-from typing import Dict, Optional, Union
+from typing import (
+    Optional
+)
 
 
-from whoami.configs.model_config import ModelConfig
-from whoami.utils.utils import StrEnum
+from whoami.tool.transformer.model_configs.base import ModelConfig
+from whoami.tool.transformer.types import ActivationType
+from whoami.tool.transformer.types import LayerNormType
 
 
-class ActivationType(StrEnum):
-    gelu = "gelu"
-    relu = "relu"
-    swiglu = "swigle"
-
-
-class LayerNormType(StrEnum):
-    default = "default"
-    """
-    The default LayerNorm implementation, equivalent to Pytorch's built-in version.
-    """
-
-    low_precision = "low_precision"
-    """
-    A low-precision version of the default LayerNorm.
-    """
-    
-    rms = "rms"
-    """
-    An RMSNorm implementation. When using torch.compile this is probably the fastest implementation.
-    """
-
-class TransformerModelConfig(ModelConfig):
+class TLMoModelConfig(ModelConfig):
     """
     TLMo (model) configuration
     """
@@ -205,6 +186,12 @@ class TransformerModelConfig(ModelConfig):
     """
     The maximum input sequence length supported by the model.
     """
+    
+    rope_full_precision: bool = True
+    """
+    If ``True``, apply RoPE embeddings at full precision regardless of the input type. Otherwise,
+    apply RoPE at the precision of the input.
+    """
 
 
     def effective_n_kv_heads(self) -> int:
@@ -228,4 +215,3 @@ class TransformerModelConfig(ModelConfig):
             return self.n_heads
         else:
             return self.n_kv_heads
-    

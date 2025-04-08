@@ -2,9 +2,9 @@ import pytest
 
 
 
-from whoami.tool.transformer.model import TLMo
-from whoami.tool.transformer.model_config import TransformerModelConfig
-from whoami.tool.transformer.check_point_config import ActivationCheckpointStrategy
+from whoami.tool.transformer.models.TLMo import TLMo
+from whoami.tool.transformer.model_configs.TLMo import TransformerModelConfig
+from whoami.tool.transformer.types.check_point_strategy import ActivationCheckpointStrategy
 def test_TLMo_model():
 
     transformer_config = TransformerModelConfig()

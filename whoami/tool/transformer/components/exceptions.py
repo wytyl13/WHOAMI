@@ -6,9 +6,10 @@
 @File : exceptions.py
 """
 
-
-from whoami.tool.base.exceptions import BaseException
-
+class BaseException(Exception):
+    
+    def _run(self, *args, **kwargs):
+        raise NotImplementedError
 
 
 class TLMoError(BaseException):
@@ -17,7 +18,7 @@ class TLMoError(BaseException):
     """
 
 
-class TLMoCOnfigurationError(TLMoError):
+class TLMoConfigurationError(TLMoError):
     """
     An error with a configuration file.
     """

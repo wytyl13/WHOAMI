@@ -5,10 +5,7 @@
 @Author : weiyutao
 @File : check_point_config.py
 """
-from enum import Enum
-from enum import IntEnum
-from whoami.utils.utils import StrEnum
-
+from whoami.tool.transformer.utils import StrEnum
 
 class ActivationCheckpointStrategy(StrEnum):
     

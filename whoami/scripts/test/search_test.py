@@ -7,7 +7,7 @@
 """
 import asyncio
 
-from whoami.tool.search.google_search import GoogleSearch
+from whoami.tool.search.google_search_provider import GoogleSearch
 from whoami.agent.planning_agent import PlanningAgent
 
 if __name__ == '__main__':

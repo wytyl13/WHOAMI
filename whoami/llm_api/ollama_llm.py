@@ -101,7 +101,7 @@ class OllamaLLM(BaseLLM):
         }
         
         if user_stop_words:
-            kwargs["options"]["stop_words"] = user_stop_words
+            kwargs["options"]["stop"] = user_stop_words
         
         self.logger.debug(f"Constructed kwargs: {kwargs}")
         return kwargs

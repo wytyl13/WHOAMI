@@ -11,8 +11,8 @@ from typing import Dict, Optional, Union
 from whoami.utils.yaml_model import YamlModel
 
 class ModelConfig(YamlModel):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     
     
 

@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException, Body
 from dataclasses import dataclass, field
 import uvicorn
 from llama_index.llms.ollama import Ollama
@@ -13,7 +13,7 @@ import asyncio
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 import json
-
+from pydantic import BaseModel
 
 
 from whoami.llm_api.ollama_llm import OllamaLLM
@@ -24,13 +24,35 @@ from whoami.tool.llm_application.chat_sys_test import ChatSys
 from whoami.provider.sql_provider import SqlProvider
 from whoami.tool.llm_application.sx_coversation_history import SxConversationHistory
 from whoami.utils.utils import Utils
+from whoami.tool.llm_application.planning_agent import PlanningAgent
+from whoami.tool.llm_application.planning_agent import GoogleSearchTool
+from whoami.tool.llm_application.planning_agent import HealthReportTool
+from whoami.tool.llm_application.planning_agent import DirectLLMTool
+from whoami.tool.llm_application.enhance_retrieval import EnhanceRetrieval
+from whoami.tool.agent.tool.direct_llm import DirectLLM
+from whoami.tool.agent.tool.google_search import GoogleSearch
+from whoami.tool.agent.tool.health_report import HealthReport
 
-llm=Ollama(model="qwen2.7-7b-Instruction-sx-8epochs-258:latest", request_timeout=360.0)
-llm=OllamaLLM(config=LLMConfig.from_file(Path('/work/ai/WHOAMI/whoami/scripts/test/ollama_config.yaml')))
+llm_finetune = OllamaLLM(config=LLMConfig.from_file(Path('/work/ai/WHOAMI/whoami/scripts/test/ollama_config.yaml')))
+llm_qwen = OllamaLLM(config=LLMConfig.from_file(Path('/work/ai/WHOAMI/whoami/scripts/test/ollama_config_qwen.yaml')))
+
+enhance_finetune = EnhanceRetrieval(llm=llm_finetune)
+enhance_qwen = EnhanceRetrieval(llm=llm_qwen)
+
+direct_llm_tool = DirectLLM(enhance_llm=enhance_finetune)
+google_search_tool = GoogleSearch(enhance_llm=enhance_qwen)
+health_report_tool = HealthReport(enhance_llm=enhance_qwen, device_sn='13D6F349200080712111957107')
+planning_agent = PlanningAgent(tools=[direct_llm_tool, google_search_tool, health_report_tool], llm=llm_qwen)
+
+
 sql_config_path = '/work/ai/WHOAMI/whoami/scripts/health_report/sql_config.yaml'
 # 创建ChatSys实例，传入数据库提供者
 sql_provider = SqlProvider(model=SxConversationHistory, sql_config_path=sql_config_path)
-chat_sys = ChatSys(llm=llm, sql_provider=sql_provider)
+chat_sys = ChatSys(
+    llm=llm_qwen, 
+    sql_provider=sql_provider,
+    planning_agent=planning_agent
+)
 
 app = FastAPI()
 # 添加CORS中间件配置
@@ -42,6 +64,18 @@ app.add_middleware(
     allow_methods=["*"],  # 允许所有HTTP方法
     allow_headers=["*"],  # 允许所有头
 )
+
+
+# 配置 API Key
+API_KEY = "your_api_key_here"  # 更改为你的API key
+
+# Dify API 请求模型
+class DifyRequest(BaseModel):
+    point: str
+    params: dict = {}
+
+
+
 
 @dataclass
 class RequestDataChat:
@@ -98,6 +132,11 @@ def group_by_user_id(data):
 
 stream_flag = 0
 
+
+
+
+
+
 def test_rag():
     @app.post('/chat_health_report')
     async def chat_health_report(request_data: RequestDataChat):
@@ -128,12 +167,17 @@ def test_rag():
             result = sql_provider.get_record_by_condition(condition={"user_id": user_id, "conversation_id": conversation_id})
             if result:
                 result = group_by_user_id(result)
-                messages = result[0]["messages"][-10:] # 仅使用最后10条数据
+                messages = result[0]["messages"][-6:] # 仅使用最后10条数据
             
         # 创建异步生成器以便与StreamingResponse一起使用
         if stream_flag:
             async def response_generator():
-                async for text_chunk in chat_sys._run(messages_history=messages, question=question, user_id=user_id, stream_flag=stream_flag):
+                async for text_chunk in chat_sys._run(
+                    messages_history=messages, 
+                    question=question, 
+                    user_id=user_id, 
+                    stream_flag=stream_flag
+                ):
                     yield f"data: {text_chunk}\n\n"
                     await asyncio.sleep(0.01)  # 小延迟，避免过快消耗
 
@@ -167,7 +211,12 @@ def test_rag():
         else:
             # 对于非流式响应，收集单个完整响应
             response_content = ""
-            response_generator = chat_sys._run(messages_history=messages, question=question, user_id=user_id, stream_flag=stream_flag)
+            response_generator = chat_sys._run(
+                messages_history=messages, 
+                question=question, 
+                user_id=user_id, 
+                stream_flag=stream_flag
+            )
             async for chunk in response_generator:
                 response_content = chunk
                 break

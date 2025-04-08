@@ -267,7 +267,25 @@ class SxVideoStreamDetector(VideoStreamDetector):
         get_video_stream_url = self.config["get_video_stream_url"]
         url = get_video_stream_url["url"][self.url_str_flag]
         request_json = get_video_stream_url["request_json"][self.url_str_flag]
-        request_json[next(iter(request_json))] = device_sn
+        
+        # Check if self.device_sn contains a hyphen
+        self.logger.info(device_sn)
+        if device_sn and "-" in device_sn:
+            parts = device_sn.split("-")
+            device_id = parts[0]  # Get the first part before hyphen
+            channel_no = parts[1]  # Get the second part after hyphen
+            
+            # Update request_json with device_id and channelNo
+            request_json[next(iter(request_json))] = device_id
+            request_json["channelNo"] = channel_no
+            request_json["encodeType"] = 'H265'
+        else:
+            # No hyphen, use the whole device_sn
+            request_json[next(iter(request_json))] = device_sn
+            request_json["channelNo"] = '1'
+            request_json["encodeType"] = 'H264'
+        
+        # request_json[next(iter(request_json))] = device_sn
         
         print(type(self.logger))
         self.logger.info(f"request_json: {request_json}")

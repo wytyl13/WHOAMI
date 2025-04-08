@@ -24,14 +24,14 @@ from whoami.llm_api.ollama_llm import OllamaLLM
 from whoami.provider.sql_provider import SqlProvider
 from whoami.configs.sql_config import SqlConfig
 from whoami.tool.llm_application.sx_coversation_history import SxConversationHistory
-from whoami.tool.search.google_search import GoogleSearch
+from whoami.tool.search.google_search_provider import GoogleSearchProvider
 from whoami.utils.utils import Utils
 from whoami.tool.llm_application.enhance_retrieval import EnhanceRetrieval
 from whoami.tool.llm_application.health_report_chat import HealthReportChat
+from whoami.tool.llm_application.planning_agent import PlanningAgent
 
 
-
-google_search = GoogleSearch(snippet_flag=1, search_config_path='/work/ai/WHOAMI/whoami/scripts/test/search_config.yaml')
+google_search = GoogleSearchProvider(snippet_flag=1, search_config_path='/work/ai/WHOAMI/whoami/scripts/test/search_config.yaml')
 
 
 class ChatSys(BaseTool):
@@ -40,14 +40,16 @@ class ChatSys(BaseTool):
     sql_provider: Optional[SqlProvider] = None
     full_response: Optional[list[Dict[str, str]]] = None
     enhance_ : Optional[EnhanceRetrieval] = None
-    health_report_chat: Optional[HealthReportChat] = None
+    health_report_chat: Optional[HealthReportChat] = None,
+    planning_agent: Optional[PlanningAgent] = None
     
     def __init__(
         self, 
         llm: Optional[Union[OllamaLLM, Ollama]] = None, 
         sql_provider: Optional[SqlProvider] = None,
         sql_config: Optional[SqlConfig] = None,
-        sql_config_path: Optional[str] = None
+        sql_config_path: Optional[str] = None,
+        planning_agent: Optional[PlanningAgent] = None
     ):
         
         super().__init__()
@@ -64,11 +66,12 @@ class ChatSys(BaseTool):
                 sql_config_path=sql_config_path
             )
         self.enhance_ = EnhanceRetrieval(llm=llm)
-        self.health_report_chat = HealthReportChat()
+        self.planning_agent = planning_agent
+        self.health_report_chat = HealthReportChat(planning_agent=self.planning_agent)
         # if self.sql_provider is None:
         #     raise ValueError("Attribution sql_provide must not be null!")
 
-
+        
     def _convert_to_llama_index_chat_messages(self, messages):
         """将字典列表转换为ChatMessage对象列表"""
         chat_messages = []
@@ -101,25 +104,6 @@ class ChatSys(BaseTool):
         self.logger.info(f"messages_history ---------------------------------------------------  {messages_history}")
         # 清空之前的响应收集
         self.full_response = []
-        
-        # web search and preprocess
-        """
-        status, web_content = google_search(query=question)
-        if not status:
-            self.logger.warning(f"Fail to web search! query: {question}")
-            web_content = []
-        self.logger.info(f"web_content ---------------------------------------------------  {web_content}")
-        handle_web_content = []
-        for item in web_content:
-            web_content_item = item["fetch_url_content"] if "fetch_url_content" in item else item["html_snippet"]
-            if web_content_item == "":
-                continue
-            link = item["link"]
-            handle_web_content.append({link: web_content_item})
-        
-        self.logger.info(handle_web_content)
-        """
-        handle_web_content = []
         
         # 处理非流式模式，需要改变函数签名，使用普通异步函数
         # 对于非流式输出，使用单独的处理流程

@@ -17,6 +17,11 @@ matplotlib
 nest_asyncio
 pytest-asyncio
 pytest
+python-docx
+llama-index-readers-file
+pypdf
+
+
 # torch
 --find-links https://download.pytorch.org/whl/cu118
 torch==2.2.0

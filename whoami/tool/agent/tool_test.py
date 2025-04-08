@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Type, Optional
+import asyncio
+
 
 from whoami.tool.agent.base_tool import BaseTool
 from whoami.tool.agent.workflow import WorkFlow
@@ -69,18 +71,88 @@ class CalculatorAddMultiPlus(BaseTool):
         return numbers1 * numbers2
         # 其他操作...
         
-        
+from pathlib import Path
+
+from whoami.tool.agent.tool.direct_llm import DirectLLM
+from whoami.tool.agent.tool.google_search import GoogleSearch
+from whoami.tool.agent.tool.health_report import HealthReport
+from whoami.llm_api.ollama_llm import OllamaLLM
+from whoami.configs.llm_config import LLMConfig
+from whoami.tool.llm_application.enhance_retrieval import EnhanceRetrieval
+from whoami.tool.llm_application.planning_agent import PlanningAgent
+from whoami.tool.agent.tool.sleep_indices_sql_data import SleepIndicesSqlData
+
+
+# import asyncio
+
+async def test_direct_llm():
+    
+    llm_finetune = OllamaLLM(config=LLMConfig.from_file(Path('/work/ai/WHOAMI/whoami/scripts/test/ollama_config.yaml')))
+    llm_qwen = OllamaLLM(config=LLMConfig.from_file(Path('/work/ai/WHOAMI/whoami/scripts/test/ollama_config_qwen.yaml')))
+
+    enhance_finetune = EnhanceRetrieval(llm=llm_finetune)
+    enhance_qwen = EnhanceRetrieval(llm=llm_qwen)
+
+    direct_llm_tool = DirectLLM(enhance_llm=enhance_finetune)
+    google_search_tool = GoogleSearch(enhance_llm=enhance_qwen)
+    health_report_tool = HealthReport(enhance_llm=enhance_qwen, device_sn='13D6F349200080712111957107')
+    planning_agent = PlanningAgent(tools=[direct_llm_tool, google_search_tool, health_report_tool], llm=llm_qwen)
+    # sql_data = SleepIndicesSqlData()
+    
+    print(direct_llm_tool)
+    print()
+    print()
+    print(google_search_tool)
+    print()
+    print()
+    # print(health_report_tool)
+    print()
+    print()
+    question = "卫宇涛多大年龄？"
+    chat_history = [
+        ["舜熙科技的主要产品是什么？", "不知道"], 
+        ["它们公司官网是多少", "舜熙科技的官网是 https://shunxikj.com/ ，您可以了解产品详情、解决方案和成功案例。"],
+        ["它们公司地址是多少", "舜熙科技的总部位于山西省运城市盐湖区黄河金三角科创城C1栋。"],
+        ["你们公司的核心算法有哪些？", "舜熙科技的核心算法主要包括：\n1. 跌倒检测算法：能准确识别老人的异常姿态；\n2. 行为模式学习算法：系统会“学习”老人的日常活动规律，在偏离正常模式时及时预警；\n3. 语音语义理解算法：精准识别老人口音和方言；\n4. 健康状态异常分析算法：结合生理数据和行为数据判断是否出现疾病预警。所有算法都会随着使用时间增长而不断优化。"],
+        ["我昨晚睡的怎么样？", """根据您的睡眠监测数据显示，您昨晚（2025年4月1日）的睡眠情况如下：
+  - 上床时间：2025年3月31日晚上7点0分
+  - 入睡时间：2025年3月31日晚上7点9分57秒
+  - 醒来时间：2025年4月1日早上5点54分40秒
+
+  其他相关信息：
+  - 睡眠时长为8小时25分钟
+  - 深度睡眠时间为2小时7分钟，占总睡眠时间的25%
+  - 浅度睡眠时间为6小时17分钟，占总睡眠时间的77.39%
+  - 夜间醒来次数为3次
+  - 睡眠效率为0.72（即72%）
+  - 体动指数为4.63
+
+  总体评分：57.97，属于较差水平。
+
+  基于以上数据，建议您注意改善睡眠质量。如有需要可以咨询医生或专业人士。"""]
+    ]
+    status, result, chat_history = await planning_agent.agent_execute_with_retry(question, chat_history=chat_history)
+    print(f"问题: {question}")
+    print(f"回答: {result}")
+    
+    return result
+
+
 if __name__ == '__main__':
-    calculator_add = CalculatorAdd()
-    calculator_multi = CalculatorAddMulti()
-    calculator_add_multi_plus = CalculatorAddMultiPlus()
+
+    asyncio.run(test_direct_llm())
     
-    calculator_add_node = ToolNode(calculator_add)
-    calculator_multi_node = ToolNode(calculator_multi).add_dependency(calculator_add_node)
     
-    workflow = WorkFlow()
+    # calculator_add = CalculatorAdd()
+    # calculator_multi = CalculatorAddMulti()
+    # calculator_add_multi_plus = CalculatorAddMultiPlus()
     
-    calculator_add_node_plus = ToolNode(calculator_add_multi_plus)
+    # calculator_add_node = ToolNode(calculator_add)
+    # calculator_multi_node = ToolNode(calculator_multi).add_dependency(calculator_add_node)
+    
+    # workflow = WorkFlow()
+    
+    # calculator_add_node_plus = ToolNode(calculator_add_multi_plus)
     
     
     # 因为在创建Tool工具的时候定义了输入参数要求
@@ -111,88 +183,88 @@ if __name__ == '__main__':
     # 这样就可以实现动态获取
     # 我真是一个人才
     
-    calculator_add_node_plus = calculator_add_node_plus.add_dependency(calculator_add_node, ["numbers1"])
-    calculator_add_node_plus = calculator_add_node_plus.add_dependency(calculator_multi_node, ["numbers2"])
+    # calculator_add_node_plus = calculator_add_node_plus.add_dependency(calculator_add_node, ["numbers1"])
+    # calculator_add_node_plus = calculator_add_node_plus.add_dependency(calculator_multi_node, ["numbers2"])
     
-    print(calculator_add_node.dependencies)
-    print(calculator_multi_node.dependencies)
-    print(calculator_add_node_plus.dependencies)
+    # print(calculator_add_node.dependencies)
+    # print(calculator_multi_node.dependencies)
+    # print(calculator_add_node_plus.dependencies)
     
-    # 打印节点依赖信息
-    print("\n===== 节点依赖信息 =====")
-    print("加法节点依赖:", calculator_add_node.dependencies)
-    print("乘法节点依赖:", calculator_multi_node.dependencies)
-    print("乘法plus节点依赖:", calculator_add_node_plus.dependencies)
+    # # 打印节点依赖信息
+    # print("\n===== 节点依赖信息 =====")
+    # print("加法节点依赖:", calculator_add_node.dependencies)
+    # print("乘法节点依赖:", calculator_multi_node.dependencies)
+    # print("乘法plus节点依赖:", calculator_add_node_plus.dependencies)
     
-    # 提取并打印乘法节点期望的输入参数名
-    for dep_node, required_inputs in calculator_add_node_plus.dependencies:
-        print(f"乘法plus节点依赖 {dep_node.tool.name} 需要的输入字段: {required_inputs}")
+    # # 提取并打印乘法节点期望的输入参数名
+    # for dep_node, required_inputs in calculator_add_node_plus.dependencies:
+    #     print(f"乘法plus节点依赖 {dep_node.tool.name} 需要的输入字段: {required_inputs}")
 
-    20 
-
-
-    new_workflow = workflow.add_node(calculator_add_node)
-    new_workflow = new_workflow.add_node(calculator_multi_node)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-
-    print(new_workflow.visualize())
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    new_workflow = new_workflow.add_node(calculator_add_node_plus)
-    context = new_workflow.execute()
-    
-    # always
-    # chuanxing bingxing
-    # 
-    
-    # AGENT
-
-    # BaseTool
-    # Customer_Tool(BaseTool)
-    # ToolNode
-    # Workflow
-    a -> b -> -d
-        e
-        finally----------------------------------------------------------------------
-        g
-
-    Workflow.add(a)
-    Workflow.add(b)
-    Workflow.add(d)
-    
-    
-    #  BaseTool
-    # Customer_Tool(BaseTool)
-    # 
-    {
-        "a" -> "b" -> "c"
-    }
-    
-    
-    
+    # 20 
 
 
+    # new_workflow = workflow.add_node(calculator_add_node)
+    # new_workflow = new_workflow.add_node(calculator_multi_node)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+
+    # print(new_workflow.visualize())
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # new_workflow = new_workflow.add_node(calculator_add_node_plus)
+    # context = new_workflow.execute()
+    
+    # # always
+    # # chuanxing bingxing
+    # # 
+    
+    # # AGENT
+
+    # # BaseTool
+    # # Customer_Tool(BaseTool)
+    # # ToolNode
+    # # Workflow
+    # a -> b -> -d
+    #     e
+    #     finally----------------------------------------------------------------------
+    #     g
+
+    # Workflow.add(a)
+    # Workflow.add(b)
+    # Workflow.add(d)
+    
+    
+    # #  BaseTool
+    # # Customer_Tool(BaseTool)
+    # # 
+    # {
+    #     "a" -> "b" -> "c"
+    # }
+    
+    
+    
 
 
 
 
+
+
     
     
-    print(context)
+    # print(context)
     

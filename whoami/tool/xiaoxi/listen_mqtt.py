@@ -155,7 +155,7 @@ def on_message(client, userdata, msg):
                 result = client.publish(response_topic, response)
             else:
                 # 在唤醒状态中，但没有新的唤醒词
-                if message != "" or message is not None or message != " ":
+                if message != "" and message is not None and message != " ":
                     remaining_time = int(wake_duration - (current_time - last_wake_time))
                     print(f"处于唤醒状态中（还剩 {remaining_time} 秒）")
                     
@@ -190,7 +190,7 @@ def on_message(client, userdata, msg):
                                 processed_text = re.sub(r'\n', '。', processed_text)
 
                                 # 步骤3：移除所有特殊符号（保留中文、英文、数字和基本标点）
-                                processed_text = re.sub(r'[^\u4e00-\u9fa5a-zA-Z0-9：，。？！；：\s\./]', '', processed_text)
+                                processed_text = re.sub(r'[^\u4e00-\u9fa5a-zA-Z0-9\s\.,。，？?！!；;：:\'\"$%&\(\)\-\+\*/\\@#=<>《》【】\[\]]', '', processed_text)
 
                                 # 步骤4：处理连续的多个句号
                                 processed_text = re.sub(r'。{2,}', '。', processed_text)

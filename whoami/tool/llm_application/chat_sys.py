@@ -24,7 +24,7 @@ from whoami.llm_api.ollama_llm import OllamaLLM
 from whoami.provider.sql_provider import SqlProvider
 from whoami.configs.sql_config import SqlConfig
 from whoami.tool.llm_application.sx_coversation_history import SxConversationHistory
-from whoami.tool.search.google_search import GoogleSearch
+from whoami.tool.search.google_search_provider import GoogleSearch
 from whoami.utils.utils import Utils
 from whoami.tool.llm_application.enhance_retrieval import EnhanceRetrieval
 

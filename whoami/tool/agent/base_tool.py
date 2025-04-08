@@ -5,8 +5,8 @@ import inspect
 
 
 from whoami.utils.log import Logger
-
-
+from whoami.tool.agent.tool_config_loader import ToolConfigLoader
+import functools
 
 class BaseTool(ABC, BaseModel):
     """工具基类，结合了自动参数解析和Pydantic模型验证"""
@@ -14,7 +14,9 @@ class BaseTool(ABC, BaseModel):
     description: Optional[str] = None
     args_schema: Optional[Type[BaseModel]] = None
     logger: Optional[Logger] = None
-    
+    end_flag: Optional[int] = None
+    stream_flag: int = 0
+    system_prompt: Optional[str] = None
     
     class Config:
         arbitrary_types_allowed = True  # 允许任意类型
@@ -53,7 +55,7 @@ class BaseTool(ABC, BaseModel):
                 
                 
     @abstractmethod
-    def execute(self, **kwargs: Any) -> Any:
+    async def execute(self, **kwargs: Any) -> Any:
         """
         执行工具逻辑，需要子类实现
         
@@ -63,7 +65,7 @@ class BaseTool(ABC, BaseModel):
         raise NotImplementedError("Tool subclasses must implement execute method")
     
     
-    def __call__(self, **kwargs: Any) -> Any:
+    async def __call__(self, **kwargs: Any) -> Any:
         """使工具可调用，提供与execute相同的接口但增加验证"""
         # 验证输入参数
         # 并且可以使用多余的参数（最终不被execute执行，但是对开发人员有用，比如日志输出等等）去做逻辑验证
@@ -86,6 +88,8 @@ class BaseTool(ABC, BaseModel):
         # 只保留 execute 方法需要的参数
         execute_params = set(self.get_input_names())
         filtered_kwargs = {k: v for k, v in kwargs.items() if k in execute_params}
+        
+        
         return self.execute(**filtered_kwargs)
     
     
@@ -200,6 +204,36 @@ class BaseTool(ABC, BaseModel):
 
         return schema
     
+    
+    def get_simple_tool_description(self) -> str:
+        """
+        返回工具的简化描述，格式更友好且易于理解
+        """
+        # 获取工具参数的简单描述
+        params_desc = ""
+        if hasattr(self, 'tool_schema'):
+            # 从工具的schema中获取参数信息
+            schema = self.tool_schema
+            properties = schema.get('parameters', {}).get('properties', {})
+            
+            params = []
+            for param_name, param_info in properties.items():
+                # 尝试从不同的位置获取description
+                description = param_info.get('description', 
+                            param_info.get('title', f'参数 {param_name}'))
+                params.append(f'"{param_name}": "{description}"')
+            
+            if params:
+                params_desc = "{" + ", ".join(params) + "}"
+        
+        # 构建简化的工具描述
+        description = f"{self.name}: {self.description}"
+        if params_desc:
+            description += f"\n参数: {params_desc}"
+
+        return description
+    
+    
     def _get_field_schema(self, field_type: Type) -> Dict[str, Any]:
         """生成字段的 schema"""
         # 处理基本类型
@@ -226,6 +260,151 @@ class BaseTool(ABC, BaseModel):
         
         # 处理其他复杂类型或未知类型
         return {'type': 'object'}
+
+
+
+def tool(cls=None, **decorator_kwargs):
+    def decorator(cls_):
+        # 获取工具配置
+        tool_config = ToolConfigLoader.get_tool_config(cls_.__name__)
+        if not tool_config and not cls_.__name__.endswith("Tool"):
+            tool_config = ToolConfigLoader.get_tool_config(cls_.__name__ + "Tool")
+            
+        # 获取类注解
+        cls_annotations = getattr(cls_, '__annotations__', {})
         
+        # 获取类级别的属性
+        class_attributes = {}
+        for attr_name in dir(cls_):
+            if not attr_name.startswith('__') and not callable(getattr(cls_, attr_name)):
+                class_attributes[attr_name] = getattr(cls_, attr_name)
+        
+        # 原始初始化方法
+        original_init = getattr(cls_, '__init__', lambda self, **kwargs: None)
+        
+        @functools.wraps(original_init)
+        def wrapped_init(self, **kwargs):
+            # 创建配置字典但不包含 args_schema
+            config_kwargs = {}
+            
+            # 设置优先级顺序: 默认值 < 配置文件 < 类级别属性 < 传入参数
+            
+            # 1. 基本默认值
+            config_kwargs['name'] = cls_.__name__
+            config_kwargs['end_flag'] = 0
+            config_kwargs['stream_flag'] = 0
+            config_kwargs['description'] = ''
+            config_kwargs['system_prompt'] = None
+            
+            # 2. 从配置文件加载属性，覆盖默认值
+            for key, value in tool_config.items():
+                if value is not None and key != 'args_schema':
+                    config_kwargs[key] = value
+            
+            # 3. 应用类级别属性，覆盖配置文件的值
+            for key, value in class_attributes.items():
+                if key not in ['__annotations__', 'args_schema'] and value is not None:
+                    config_kwargs[key] = value
+            
+            # 4. 用传入的参数更新配置，最高优先级
+            for key, value in kwargs.items():
+                if value is not None and key != 'args_schema':
+                    config_kwargs[key] = value
+            
+            # 初始化 BaseTool
+            BaseTool.__init__(self, **config_kwargs)
+            
+            # 单独处理 args_schema
+            if hasattr(cls_, 'args_schema'):
+                self.args_schema = getattr(cls_, 'args_schema')
+            
+            # 调用原始初始化方法，但要先检查参数
+            if original_init is not None:
+                # 获取原始init方法的签名
+                params = inspect.signature(original_init).parameters
+                
+                # 过滤kwargs，只保留原始init可接受的参数
+                filtered_kwargs = {}
+                for k, v in config_kwargs.items():
+                    # 如果参数在原始init的参数列表中或原始init接受**kwargs
+                    if k in params or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values()):
+                        filtered_kwargs[k] = v
+                
+                # 调用原始init
+                original_init(self, **filtered_kwargs)
+        
+        # 创建包装类
+        WrappedTool = type(
+            cls_.__name__,
+            (cls_, BaseTool),
+            {
+                '__init__': wrapped_init,
+                '__module__': cls_.__module__,
+                '__doc__': cls_.__doc__,
+            }
+        )
+        
+        return WrappedTool
+    
+    if cls is None:
+        return decorator
+    return decorator(cls)
+
+    
+    
+# def tool(cls=None, **decorator_kwargs):
+#     def decorator(cls_):
+#         # Get tool configuration
+#         tool_config = ToolConfigLoader.get_tool_config(cls_.__name__)
+        
+#         # Get annotations from the class
+#         cls_annotations = getattr(cls_, '__annotations__', {})
+        
+#         # Original init
+#         original_init = getattr(cls_, '__init__', lambda self, **kwargs: None)
+        
+#         @functools.wraps(original_init)
+#         def wrapped_init(self, **kwargs):
+#             # Base attributes
+#             config_kwargs = {
+#                 'name': tool_config.get('name', cls_.__name__),
+#                 'description': tool_config.get('description', ''),
+#                 'end_flag': tool_config.get('end_flag', 0),
+#                 'stream_flag': tool_config.get('stream_flag', 0)
+#             }
+            
+#             # Handle additional attributes
+#             for attr_name, attr_type in cls_annotations.items():
+#                 if attr_name not in ['name', 'description', 'end_flag', 'stream_flag']:
+#                     config_value = tool_config.get(attr_name)
+#                     if config_value is not None:
+#                         config_kwargs[attr_name] = config_value
+            
+#             # Update with passed kwargs
+#             config_kwargs.update(kwargs)
+            
+#             # Initialize the BaseTool part first
+#             BaseTool.__init__(self, **config_kwargs)
+            
+#             # Then call the original init if it exists
+#             if original_init is not None and original_init.__code__.co_argcount > 1:
+#                 original_init(self, **config_kwargs)
+        
+#         # Create the wrapped class
+#         WrappedTool = type(
+#             cls_.__name__,
+#             (cls_, BaseTool),
+#             {
+#                 '__init__': wrapped_init,
+#                 '__module__': cls_.__module__,
+#                 '__doc__': cls_.__doc__,
+#             }
+#         )
+        
+#         return WrappedTool
+    
+#     if cls is None:
+#         return decorator
+#     return decorator(cls)
     
     

@@ -134,7 +134,7 @@ class HealthReport(BaseProvider):
                 current_date = datetime.strptime(self.query_date, '%Y-%m-%d')
                 current_date_str = current_date.strftime('%Y-%m-%d')
                 pre_date_str = (current_date - timedelta(days=1)).strftime('%Y-%m-%d')
-                start = pre_date_str + ' 18:00:00'
+                start = pre_date_str + ' 19:00:00'
                 end = current_date_str + ' 07:00:00'
                 self.logger.info(start)
                 self.logger.info(end)

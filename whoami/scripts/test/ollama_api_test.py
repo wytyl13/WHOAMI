@@ -31,6 +31,7 @@ async def main():
     """异步主函数"""
     llm = OllamaLLM(
         LLMConfig.from_file(Path("/work/ai/WHOAMI/whoami/scripts/test/ollama_config_deepseek.yaml")), 
+        # LLMConfig.from_file(Path("/work/ai/WHOAMI/whoami/scripts/test/ollama_config_qwen.yaml")), 
         temperature=0.0
     )
     
@@ -51,7 +52,7 @@ async def main():
     }
     
     health_data = sql_provider.get_record_by_condition(
-        condition={"query_date": "2025-3-19"}, 
+        condition={"query_date": "2025-4-2"}, 
         exclude_fields=[
             'health_advice',
             'sleep_stage_image_x_y',
@@ -98,8 +99,10 @@ async def main():
                 data = json.loads(json_string)
                 save_sql_data = {}
                 for key, value in data.items():
-                    save_sql_data[reverse_description[key]] = value
-                    
+                    try:
+                        save_sql_data[reverse_description[key]] = value
+                    except Exception as e:
+                        continue
                 save_sql_data["device_sn"] = device_sn
                 print(save_sql_data)
                 # 如果add_record是异步函数，需要加await

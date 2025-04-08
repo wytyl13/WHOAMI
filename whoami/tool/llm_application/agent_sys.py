@@ -17,7 +17,7 @@ from whoami.tool.base.base_tool import BaseTool
 from whoami.tool.llm_application.query_classifier import QueryClassifier
 from whoami.utils.utils import StrEnum
 from whoami.tool.llm_application.database_search_engine import DatabaseSearchEngine
-from whoami.tool.search.google_search import GoogleSearch
+from whoami.tool.search.google_search_provider import GoogleSearch
 from whoami.tool.llm_application.direct import Direct
 
 

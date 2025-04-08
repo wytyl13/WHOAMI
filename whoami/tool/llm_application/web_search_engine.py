@@ -2,7 +2,7 @@
 
 
 
-from whoami.tool.search.google_search import GoogleSearch
+from whoami.tool.search.google_search_provider import GoogleSearch
 from whoami.tool.base.base_tool import BaseTool
 
 
