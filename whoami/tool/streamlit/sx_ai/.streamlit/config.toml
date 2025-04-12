@@ -1,0 +1,4 @@
+[server]
+port = 3000
+baseUrlPath = "/ai/chat_sys/chat_health_report"
+host = "0.0.0.0"

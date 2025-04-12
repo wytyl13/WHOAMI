@@ -6,7 +6,8 @@ from typing import (
     List,
     Optional,
     Dict,
-    Any
+    Any,
+    Tuple
 )
 
 from whoami.provider.sql_provider import SqlProvider
@@ -17,7 +18,6 @@ from whoami.tool.agent.base_tool import tool
 class SleepIndicesSqlData:
     sql_provider: Optional[SqlProvider] = None
     sql_config_path: Optional[str] = None
-    sql_result: Optional[List] = None
     sql_result: Optional[Dict[str, List[Dict[str, Any]]]] = None
     # "/work/ai/WHOAMI/whoami/scripts/health_report/sql_config.yaml"
     def __init__(self, **kwargs):
@@ -82,6 +82,7 @@ class SleepIndicesSqlData:
 
             # 按设备分组
             self.sql_result = self.group_by_device_sn(result_list)
+            self.sql_result = self.process_sql_data(self.sql_result)
             self.logger.info(f"数据分组完成，共有 {len(self.sql_result)} 个设备")
         except Exception as e:
             self.logger.error(f"获取SQL数据失败: {str(e)}")
@@ -136,12 +137,61 @@ class SleepIndicesSqlData:
             
             return data_dict
 
+    def process_sql_data(self, sql_result: Dict[str, List]) -> Dict[str, Tuple[List[Dict[str, Any]], Dict[str, Any]]]:
+        """预处理检索到的数据
+        return: {'device_sn': (health_report_data: list, elder_info)}
+        """
+        result_dict = {}
+        for sn, data in self.sql_result.items():
+                elderly_info = self.sql_provider.get_device_info(
+                    device_sn=sn,
+                )
+                result_dict[sn] = (data, elderly_info)
+        return result_dict
+        
+        # 在预处理阶段全部处理，后续代码已废弃
+        if device_sn is not None and isinstance(device_sn, str):
+            if device_sn in self.sql_result:
+                elderly_info = self.sql_provider.get_device_info(
+                    device_sn=device_sn, 
+                )
+                result_dict[device_sn] = (self.sql_result[device_sn], elderly_info)
+                
+        elif device_sn is not None and isinstance(device_sn, list):
+            for sn in device_sn:
+                if sn in self.sql_result:
+                    elderly_info = self.sql_provider.get_device_info(
+                        device_sn=sn,
+                    )
+                    result_dict[sn] = (self.sql_result[sn], elderly_info)
+        
+        # 如果没有指定device_sn或者指定的device_sn都不在结果中
+        # 则返回所有设备的数据
+        else:
+            for sn, data in self.sql_result.items():
+                elderly_info = self.sql_provider.get_device_info(
+                    device_sn=sn,
+                )
+                result_dict[sn] = (data, elderly_info)
+        
+        return result_dict
+        
     
     async def execute(
         self, 
-        device_sn: Optional[str] = None
-    ) -> str:
-        """执行查询并返回数据"""
-        if device_sn is not None and device_sn in self.sql_result:
-            return {device_sn: self.sql_result[device_sn]}
-        return self.sql_result
+        device_sn: Optional[List[str]] = None
+    ) -> Dict[str, Tuple[List[Dict[str, Any]], Dict[str, Any]]]:
+        """执行查询并返回数据
+        return: {'device_sn': (health_report_data: list, elder_info)}
+        """
+        return {key: self.sql_result[key] for key in device_sn if key in self.sql_result}
+    
+
+if __name__ == '__main__':
+    sql_data_instance = SleepIndicesSqlData()
+    import asyncio
+    async def main(device_sn):
+        result = await sql_data_instance.execute(device_sn=device_sn)
+        print(result)
+        return result
+    asyncio.run(main(device_sn=['13D6F349200080712111957107', '13331C9D100040711117152507']))

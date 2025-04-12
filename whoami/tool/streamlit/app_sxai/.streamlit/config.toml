@@ -1,0 +1,7 @@
+[server]
+port = 8889
+baseUrlPath = "/ai/chat_sys/chat_health_report"
+host = "0.0.0.0"
+sslCertFile = "/work/ai/WHOAMI/tests/shunxikj.com.crt"
+sslKeyFile = "/work/ai/WHOAMI/tests/shunxikj.com.key"
+enableStaticServing = true

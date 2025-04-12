@@ -29,7 +29,7 @@ class LayerNormBase(nn.Module):
         super().__init__()
         self.config = config
         self.eps = config.layer_norm_eps
-        self.normalized_shape = (size or config.d_model)
+        self.normalized_shape = (size or config.d_model, )
         if elementwise_affine or (elementwise_affine is None and self.config.layer_norm_with_affine):
             # Init weight default is 1, means not scale.初始化无缩放
             self.weight = nn.Parameter(torch.ones(self.normalized_shape, device=self.config.init_device))
@@ -52,8 +52,12 @@ class LayerNormBase(nn.Module):
     @abstractmethod
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
-        
-        
+    
+    # cls只是一个约定，如果使用了classmethod装饰器，则第一个参数默认为类而不是实例，不管第一个参数名称是什么
+    # 如果没有使用classmethod装饰器定义该方式，然后直接使用类去调用该方法，那么传递的第一个参数会默认为是传递给cls
+    # 那么就会报错，因为config是必传参数，会报错没有传递config参数
+    # 但是如果你指定了config参数去传递，那么会报错不是类方法    
+    @classmethod    
     def build(cls, config: TLMoModelConfig, size: Optional[int] = None, **kwargs) -> 'LayerNormBase':
         if config.layer_norm_type == LayerNormType.default:
             return LayerNorm(config, size=size, low_precision=False, **kwargs)
@@ -122,6 +126,7 @@ class LayerNorm(LayerNormBase):
         else:
             # 并不在禁用自动混合精度上下文中进行归一化操作
             # 因此不会使用固定的精度，还是使用上下文的精度，更不可控
+            print(f"normalized_shape: --------------------------- {self.normalized_shape}")
             return F.layer_norm(x, self.normalized_shape, weight=self.weight, bias=self.bias, eps=self.eps)
     
 

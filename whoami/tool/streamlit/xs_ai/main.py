@@ -9,7 +9,6 @@ import config
 import styles
 import sidebar
 import chat
-import audio
 
 def main():
     """Main application function."""
@@ -19,11 +18,9 @@ def main():
         layout=config.PAGE_LAYOUT
     )
     
-    # Apply styles
-    styles.apply_base_styles()
-    styles.apply_sidebar_styles()
-    styles.apply_toggle_sidebar_script()
-    styles.apply_chat_styles()
+    # Apply global styles
+    styles.apply_global_styles()
+    styles.apply_scroll_to_bottom_script()
     
     # Initialize session state
     sidebar.initialize_sidebar_state()

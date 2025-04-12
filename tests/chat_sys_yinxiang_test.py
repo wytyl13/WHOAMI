@@ -33,10 +33,10 @@ from whoami.tool.agent.tool.direct_llm import DirectLLM
 from whoami.tool.agent.tool.google_search import GoogleSearch
 from whoami.tool.agent.tool.health_report import HealthReport
 
-llm_finetune = OllamaLLM(config=LLMConfig.from_file(Path('/work/ai/WHOAMI/whoami/scripts/test/ollama_config.yaml')))
+# llm_finetune = OllamaLLM(config=LLMConfig.from_file(Path('/work/ai/WHOAMI/whoami/scripts/test/ollama_config.yaml')))
 llm_qwen = OllamaLLM(config=LLMConfig.from_file(Path('/work/ai/WHOAMI/whoami/scripts/test/ollama_config_qwen.yaml')))
 
-enhance_finetune = EnhanceRetrieval(llm=llm_finetune)
+enhance_finetune = EnhanceRetrieval(llm=llm_qwen)
 enhance_qwen = EnhanceRetrieval(llm=llm_qwen)
 
 direct_llm_tool = DirectLLM(enhance_llm=enhance_finetune)

@@ -4,23 +4,86 @@ Chat interface components and functionality for the SX AI application.
 
 import streamlit as st
 from typing import List, Dict, Any, Optional
-from audio_recorder_streamlit import audio_recorder
+
 import api
 import utils
-import audio
-import io
 
 def initialize_chat_state():
     """Initialize session state variables for chat."""
     if "messages" not in st.session_state:
         st.session_state.messages = []
-    if "audio_text" not in st.session_state:
-        st.session_state.audio_text = ""
-    # 初始化音频状态
-    audio.init_audio_state()
+
+def apply_chat_styles():
+    """Apply styles specific to the chat interface."""
+    st.markdown("""
+    <style>
+        /* Chat message styling */
+        .stChatMessage {
+            padding: 10px 15px !important;
+            border-radius: 10px !important;
+            margin-bottom: 10px !important;
+        }
+        
+        /* User message styling - Right alignment */
+        [data-testid="stChatMessageContent"][data-test="chatAvatarIconUser"] > div,
+        [data-testid="stChatMessageContent"] div[data-testid="chatAvatarIconUser"] + div {
+            display: flex !important;
+            justify-content: flex-end !important;
+        }
+        
+        /* Force user message container to right */
+        .stChatMessage[data-testid="chat-message-user"] {
+            background-color: #e1f5fe !important;
+            float: right !important;
+            clear: both !important;
+            max-width: 80% !important;
+        }
+        
+        /* Assistant message styling - Left alignment */
+        .stChatMessage[data-testid="chat-message-assistant"] {
+            background-color: #f5f5f5 !important;
+            float: left !important;
+            clear: both !important;
+            max-width: 80% !important;
+        }
+        
+        /* Fix for chat container to handle floats */
+        .chat-content-area::after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+        
+        /* Chat input styling */
+        .stChatInput {
+            border-radius: 30px !important;
+            padding: 10px 20px !important;
+        }
+        
+        .stChatInput > div {
+            background-color: #f5f5f5 !important;
+            border-radius: 30px !important;
+            border: 1px solid #e0e0e0 !important;
+            box-shadow: none !important;
+        }
+        
+        .stChatInput input {
+            font-size: 16px !important;
+        }
+        
+        /* Send button styling */
+        .stChatInput button {
+            border-radius: 50% !important;
+            background-color: #f5f5f5 !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
 def render_chat_interface():
     """Render the chat interface."""
+    # Apply chat specific styles
+    apply_chat_styles()
+    
     # Create a container for the scrollable chat content
     chat_content = st.container()
     
@@ -47,54 +110,15 @@ def render_chat_interface():
     # Create fixed input area at the bottom
     render_chat_input()
 
-
-# 在chat.py的render_chat_input函数中
 def render_chat_input():
     """Render the chat input area at the bottom of the screen."""
     st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
     
-    # 使用三列布局
-    col1, col2, col3 = st.columns([1, 1, 8])
-    
-    with col1:
-        # 最简单的方式：直接使用Streamlit的音频录制组件
-        audio_bytes = audio_recorder(key="simple_audio_recorder", 
-                                      pause_threshold=2.0,
-                                      sample_rate=16000)
-        
-        if audio_bytes is not None:
-            # 处理录音数据
-            text = audio.handle_audio_upload(io.BytesIO(audio_bytes))
-            if text:
-                st.session_state.audio_text = text
-                st.rerun()
-    
-    with col2:
-        # 文件上传组件
-        audio_file = st.file_uploader("上传音频", type=["wav", "mp3"], key="audio_uploader", 
-                                     label_visibility="collapsed", accept_multiple_files=False)
-        
-        if audio_file is not None:
-            text = audio.handle_audio_upload(audio_file)
-            if text:
-                st.session_state.audio_text = text
-                st.session_state.audio_uploader = None
-                st.rerun()
-    
-    with col3:
-        # 聊天输入框
-        if st.session_state.audio_text:
-            prompt = st.session_state.audio_text
-            st.info(f"语音识别结果: {prompt}")
-            handle_new_message(prompt)
-            st.session_state.audio_text = ""
-        else:
-            prompt = st.chat_input("请输入您的问题...", key="chat_input")
-            if prompt:
-                handle_new_message(prompt)
+    # Chat input
+    if prompt := st.chat_input("请输入您的问题..."):
+        handle_new_message(prompt)
     
     st.markdown('</div>', unsafe_allow_html=True)
-    
 
 def handle_new_message(prompt: str):
     """

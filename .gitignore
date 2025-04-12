@@ -24,3 +24,6 @@ tests/key.pem
 # 忽略项目中任何目录的.log文件
 **/*.log
 **/*.txt
+**/*.wav
+**/*.mp3
+**/*.json
