@@ -27,3 +27,5 @@ tests/key.pem
 **/*.wav
 **/*.mp3
 **/*.json
+**/*.status
+**/*.wav
