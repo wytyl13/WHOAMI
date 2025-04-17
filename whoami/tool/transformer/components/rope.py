@@ -5,6 +5,7 @@
 @Author : weiyutao
 @File : rope.py
 
+---------------------------------------------------------------------------------------------------------------------
 Absolute postion embedding
 f(xi, i){qkv} := W(xi + pi){qkv}
 p{i, 2t} = sin(k/10000^(2t/d))
@@ -40,6 +41,36 @@ interpolation capability(even if the training data contains only certain positio
 and smoothed gradient(the gradient between neighboring positions varies smoothly during back-propagation, which facilitates optimization).
 3 Linear combination property: the encoding of any position can be expressed as a linear combination of the encodings of other positions, which gives the model
 a strong inductive bias.
+---------------------------------------------------------------------------------------------------------------------
+
+
+---------------------------------------------------------------------------------------------------------------------
+relative position embedding.
+fq(xm):=Wq@xm
+fk(xn, n):=Wk(xn+pkr)
+fv(xn, n):=Wv(xn+pvr)
+Notice that adsolute position embedding apply all position embedding for qkv
+But the relative position embedding apply all position embedding for kv, not q, just like the expression above.
+Not all relative position embedding like this. some apply for qkv.
+
+what is pkr, pvr?
+r is the relative position value, just like "who am i", the second token am have the relative position {max(2-1, +kmax) min(2-1, -kmax)} 
+to the first token who, if the (-kmax, +kmax) is (-2, 2), then r is equal to 1.
+what the value for the pkr? Supposed that we have one trainable weight what name is relative position embedding table, what dimension is
+(2*kmax, d_model), why d_model, because the hidden size and embedding size, why 2*kmax? because the index is greater than zero or equal to zero.
+we should index the relaive position from the relative position embedding table. The index must be greater than zero or equal to zero.
+And the minvalue of r is -kmax, we should use the index value as r+kmax to get the relative position embedding from the relative position embedding table.
+And the table will be optimized during bp. Then pkr = relative_position_embedding[r+kmax], what the dimension of relative_position_embedding is (2*kmax, d_model),
+what the r+kmax is range from 0 to 2*kmax, what the r is range from -kmax to kmax, what the r is equal to the clip(current_token_position-target_token_position, -kmax, +kmax)
+---------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
 """
 import torch
 import torch.nn as nn

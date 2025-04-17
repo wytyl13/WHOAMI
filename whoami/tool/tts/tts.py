@@ -6,7 +6,6 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-from modelscope.hub.snapshot_download import snapshot_download
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -22,7 +21,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 class TranscriptionResponse(BaseModel):
     text: str
     status: str
@@ -118,6 +116,8 @@ async def process_audio(audio_bytes: io.BytesIO):
     except Exception as e:
         logger.error(f"转录过程中出错: {str(e)}")
         raise HTTPException(status_code=500, detail=f"语音处理错误: {str(e)}")
+
+
 
 @app.post("/transcribe/", response_model=TranscriptionResponse)
 async def transcribe_audio(request: Request, audio_file: UploadFile = None):

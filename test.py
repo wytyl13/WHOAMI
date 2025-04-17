@@ -28,13 +28,23 @@ if __name__ == "__main__":
     #     else:
     #         print(f"------------------------------------{formatted_time}")
     
-    from diagrams import Diagram, Edge
-    from diagrams.custom import Custom
+    # from diagrams import Diagram, Edge
+    # from diagrams.custom import Custom
 
-    with Diagram("老龄化-心理资本-职业承诺模型", show=False):
-        aging = Custom("老龄化压力", "./aging_icon.png")
-        capital = Custom("积极心理资本", "./psych_icon.png")
-        commit = Custom("职业承诺", "./commit_icon.png")
+    # with Diagram("老龄化-心理资本-职业承诺模型", show=False):
+    #     aging = Custom("老龄化压力", "./aging_icon.png")
+    #     capital = Custom("积极心理资本", "./psych_icon.png")
+    #     commit = Custom("职业承诺", "./commit_icon.png")
         
-        aging >> Edge(label="β=-0.42**", color="red") >> capital
-        capital >> Edge(label="β=0.67***", color="darkgreen") >> commit
+    #     aging >> Edge(label="β=-0.42**", color="red") >> capital
+    #     capital >> Edge(label="β=0.67***", color="darkgreen") >> commit
+    
+    from modelscope.pipelines import pipeline
+    from modelscope.utils.constant import Tasks
+    ans = pipeline(
+        Tasks.acoustic_noise_suppression,
+        model='iic/speech_frcrn_ans_cirm_16k'
+    )
+    result = ans(
+        '/work/ai/WHOAMI/whoami/tool/tts/output/1a42f4b3-94a4-4cee-a5e5-16bf820a29d3.wav',
+        output_path='output.wav')

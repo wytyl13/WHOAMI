@@ -1,12 +1,13 @@
 import pytest
 from pathlib import Path
-from fastapi import FastAPI, Header, HTTPException, Body
+from fastapi import FastAPI, Header, HTTPException, Body, File, UploadFile, Request, BackgroundTasks, Form
 from dataclasses import dataclass, field
 import uvicorn
 from llama_index.llms.ollama import Ollama
 from typing import (
     Optional,
-    Dict
+    Dict,
+    List
 )
 from fastapi.responses import StreamingResponse
 import asyncio
@@ -14,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 import json
 from pydantic import BaseModel
+import httpx
 
 
 from whoami.llm_api.ollama_llm import OllamaLLM
@@ -75,6 +77,13 @@ class DifyRequest(BaseModel):
     params: dict = {}
 
 
+class TTSRequest(BaseModel):
+    text: str
+    style: str = 'DEFAULT_STYLE'
+    instruct: Optional[str] = None
+    wait_complete: bool = False
+    speed: float = 1.0
+    use_batch: bool = False
 
 
 @dataclass
@@ -138,6 +147,7 @@ stream_flag = 0
 
 
 def test_rag():
+    
     @app.post('/chat_health_report')
     async def chat_health_report(request_data: RequestDataChat):
         # logger.info(request_data)
@@ -243,6 +253,7 @@ def test_rag():
 
         return response
 
+
     @app.post('/get_conversation_history')
     async def get_conversation_history(request_data: RequestDataConversationHistory):
         result = []
@@ -284,6 +295,117 @@ def test_rag():
         except Exception as e:
             return R.fail(f"Fail to truncate conversation history! {str(e)}")
         return R.success(f"Successfully truncated conversation history, {result}")
+    
+    
+    @app.post('/chat_health_report_yinxiang')
+    async def chat_health_report_yinxiang(
+        file: UploadFile = File(...),
+        conversation_id: Optional[str] = None,
+        user_id: Optional[str] = Form(None),
+        messages: Optional[List] = None
+    ):
+        try:
+            
+            # 2. 调用语音转录API
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                # 准备文件数据
+                files = {'audio_file': (file.filename, file.file, file.content_type)}
+                
+                # 调用语音转录API
+                transcribe_response = await client.post(
+                    "http://1.71.15.121:8818/transcribe/",
+                    files=files
+                )
+                
+                if transcribe_response.status_code != 200:
+                    return JSONResponse(
+                        status_code=500,
+                        content={"success": False, "message": f"语音转录失败: {transcribe_response.text}", "code": 500}
+                    )
+                
+                # 获取转录结果
+                transcribe_result = transcribe_response.json()
+                # 假设转录API返回的文本在'text'字段中，根据实际情况调整
+                transcribed_text = transcribe_result.get('text', '')
+                
+                if not transcribed_text:
+                    return JSONResponse(
+                        status_code=400,
+                        content={"success": False, "message": "语音转录结果为空", "code": 400}
+                    )
+                
+                print(f"语音转录结果: {transcribed_text}")
+                
+                # 3. 调用chat_health_report函数
+                # 创建请求数据对象
+                chat_request = RequestDataChat(
+                    question=transcribed_text,
+                    user_id=user_id,
+                    messages=messages
+                )
+                print(chat_request.question)
+                print(chat_request.user_id)
+                print(chat_request.messages)
+                # 直接调用现有的chat_health_report函数
+                chat_response = await chat_health_report(chat_request)
+                
+                # 从chat_health_report的响应中提取文本内容
+                if isinstance(chat_response, StreamingResponse):
+                    # 如果是流式响应，需要收集所有内容
+                    response_text = ""
+                    async for chunk in chat_response.body_iterator:
+                        if chunk.startswith(b'data: '):
+                            response_text += chunk.decode('utf-8').replace('data: ', '')
+                else:
+                    # 如果chat_response已经是字典，直接使用
+                    if isinstance(chat_response, dict):
+                        response_dict = chat_response
+                    # 如果是JSONResponse对象
+                    elif hasattr(chat_response, 'json'):
+                        response_dict = await chat_response.json()
+                    # 如果是其他类型的响应对象
+                    elif hasattr(chat_response, 'body'):
+                        try:
+                            response_dict = json.loads(chat_response.body)
+                        except:
+                            response_dict = {"data": str(chat_response.body)}
+                    else:
+                        # 如果都不是，创建一个默认的响应
+                        response_dict = {"data": str(chat_response)}
+                    
+                    # 从response_dict中提取data字段
+                    response_text = response_dict.get("data", "")
+                
+                # 4. 调用TTS API
+                tts_request_data = TTSRequest(
+                    text=response_text,
+                    style="normal",  # 或其他风格
+                    wait_complete=True,
+                    use_batch=True
+                )
+                
+                tts_response = await client.post(
+                    "http://1.71.15.121:3000/tts",
+                    json=tts_request_data.dict()
+                )
+                
+                # 5. 直接返回TTS API的JSON响应
+                if tts_response.status_code == 200:
+                    return JSONResponse(content=tts_response.json())
+                else:
+                    return JSONResponse(
+                        status_code=tts_response.status_code,
+                        content={"success": False, "message": f"TTS API错误: {tts_response.text}", "code": tts_response.status_code}
+                    )
+                
+        except Exception as e:
+            import traceback
+            print(f"处理过程中出错: {str(e)}")
+            print(traceback.format_exc())
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": f"处理失败: {str(e)}", "code": 500}
+            )
     
     
     # 启动支持 HTTPS 的服务器

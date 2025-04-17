@@ -276,7 +276,7 @@ class PlanningAgent:
         self.llm: OllamaLLM = llm
 
         # 提示词中，注意每个工具的准确描述对于工具调用正确率很重要，但是首先在整个工具域层面去宏观制定工具调用规则更重要
-        self.prompt_tpl = """Today is {today}. 位置：山西运城， Please Answer the following questions as best you can. You have access to the following tools:
+        self.prompt_tpl = """Today is {today} {weekday}. 位置：山西运城， Please Answer the following questions as best you can. You have access to the following tools:
         {tool_description}
         系统调用逻辑：
         1. 优先级规则：当用户问题涉及个人健康数据（包括但不限于睡眠、心率、呼吸、体动等指标）时，必须优先调用HealthReport，即使问题表述简短或模糊。
@@ -363,7 +363,12 @@ class PlanningAgent:
             history = ';'.join(['Question:%s;Answer:%s' % (his[0], his[1]) for his in chat_history])
             
             today = datetime.now().strftime('%Y-%m-%d')
-            prompt = self.prompt_tpl.format(today=today, chat_history=history, tool_description=self.tool_descs, tool_names=self.tool_names,
+            weekday_num = datetime.now().weekday()
+
+            # 中文星期名称列表，Monday对应“星期一”
+            weekday_cn = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日']
+            weekday = weekday_cn[weekday_num]
+            prompt = self.prompt_tpl.format(today=today, weekday=weekday, chat_history=history, tool_description=self.tool_descs, tool_names=self.tool_names,
                                     query=query, agent_scratchpad=agent_scratchpad)
             self.logger.info(f"---等待LLM返回... ...\n{prompt}")
             user_stop_words = ['Observation:'] if model_name == 'qwen2' else ['- Observation:']

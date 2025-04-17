@@ -112,19 +112,29 @@ class HealthReport:
     ) -> str:
         self.device_sn = device_sn if device_sn is not None else self.device_sn
         device_sn_ = [self.device_sn]
-        current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        date_string = datetime.datetime.now().strftime("%Y-%m-%d")
         try:
             sql_data_ = {key: self.sql_data[key] for key in device_sn_ if key in self.sql_data}
         except Exception as e:
             # 报错说明是自定义上传的数据，直接使用它自己
             sql_data_ = self.sql_data
         self.logger.info(f"成功获取 sql_data: {sql_data_}")
-        prompt = self.system_prompt.replace("current_time", current_time)
+        try:
+            prompt = self.system_prompt.replace("current_time", date_string)
+            prompt = prompt.replace("elder_info", str(sql_data_[self.device_sn][1]))
+            prompt = prompt.replace("location_environment_factors", "山西省，运城市，盐湖区，黄河金三角(运城)创新生态集聚区科创城，附近没有大型施工情况")
+            prompt = prompt.replace("nearby_parks_activity_centers", "运城尧梦湖公园、运城职业技术大学")
+            prompt = prompt.replace("nearby_markets", "吾悦广场地下超市")
+            prompt = prompt.replace("seasonal_foods", "春玉米、香椿、荠菜、苦菜、蒲公英等")
+            prompt = prompt.replace("nearby_hospitals", "山西天慈医院、运城崇济医院、运城市第一医院等")
+        except Exception as e:
+            raise ValueError(f"fail to init prompt {str(e)}") from e
         result = await self.time_extract.execute(question=health_report_question)
         time_range = {}
         if result.get('found', False):
             time_range = result.get('time_range', {})
-            
+        time_range = {'start': date_string, 'end': date_string} if not time_range else time_range
         sql_data_ = self.filter_sleep_data_by_date_range(sql_data_, time_range)
         self.logger.info(f"成功获取 sql_data: {sql_data_}")
         

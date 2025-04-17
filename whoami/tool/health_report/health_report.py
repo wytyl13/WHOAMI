@@ -1115,10 +1115,28 @@ class HealthReport(BaseProvider):
         return all_breath_exception
     
     def process(self):
+        error_result = {
+            "device_sn": self.device_sn,
+            "query_date": self.query_date,
+            "breath_bpm_low": 7.00, 
+            "breath_bpm_high": 36.00, 
+            "heart_bpm_low": 45.00, 
+            "heart_bpm_high": 140.00,
+            "alarm_time_interval": 10,
+            "min_breath_bpm": 0,
+            "max_breath_bpm": 0,
+            "min_heart_bpm": 0,
+            "max_heart_bpm": 0,
+            "error_info": ''
+        }
+        config_info_sql_provider = SqlProvider(model=DeviceWavveVitalSignConfigInfo, sql_config_path=self.sql_config_path)
         # in_out_bed, signal_intensity, breath_line, heart_line, breath_bpm, heart_bpm, state, body_move_data, create_time
         all_data_list = self.init_data(batch_size=60*60*14)
         if not all_data_list:
-            raise ValueError(f"empty data, device_sn: {self.device_sn}, query_date: {self.query_date}")
+            error_info = f"empty data, device_sn: {self.device_sn}, query_date: {self.query_date}"
+            error_result['error_info'] = error_info
+            result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=error_result)
+            raise ValueError(error_info)
         if all_data_list[0].size == 0:
             raise ValueError(f'check data is empty! device_sn: {self.device_sn}')
         # 统计离床次数 -- 歧义：离床状态连续时间（暂定连续离床状态大于300秒定义为离床，小于300秒但是为离床状态的暂时划分到体动）
@@ -1153,7 +1171,10 @@ class HealthReport(BaseProvider):
         leave_count = len(real_leave_count_result) - 1 if real_leave_count_result else 0
         
         if leave_count > 100:
-            raise ValueError(f"离床次数过多，睡眠数据无意义！{leave_count}次")
+            error_info = f"离床次数过多，睡眠数据无意义！{leave_count}次"
+            error_result['error_info'] = error_info
+            result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=error_result)
+            raise ValueError(error_info)
 
         leave_bed_total_second = sum(real_leave_count_result[1:])
         
@@ -1167,45 +1188,15 @@ class HealthReport(BaseProvider):
         
         if in_bed_data.size == 0:
             error_info = f"in bed data is empty! device_sn: {self.device_sn}, query_date: {self.query_date}"
-            error_result = {
-                "device_sn": self.device_sn,
-                "query_date": self.query_date,
-                "breath_bpm_low": 7.00, 
-                "breath_bpm_high": 36.00, 
-                "heart_bpm_low": 45.00, 
-                "heart_bpm_high": 140.00,
-                "alarm_time_interval": 10,
-                "min_breath_bpm": 0,
-                "max_breath_bpm": 0,
-                "min_heart_bpm": 0,
-                "max_heart_bpm": 0,
-                "error_info": error_info
-            }
-            # update correspond sql table;
-            config_info_sql_provider = SqlProvider(model=DeviceWavveVitalSignConfigInfo, sql_config_path=self.sql_config_path)
+            error_result['error_info'] = error_info
             result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=error_result)
-            raise ValueError(f"in bed data is empty! device_sn: {self.device_sn}, query_date: {self.query_date}")
+            raise ValueError(error_info)
         
         if in_bed_data.size < 10000:
             error_info = f"in bed data is less than 3 hours! device_sn: {self.device_sn}, query_date: {self.query_date}"
-            error_result = {
-                "device_sn": self.device_sn,
-                "query_date": self.query_date,
-                "breath_bpm_low": 7.00, 
-                "breath_bpm_high": 36.00, 
-                "heart_bpm_low": 45.00, 
-                "heart_bpm_high": 140.00,
-                "alarm_time_interval": 10,
-                "min_breath_bpm": 0,
-                "max_breath_bpm": 0,
-                "min_heart_bpm": 0,
-                "max_heart_bpm": 0,
-                "error_info": error_info
-            }
-            # update correspond sql table;
-            config_info_sql_provider = SqlProvider(model=DeviceWavveVitalSignConfigInfo, sql_config_path=self.sql_config_path)
+            error_result['error_info'] = error_info
             result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=error_result)
-            raise ValueError(f"in bed data is less than 3 hours! device_sn: {self.device_sn}, query_date: {self.query_date}")
+            raise ValueError(error_info)
 
         try:
             # 分割呼吸线心线
@@ -1243,7 +1234,10 @@ class HealthReport(BaseProvider):
             sleep_result["device_sn"] = self.device_sn # 设备编号
         except Exception as e:
             self.logger.error(traceback.format_exc())
-            raise ValueError('fail to cal the basic indices!') from e
+            error_info = 'fail to cal the basic indices!'
+            error_result['error_info'] = error_info
+            result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=error_result)
+            raise ValueError(error_info) from e
         
         # 根据在床数据分析呼吸率和心率数据
         # state != 2、体动均为过滤数据，不纳入计算范围，而在睡眠分区的时候不需要过滤这部分数据，原因请看睡眠分区部分解释
@@ -1275,7 +1269,10 @@ class HealthReport(BaseProvider):
             
         except Exception as e:
             self.logger.error(traceback.format_exc())
-            raise ValueError('fail to cal the indices of breath_bpm and heart_bpm!') from e
+            error_info = 'fail to cal the indices of breath_bpm and heart_bpm!'
+            error_result['error_info'] = error_info
+            result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=error_result)
+            raise ValueError(error_info) from e
         
         
         # 根据在床数据分析体动数据，根据体动动量值判断是否属于体动状态
@@ -1290,7 +1287,10 @@ class HealthReport(BaseProvider):
             sleep_result["body_move_image_x_y"] = json.dumps([create_time_list, body_move_count_list]) # 体动绘图
         except Exception as e:
             self.logger.error(traceback.format_exc())
-            raise ValueError('fail to cal the indices of body move!') from e
+            error_info = 'fail to cal the indices of body move!'
+            error_result['error_info'] = error_info
+            result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=error_result)
+            raise ValueError(error_info) from e
         
         # 呼吸异常事件，有心率没有呼吸率，或者呼吸率不在正常范围内。并且设置首尾数据
         try:
@@ -1354,7 +1354,10 @@ class HealthReport(BaseProvider):
             sleep_result["breath_exception_image_sixty_x_y"] = json.dumps(breath_exception_60S_x_y) # 典型呼吸异常事件
         except Exception as e:
             self.logger.error(traceback.format_exc())
-            raise ValueError('fail to cal the indices of breath exception!') from e
+            error_info = 'fail to cal the indices of breath exception!'
+            error_result['error_info'] = error_info
+            result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=error_result)
+            raise ValueError(error_info) from e
         
         # 在睡眠分区绘图数据的基础上考虑离床数据
         try:
@@ -1405,7 +1408,10 @@ class HealthReport(BaseProvider):
             
         except Exception as e:
             self.logger.error(traceback.format_exc())
-            raise ValueError('fail to cal the other indices!') from e
+            error_info = 'fail to cal the other indices!'
+            error_result['error_info'] = error_info
+            result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=error_result)
+            raise ValueError(error_info) from e
         
         # self.logger.info("-----------------------------------------------------------------------------------")
         # self.logger.info(sleep_result)
