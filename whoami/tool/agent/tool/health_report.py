@@ -11,7 +11,7 @@ from typing import (
 import datetime
 
 from whoami.tool.agent.base_tool import tool
-from whoami.tool.llm_application.enhance_retrieval import EnhanceRetrieval
+from whoami.tool.agent.tool.enhance_retrieval import EnhanceRetrieval
 from whoami.tool.agent.tool.sleep_indices_sql_data import SleepIndicesSqlData
 from whoami.tool.agent.tool import TimeExtract
 
@@ -120,6 +120,7 @@ class HealthReport:
             # 报错说明是自定义上传的数据，直接使用它自己
             sql_data_ = self.sql_data
         self.logger.info(f"成功获取 sql_data: {sql_data_}")
+        prompt = ""
         try:
             prompt = self.system_prompt.replace("current_time", date_string)
             prompt = prompt.replace("elder_info", str(sql_data_[self.device_sn][1]))
@@ -140,11 +141,10 @@ class HealthReport:
         
         self.logger.info(f"time_range -------------------------------- : {time_range}")
         full_response = ""
-        async for chunk in self.enhance_llm._run(
+        async for chunk in self.enhance_llm.execute(
             text_list=[], 
             message_history=[], 
-            query=health_report_question,
-            rewritten_query=health_report_question,
+            question=health_report_question,
             prompt=prompt,
             database_retrieval_data=sql_data_,
             top_k=3,

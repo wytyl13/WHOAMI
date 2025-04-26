@@ -18,6 +18,11 @@
 
 
 if __name__ == "__main__":
+    
+    # https://api.map.baidu.com/weather/v1/?district_id=222405&data_type=all&ak=lEnj3LGZkkyUYhdkIF0yYcfw603jq284
+    
+    
+    
     # while cap.isOpened():
     #     ret, frame = cap.read()
     #     current_time = time.time()
@@ -39,12 +44,12 @@ if __name__ == "__main__":
     #     aging >> Edge(label="β=-0.42**", color="red") >> capital
     #     capital >> Edge(label="β=0.67***", color="darkgreen") >> commit
     
-    from modelscope.pipelines import pipeline
-    from modelscope.utils.constant import Tasks
-    ans = pipeline(
-        Tasks.acoustic_noise_suppression,
-        model='iic/speech_frcrn_ans_cirm_16k'
-    )
-    result = ans(
-        '/work/ai/WHOAMI/whoami/tool/tts/output/1a42f4b3-94a4-4cee-a5e5-16bf820a29d3.wav',
-        output_path='output.wav')
+    # from modelscope.pipelines import pipeline
+    # from modelscope.utils.constant import Tasks
+    # ans = pipeline(
+    #     Tasks.acoustic_noise_suppression,
+    #     model='iic/speech_frcrn_ans_cirm_16k'
+    # )
+    # result = ans(
+    #     '/work/ai/WHOAMI/whoami/tool/tts/output/1a42f4b3-94a4-4cee-a5e5-16bf820a29d3.wav',
+    #     output_path='output.wav')

@@ -10,7 +10,8 @@ from typing import (
 
 
 from whoami.tool.agent.base_tool import tool
-from whoami.tool.llm_application.enhance_retrieval import EnhanceRetrieval
+# from whoami.tool.llm_application.enhance_retrieval import EnhanceRetrieval
+from whoami.tool.agent.tool import EnhanceRetrieval
 
 
 class DirectLLMSchema(BaseModel):
@@ -39,9 +40,9 @@ class DirectLLM:
     async def execute(self, question: str, message_history: List[Dict[str, Any]] = None) -> str:
         response = ""
         if self.enhance_llm:
-            async for chunk in self.enhance_llm._run(
+            async for chunk in self.enhance_llm.execute(
                 text_list=[],
-                query=question,
+                question=question,
                 message_history=message_history,
                 retrieval_flag=1,
                 stream_flag=1

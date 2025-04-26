@@ -62,6 +62,7 @@ class EnhanceRetrieval(BaseTool):
     llm: Optional[Union[OllamaLLM, Ollama]] = None
     node_parser: SimpleNodeParser = None
     static_index: Optional[VectorStoreIndex] = None  # 用于存储静态索引
+    
     def __init__(
         self,
         data_dir="/work/ai/WHOAMI/retrieval_data",
@@ -109,8 +110,6 @@ class EnhanceRetrieval(BaseTool):
             self.initialize_static_index()
         except Exception as e:
             self.logger.error(f"初始化静态索引失败: {str(e)}")
-    
-    
     
     
     
@@ -392,6 +391,7 @@ class EnhanceRetrieval(BaseTool):
                 self.logger.error(f"非流式处理时出错: {str(e)}")
                 yield f"Error: {str(e)}"
                 return
+
 
 if __name__ == "__main__":
     llm = OllamaLLM(config=LLMConfig.from_file(Path('/work/ai/WHOAMI/whoami/scripts/test/ollama_config.yaml')))

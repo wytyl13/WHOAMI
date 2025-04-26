@@ -107,13 +107,17 @@ class HealthReport(BaseProvider):
         # init the breath heart param
         try:
             self.standard_breath_heart = SqlProvider(StandardBreathHeart, sql_config_path=self.sql_config_path)
-            standard_breath_heart_default_data = self.standard_breath_heart.get_record_by_condition(condition={"device_sn": "default_config"})[0]
+            records = self.standard_breath_heart.get_record_by_condition(condition={"device_sn": "default_config"})
+            if not records:
+                raise ValueError("找不到默认呼吸心率配置")
+            standard_breath_heart_default_data = records[0]
             self.breath_bpm_low = standard_breath_heart_default_data["breath_bpm_low"] # read from sql where table is sx_device_wavve_vital_sign_config
             self.breath_bpm_high = standard_breath_heart_default_data["breath_bpm_high"] # read from sql where table is sx_device_wavve_vital_sign_config
             self.heart_bpm_low = standard_breath_heart_default_data["heart_bpm_low"] # read from sql where table is sx_device_wavve_vital_sign_config
             self.heart_bpm_high = standard_breath_heart_default_data["heart_bpm_high"] # read from sql where table is sx_device_wavve_vital_sign_config
         except Exception as e:
             raise ValueError("fail to init breath heart bpm low and high!") from e
+        
     
     
     def _init_param(self, sql_config_path, sql_config, sql_provider, data_provider, query_date, device_sn, model):
@@ -1143,61 +1147,67 @@ class HealthReport(BaseProvider):
         # 根据在离床状态统计离床次数
         # 根据在离床状态统计起床时间
         # 起床时间为最晚离床状态
-        in_out_bed = all_data_list[0][:, 0]
-        all_state = all_data_list[0][:, 6]
-        all_breath_bpm = all_data_list[0][:, 4]
-        all_heart_bpm = all_data_list[0][:, 5]
-        all_breath_line = all_data_list[0][:, 2]
-        all_heart_line = all_data_list[0][:, 3]
-        all_create_time = all_data_list[0][:, -1]
-        all_body_move_01 = np.where(all_data_list[0][:, 7] != 0, 0, 1)
-        
-        # 但是需要考虑一个情况，呼吸异常造成的数据不稳定，不应该影响呼吸异常情况，因为不稳定状态在这里均不作为呼吸异常，所以可能存在漏检
-        # 因此需要对该种特殊情况做兼容处理
-        # change state status because we should handle the special screen above
-        all_breath_exception = self.get_all_breath_exception(all_state=all_state, all_breath_bpm=all_breath_bpm, all_heart_bpm=all_heart_bpm, all_body_move_01=all_body_move_01)
-        
-        """
-        all_breath_exception = np.where(
-            ((all_breath_bpm < self.breath_bpm_low) | (all_breath_bpm > self.breath_bpm_high)) & 
-            (all_heart_bpm != 0) & 
-            (all_state == 2) & 
-            (all_body_move_01 != 0), 0, 1)
-        """
+        try:
+            in_out_bed = all_data_list[0][:, 0]
+            all_state = all_data_list[0][:, 6]
+            all_breath_bpm = all_data_list[0][:, 4]
+            all_heart_bpm = all_data_list[0][:, 5]
+            all_breath_line = all_data_list[0][:, 2]
+            all_heart_line = all_data_list[0][:, 3]
+            all_create_time = all_data_list[0][:, -1]
+            all_body_move_01 = np.where(all_data_list[0][:, 7] != 0, 0, 1)
+            # 但是需要考虑一个情况，呼吸异常造成的数据不稳定，不应该影响呼吸异常情况，因为不稳定状态在这里均不作为呼吸异常，所以可能存在漏检
+            # 因此需要对该种特殊情况做兼容处理
+            # change state status because we should handle the special screen above
+            all_breath_exception = self.get_all_breath_exception(all_state=all_state, all_breath_bpm=all_breath_bpm, all_heart_bpm=all_heart_bpm, all_body_move_01=all_body_move_01)
+            
+            """
+            all_breath_exception = np.where(
+                ((all_breath_bpm < self.breath_bpm_low) | (all_breath_bpm > self.breath_bpm_high)) & 
+                (all_heart_bpm != 0) & 
+                (all_state == 2) & 
+                (all_body_move_01 != 0), 0, 1)
+            """
 
-        assert (len(in_out_bed) == len(all_state) == len(all_breath_bpm) == len(all_heart_bpm) == len(all_create_time) == len(all_body_move_01) == len(all_breath_exception) != 0), \
-            f'fail to assert the data (in_out_bed: {len(in_out_bed)}, all_state: {len(all_state)}, all_breath_bpm: {len(all_breath_bpm)}, all_heart_bpm: {len(all_heart_bpm)}, all_create_time: {len(all_create_time)}, all_body_move_01: {len(all_body_move_01)}, all_breath_exception: {len(all_breath_exception)}) dimension!'
-        real_leave_count_result, real_leave_index = self.count_consecutive_zeros(in_out_bed, 0)
-        leave_count = len(real_leave_count_result) - 1 if real_leave_count_result else 0
-        
-        if leave_count > 100:
-            error_info = f"离床次数过多，睡眠数据无意义！{leave_count}次"
+            assert (len(in_out_bed) == len(all_state) == len(all_breath_bpm) == len(all_heart_bpm) == len(all_create_time) == len(all_body_move_01) == len(all_breath_exception) != 0), \
+                f'fail to assert the data (in_out_bed: {len(in_out_bed)}, all_state: {len(all_state)}, all_breath_bpm: {len(all_breath_bpm)}, all_heart_bpm: {len(all_heart_bpm)}, all_create_time: {len(all_create_time)}, all_body_move_01: {len(all_body_move_01)}, all_breath_exception: {len(all_breath_exception)}) dimension!'
+            real_leave_count_result, real_leave_index = self.count_consecutive_zeros(in_out_bed, 0)
+            leave_count = len(real_leave_count_result) - 1 if real_leave_count_result else 0
+            
+            if leave_count > 30:
+                error_info = f"离床次数过多，睡眠数据无意义！{leave_count}次"
+                error_result['error_info'] = error_info
+                result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=error_result)
+                raise ValueError(error_info)
+
+            leave_bed_total_second = sum(real_leave_count_result[1:])
+            self.logger.info(f"len(all_create_time): {len(all_create_time)}")
+            self.logger.info(f"real_leave_index: {real_leave_index}")
+            leave_bed_time = all_create_time[real_leave_index[-1][0]] if real_leave_index else all_create_time[-1]
+            self.logger.info(f"起床时间---------------{leave_bed_time}")
+            
+            # 基于在床数据统计睡眠分区，并进一步计算得到上床时间、入睡时间、醒来时间、夜醒时长、睡眠时长、深睡时长、入睡时长
+            # 注意睡眠分区并没有去除掉体动和不稳定状态，因为体动和不稳定也属于在床数据，需要进行分区（不影响根据心率呼吸率进行睡眠分区的结果）
+            in_bed_data = all_data_list[0][in_out_bed != 0]
+            
+            if in_bed_data.size == 0:
+                error_info = f"in bed data is empty! device_sn: {self.device_sn}, query_date: {self.query_date}"
+                error_result['error_info'] = error_info
+                result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=error_result)
+                raise ValueError(error_info)
+            
+            if in_bed_data.size < 10000:
+                error_info = f"in bed data is less than 3 hours! device_sn: {self.device_sn}, query_date: {self.query_date}"
+                error_result['error_info'] = error_info
+                result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=error_result)
+                raise ValueError(error_info)
+        except Exception as e:
+            error_info = f"test error {str(e)} {traceback.format_exc()}"
             error_result['error_info'] = error_info
             result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=error_result)
-            raise ValueError(error_info)
-
-        leave_bed_total_second = sum(real_leave_count_result[1:])
+            raise ValueError(error_info) from e
+            
         
-        timess = datetime.fromtimestamp((all_create_time[real_leave_index[-1][0]]).astype(np.int32), tz=tz).strftime('%Y-%m-%d %H:%M:%S')
-        self.logger.info(f"起床时间---------------{timess}")
-        leave_bed_time = all_create_time[real_leave_index[-1][0]] if real_leave_index else all_create_time[-1]
-        
-        # 基于在床数据统计睡眠分区，并进一步计算得到上床时间、入睡时间、醒来时间、夜醒时长、睡眠时长、深睡时长、入睡时长
-        # 注意睡眠分区并没有去除掉体动和不稳定状态，因为体动和不稳定也属于在床数据，需要进行分区（不影响根据心率呼吸率进行睡眠分区的结果）
-        in_bed_data = all_data_list[0][in_out_bed != 0]
-        
-        if in_bed_data.size == 0:
-            error_info = f"in bed data is empty! device_sn: {self.device_sn}, query_date: {self.query_date}"
-            error_result['error_info'] = error_info
-            result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=error_result)
-            raise ValueError(error_info)
-        
-        if in_bed_data.size < 10000:
-            error_info = f"in bed data is less than 3 hours! device_sn: {self.device_sn}, query_date: {self.query_date}"
-            error_result['error_info'] = error_info
-            result = config_info_sql_provider.upsert_record_by_unique_field(unique_field=["device_sn", "query_date"], data=error_result)
-            raise ValueError(error_info)
-
         try:
             # 分割呼吸线心线
             # in_bed_data_list = self.split_continuous_data(all_data_list[0], in_out_bed != 0)

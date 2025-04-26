@@ -7,6 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 
+
+from whoami.tool.agent.tool import SenseVoiceAsr
+sensevoice = SenseVoiceAsr()
+
+
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -118,6 +123,19 @@ async def process_audio(audio_bytes: io.BytesIO):
         raise HTTPException(status_code=500, detail=f"语音处理错误: {str(e)}")
 
 
+@app.post("/transcribe/test", response_model=TranscriptionResponse)
+async def transcribe_audio_test(
+    request: Request, 
+    audio_file: UploadFile = None,
+    file_path=None,
+):
+    transcription_result =  await sensevoice.execute(audio_data=audio_file, file_path=file_path)
+    return TranscriptionResponse(
+        text=transcription_result,
+        status="success"
+    )
+
+
 
 @app.post("/transcribe/", response_model=TranscriptionResponse)
 async def transcribe_audio(request: Request, audio_file: UploadFile = None):
@@ -161,4 +179,4 @@ async def transcribe_audio(request: Request, audio_file: UploadFile = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    uvicorn.run("tts:app", host="0.0.0.0", port=8818, reload=True)
+    uvicorn.run("whoami.tool.tts.tts:app", host="0.0.0.0", port=8818, reload=True)

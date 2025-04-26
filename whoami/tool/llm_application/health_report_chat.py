@@ -868,9 +868,12 @@ class HealthReportChat(BaseTool):
         self.full_response = []
         self.logger.info(f"message_history： ----------------------------- {message_history}")
         chat_history = self.convert_history_planning_agent(message_history)
-        status, result, chat_history = await self.planning_agent.agent_execute_with_retry(query, chat_history=chat_history)
+        status, result, chat_history = await self.planning_agent.execute(question=query, chat_history=chat_history)
         yield result
         return
+    
+    
+    
     async def _run_(
         self, 
         query: Optional[str] = None,

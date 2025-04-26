@@ -8,7 +8,7 @@ from typing import (
 )
 
 
-from whoami.tool.llm_application.enhance_retrieval import EnhanceRetrieval
+from whoami.tool.agent.tool import Retrieval
 from whoami.tool.agent.base_tool import tool
 from whoami.tool.search.google_search_provider import GoogleSearchProvider
 
@@ -38,15 +38,15 @@ class GoogleSearch:
     # 如果希望算法更加高效，设置end_flag为1
     end_flag: int = 0
     google_search_provider: Optional[GoogleSearchProvider] = None # 自定义新的属性一定要在构造函数中初始化，否则会出现深拷贝错误
-    enhance_llm: Optional[EnhanceRetrieval] = None
+    retrieval: Optional[Retrieval] = None
     
     def __init__(self, **kwargs):
         self.logger.info("初始化GoogleSearch！")
         # you should implement any private attribute here first. 
         super().__init__(**kwargs)
         # 先保存关键参数
-        if 'enhance_llm' in kwargs:
-            self.enhance_llm = kwargs.get('enhance_llm')
+        if 'retrieval' in kwargs:
+            self.retrieval = kwargs.get('retrieval')
 
         # 初始化google_search
         if 'google_search_provider' in kwargs:
@@ -64,8 +64,8 @@ class GoogleSearch:
         if self.google_search_provider is None:
             self.logger.error("google_search_provider 初始化失败")
         
-        if self.enhance_llm is None:
-            self.logger.error("enhance_llm 未设置，可能会影响功能")
+        if self.retrieval is None:
+            self.logger.error("retrieval 未设置，可能会影响功能")
 
     async def execute(self, google_query: str) -> float:
         """执行谷歌搜索查询"""
@@ -74,7 +74,7 @@ class GoogleSearch:
         if self.google_search_provider is None:
             return "搜索服务初始化失败，无法执行查询。"
         
-        if self.enhance_llm is None:
+        if self.retrieval is None:
             return "增强检索组件未设置，无法处理搜索结果。"
         
         # 执行搜索
@@ -87,10 +87,10 @@ class GoogleSearch:
             status, result = self.google_search_provider(**param)
             self.logger.info(result)
             text_list = [{item["link"]: item.get("fetch_url_content", item["html_snippet"])} for item in result]
-            retrieval_nodes = self.enhance_llm.retrieve(
+            retrieval_nodes = await self.retrieval.execute(
                 text_list=text_list, 
                 top_k=3, 
-                query=google_query,
+                retrieval_word=google_query,
                 static_flag=0
             ) if text_list else []
             context_texts = [node.node.text for node in retrieval_nodes]
@@ -108,8 +108,8 @@ if __name__ == "__main__":
     from whoami.configs.llm_config import LLMConfig
     from whoami.llm_api.ollama_llm import OllamaLLM
     llm_qwen = OllamaLLM(config=LLMConfig.from_file(Path('/work/ai/WHOAMI/whoami/scripts/test/ollama_config_qwen.yaml')))
-    enhance_llm = EnhanceRetrieval(llm=llm_qwen)
-    google_search = GoogleSearch(enhance_llm=enhance_llm)
+    retrieval = Retrieval()
+    google_search = GoogleSearch(retrieval=retrieval)
     async def main():
         result = await google_search.execute(google_query="小米su7自燃事件")
         print(result)

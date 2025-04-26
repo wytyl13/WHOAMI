@@ -45,6 +45,56 @@ class SxDataProvider(DataProvider):
             sql_query=sql_query,
             model=model
         )
+        
+        
+    
+    def process_zeros_numpy(self, arr, threshold=30):
+        """
+        处理NumPy数组中的连续零元素：
+        - 如果连续零的数量 >= threshold，保持为0
+        - 否则，将其转换为1
+        
+        参数:
+        arr -- 输入NumPy数组，包含0和1
+        threshold -- 连续零的阈值，默认为30
+        
+        返回:
+        处理后的NumPy数组
+        """
+        # 创建一个全1的结果数组
+        result = np.ones_like(arr)
+        
+        # 找出所有为0的位置
+        zero_positions = np.where(arr == 0)[0]
+        
+        if len(zero_positions) > 0:
+            # 计算连续0的起始位置
+            # 通过比较相邻位置的差值，找出不连续的点
+            breaks = np.where(np.diff(zero_positions) > 1)[0]
+            
+            # 所有连续0序列的起始索引
+            starts = np.concatenate(([0], breaks + 1))
+            
+            # 所有连续0序列的结束索引
+            ends = np.concatenate((breaks, [len(zero_positions) - 1]))
+            
+            # 处理每个连续0的序列
+            for start_idx, end_idx in zip(starts, ends + 1):
+                # 获取实际数组中连续0的起始和结束位置
+                start_pos = zero_positions[start_idx]
+                end_pos = zero_positions[end_idx - 1] + 1  # +1是因为切片是左闭右开
+                
+                # 计算连续0的长度
+                length = end_pos - start_pos
+                
+                # 如果连续0的长度大于等于阈值，设置为0
+                if length >= threshold:
+                    result[start_pos:end_pos] = 0
+        
+        return result
+    
+    
+        
     def get_data(self, query: Optional[str] = None):
         data = self.sql_provider.exec_sql(self.sql_query)
         if data.size != 0:
@@ -80,6 +130,7 @@ class SxDataProvider(DataProvider):
                 condition2 = (signal_intensity == 0) & (in_out_bed != 1) # 离床
                 result[condition1] = 1   # 满足条件1的标记为1
                 result[condition2] = 0
+                result = self.process_zeros_numpy(result, 30)
                 if np.any(result == -1):
                     raise ValueError('condition1 and condition2 not fill all data!')
                 original_data[:, 0] = result
@@ -89,6 +140,11 @@ class SxDataProvider(DataProvider):
             # 最后切记在转换为tensor之前一定要转换为numpy.float64或者其他数字格式，否则np.object格式是无法转换为tensor格式的
             return original_data.astype(np.float64)
         return data
+    
+    
+    
+    
+    
     
     def get_item(self, index):
         # if you need not change any, call the get_item method in super class directly.

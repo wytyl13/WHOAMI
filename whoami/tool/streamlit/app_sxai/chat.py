@@ -282,7 +282,7 @@ def transcribe_with_sensevoice(audio_bytes):
         
         # 发送请求到SenseVoice服务
         response = requests.post(
-            "http://localhost:8818/transcribe/",
+            "http://localhost:8818/transcribe/test",
             files=files
         )
         
