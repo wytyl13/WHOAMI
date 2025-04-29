@@ -93,10 +93,22 @@ class WeatherApi(ApiTool):
         
         return result
     
-    
         
-    async def request_url(self, url, ak, query) -> str:
-        district_id = self.get_district_id_query(query)
+    async def request_url(self, **kwargs) -> str:
+        url = None
+        ak = None
+        query_key = None
+        if 'ak' in kwargs:
+            ak = kwargs.pop('ak')
+        if 'url' in kwargs:
+            url = kwargs.pop('url')
+        if 'query_key' in kwargs:
+            query_key = kwargs.pop('query_key')
+        else:
+            if query_key == "" or query_key is None:
+                raise ValueError("query_key must not be null!")
+            
+        district_id = self.get_district_id_query(query_key)
         request_url = f"{url}?district_id={district_id}&data_type=all&ak={ak}"
         try:
             response = requests.get(request_url)

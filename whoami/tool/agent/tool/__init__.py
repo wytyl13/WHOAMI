@@ -10,6 +10,8 @@ try:
     from .info_extract import *
     from .time_extract import *
     from .health_report import *
+    from .zhoubian import *
+    from .health_advice import *
 except ImportError:
     print("警告: whoami相关模块无法导入！！！")
 

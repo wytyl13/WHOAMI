@@ -14,6 +14,11 @@ from typing import (
     Dict
 )
 import os
+import asyncio
+import jieba
+import Stemmer
+import traceback
+from enum import Enum
 from pydantic import BaseModel, Field
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core.settings import Settings
@@ -21,8 +26,10 @@ from llama_index.core.node_parser import SimpleNodeParser
 from llama_index.core import VectorStoreIndex, StorageContext, ServiceContext
 from llama_index.core.indices.loading import load_index_from_storage
 from llama_index.core import SimpleDirectoryReader
-from llama_index.core.schema import Document
-import asyncio
+from llama_index.core.schema import Document, NodeWithScore
+from llama_index.retrievers.bm25 import BM25Retriever
+from llama_index.core import QueryBundle
+from rank_bm25 import BM25Okapi
 
 
 from whoami.tool.agent.base_tool import tool
@@ -34,6 +41,24 @@ class RetrievalSchema(BaseModel):
         description="检索关键词，一般为用户的问题"
     )
 
+
+
+class StrEnum(str, Enum):
+    def __str__(self) -> str:
+        # overwrite the __str__ method to implement enum_instance.attribution == enum_instance.attribution.value
+        return self.value
+    
+    def __repr__(self) -> str:
+        return f"'{str(self)}'"
+
+
+
+class RankType(StrEnum):
+    """Rank type"""
+    reciprocal_rank_fusion = "reciprocal_rank_fusion"
+
+
+  
 
 @tool
 class Retrieval:
@@ -49,7 +74,7 @@ class Retrieval:
     chunk_overlap: Optional[int] = None
     node_parser: Optional[Any] = None
     static_index: Optional[VectorStoreIndex] = None
-    
+    static_bm25_retriever: Optional[BM25Retriever] = None
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -67,6 +92,8 @@ class Retrieval:
             self.node_parser = kwargs.pop('node_parser')
         if 'static_index' in kwargs:
             self.static_index = kwargs.pop('static_index')
+        if 'static_bm25_retriever' in kwargs:
+            self.static_bm25_retriever = kwargs.pop('static_bm25_retriever')
         
             
         # 初始化一些东西
@@ -92,6 +119,7 @@ class Retrieval:
         
         try:
             self.initialize_static_index()
+            self._initialize_bm25_index()
         except Exception as e:
             self.logger.error(f"初始化静态索引失败: {str(e)}")
 
@@ -173,8 +201,39 @@ class Retrieval:
         except Exception as create_err:
             self.logger.error(f"创建静态索引失败: {str(create_err)}")
             self.static_index = None
-            
-            
+    
+    
+    def _initialize_bm25_index(self):
+        """初始化BM25索引"""
+        try:
+            # 如果向量索引存在，从中获取节点
+            if self.static_index and hasattr(self.static_index, "docstore"):
+                self.static_nodes = list(self.static_index.docstore.docs.values())
+                self.logger.info(f"从向量索引获取了 {len(self.static_nodes)} 个节点用于BM25索引")
+                
+                # 对节点文本进行分词
+                self.static_corpus = []
+                for node in self.static_nodes:
+                    if hasattr(node, 'text') and node.text:
+                        tokens = list(jieba.cut(node.text))
+                        self.static_corpus.append(tokens)
+                    else:
+                        # 如果节点没有文本，使用空列表
+                        self.static_corpus.append([])
+                
+                # 创建BM25索引
+                self.static_bm25_index = BM25Okapi(self.static_corpus)
+                self.logger.info("BM25索引创建成功")
+            else:
+                self.logger.warning("静态向量索引不存在，无法创建BM25索引")
+                self.static_bm25_index = None
+        except Exception as e:
+            self.logger.error(f"创建BM25索引失败: {str(e)}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            self.static_bm25_index = None
+    
+    
     def store_index(self, text_list: List[Dict[str, str]]):
         try:
             documents = []
@@ -193,19 +252,32 @@ class Retrieval:
             return None
         return index
     
-            
-    async def execute(
+    
+    def store_bm25_index(self, text_list: List[Dict[str, str]]):
+        # 处理动态文本
+        pass
+    
+    
+    def vector_retrieval(
         self, 
-        text_list: List[Dict[str, str]], 
-        top_k: int = 3, 
-        retrieval_word: str = None,
+        retrieval_word: str = None, 
+        text_list: List[Dict[str, str]] = None, 
+        top_k: int = 3,
         static_flag: int = 1
     ):
-        if retrieval_word is None:
-            raise ValueError("retrieval_word must not be null!")
+        """
+        向量检索
         
+        参数:
+            retrieval_word: 检索关键词
+            text_list: 动态文本列表，格式为[{key1: text1}, {key2: text2}, ...]
+            top_k: 返回的最大结果数
+            static_flag: 是否检索静态索引(1表示检索，0表示不检索)
+        
+        返回:
+            检索结果列表
+        """
         results = []
-        # 从动态text_list创建索引并检索
         if text_list:
             try:
                 dynamic_index = self.store_index(text_list)
@@ -213,11 +285,10 @@ class Retrieval:
                     dynamic_retriever = dynamic_index.as_retriever(similarity_top_k=top_k)
                     dynamic_nodes = dynamic_retriever.retrieve(retrieval_word)
                     results.extend(dynamic_nodes)
-                    self.logger.info(f"dynamic_nodes: ------------------------ {dynamic_nodes}")
+                    # self.logger.info(f"dynamic_nodes: ------------------------ {dynamic_nodes}")
             except Exception as e:
                 self.logger.error(f"从动态文本检索失败: {str(e)}")
-        
-        
+
         # 从静态索引中检索
         if static_flag != 0:
             try:
@@ -230,20 +301,332 @@ class Retrieval:
                     static_retriever = self.static_index.as_retriever(similarity_top_k=top_k)
                     static_nodes = static_retriever.retrieve(retrieval_word)
                     results.extend(static_nodes)
-                    self.logger.info(f"static_nodes: ------------------------ {static_nodes}")
+                    # self.logger.info(f"static_nodes: ------------------------ {static_nodes}")
             except Exception as static_err:
                 self.logger.error(f"从静态索引检索失败: {str(static_err)}")
+        return results
+    
+    
+    def keyword_retrieval_llamaindex(self, 
+        retrieval_word: str = None, 
+        text_list: List[Dict[str, str]] = None, 
+        top_k: int = 3,
+        static_flag: int = 1
+    ):
+        """
+        使用BM25算法进行关键词检索
+        
+        参数:
+            retrieval_word: 检索关键词
+            text_list: 动态文本列表，格式为[{key1: text1}, {key2: text2}, ...]
+            top_k: 返回的最大结果数
+            static_flag: 是否检索静态索引(1表示检索，0表示不检索)
+        
+        返回:
+            检索结果列表
+        """
+        query_tokens = list(jieba.cut(retrieval_word))
+        chinese_query = " ".join(query_tokens)
+        results = []
+        if text_list:
+            try:
+                # 将文本列表转换为Document对象
+                documents = []
+                for item in text_list:
+                    source_key = list(item.keys())[0]
+                    text_content = list(item.values())[0]
+                    
+                    # 对中文文本进行分词处理
+                    text_tokens = list(jieba.cut(text_content))
+                    processed_text = " ".join(text_tokens)  # 用空格连接分词结果
+                    
+                    documents.append(Document(
+                        text=processed_text,  # 使用处理后的文本
+                        metadata={"source": source_key, "original_source": source_key, "original_text": text_content}
+                    ))
+                
+                if documents:
+                    try:
+                        # 创建临时文档存储
+                        from llama_index.core.storage.docstore import SimpleDocumentStore
+                        from llama_index.core.node_parser import SentenceSplitter
+                        
+                        # 解析为节点
+                        splitter = SentenceSplitter(chunk_size=512)
+                        nodes = self.node_parser.get_nodes_from_documents(documents)
+                        
+                        # 创建docstore
+                        docstore = SimpleDocumentStore()
+                        docstore.add_documents(nodes)
+                        
+                        # 创建BM25检索器
+                        try:
+                            stemmer = Stemmer.Stemmer("porter")
+                            dynamic_bm25_retriever = BM25Retriever.from_defaults(
+                                docstore=docstore,
+                                similarity_top_k=top_k,
+                                stemmer=stemmer,
+                                language="english",  # 我们已经用jieba处理了中文
+                            )
+                        except Exception as stemmer_err:
+                            self.logger.warning(f"无法使用stemmer创建BM25检索器: {str(stemmer_err)}")
+                            dynamic_bm25_retriever = BM25Retriever.from_defaults(
+                                docstore=docstore,
+                                similarity_top_k=top_k
+                            )
+                        
+                        # 创建查询包
+                        query_bundle = QueryBundle(query_str=chinese_query)
+                        # 执行检索
+                        dynamic_nodes = dynamic_bm25_retriever.retrieve(query_bundle)
+                        self.logger.info(f"动态BM25检索结果数: {len(dynamic_nodes)}")
+                        
+                        # 记录分数
+                        for node in dynamic_nodes:
+                            self.logger.info(f"分数: {node.score}, 文本: {node.node.text[:50]}...")
+                        
+                        results.extend(dynamic_nodes)
+                    except Exception as retriever_err:
+                        self.logger.error(f"创建动态BM25检索器失败: {str(retriever_err)}")
+                        import traceback
+                        self.logger.error(traceback.format_exc())
+            except Exception as e:
+                self.logger.error(f"从动态文本进行BM25检索失败: {str(e)}")
+
+                self.logger.error(traceback.format_exc())
+    
+        # 处理静态索引
+        if static_flag != 0 and hasattr(self, 'static_bm25_retriever') and self.static_bm25_retriever is not None:
+            try:
+                # 创建查询包
+                query_bundle = QueryBundle(query_str=chinese_query)
+                
+                # 执行检索
+                static_nodes = self.static_bm25_retriever.retrieve(query_bundle)
+                self.logger.info(f"静态BM25检索结果数: {len(static_nodes)}")
+                
+                # 记录分数
+                for node in static_nodes:
+                    self.logger.info(f"分数: {node.score}, 文本: {node.node.text[:50]}...")
+                
+                results.extend(static_nodes)
+            except Exception as e:
+                self.logger.error(f"从静态索引进行BM25检索失败: {str(e)}")
+                import traceback
+                self.logger.error(traceback.format_exc())
+        
+        # 确保所有结果都有分数
+        for result in results:
+            if not hasattr(result, 'score') or result.score is None:
+                result.score = 0.0
+        
+        # # 按分数排序
+        # results.sort(key=lambda x: x.score, reverse=True)
+        
+        # # 返回前top_k个结果
+        # return results[:top_k] if len(results) > top_k else results
+        return results
+    
+    
+    def keyword_retrieval(self, 
+        retrieval_word: str = None, 
+        text_list: List[Dict[str, str]] = None, 
+        top_k: int = 3,
+        static_flag: int = 1
+    ):
+        """
+        使用BM25算法进行关键词检索
+        """
+        
+        
+        results = []
+        
+        # 处理动态文本
+        if text_list:
+            try:
+                # 准备文档和对应的原始文本
+                docs = []
+                original_docs = []
+                for item in text_list:
+                    source_key = list(item.keys())[0]
+                    text_content = list(item.values())[0]
+                    docs.append(text_content)
+                    original_docs.append({
+                        "text": text_content,
+                        "source": source_key
+                    })
+                
+                # 使用jieba分词
+                tokenized_corpus = [list(jieba.cut(doc)) for doc in docs]
+                tokenized_query = list(jieba.cut(retrieval_word))
+                
+                # 创建BM25模型并计算分数
+                bm25 = BM25Okapi(tokenized_corpus)
+                scores = bm25.get_scores(tokenized_query)
+                
+                # 创建结果
+                for i, score in enumerate(scores):
+                    doc = original_docs[i]
+                    results.append(NodeWithScore(
+                        node=Document(
+                            text=doc["text"],
+                            metadata={"source": doc["source"], "original_source": doc["source"]}
+                        ),
+                        score=score
+                    ))
+                
+                self.logger.info(f"动态BM25检索结果数: {len(results)}")
+                # for i, result in enumerate(results):
+                #     self.logger.info(f"{i+1}. 分数: {result.score}, 文本: {result.node.text}")
+                    
+            except Exception as e:
+                self.logger.error(f"从动态文本进行BM25检索失败: {str(e)}")
+                import traceback
+                self.logger.error(traceback.format_exc())
+        
+        # 静态索引检索
+        if static_flag != 0 and self.static_index is not None:
+            try:
+                tokenized_query = list(jieba.cut(retrieval_word))
+                
+                # 使用预构建的BM25索引计算分数
+                scores = self.static_bm25_index.get_scores(tokenized_query)
+                
+                # 创建结果
+                for i, score in enumerate(scores):
+                    if i < len(self.static_nodes):  # 防止索引越界
+                        results.append(NodeWithScore(
+                            node=self.static_nodes[i],
+                            score=score
+                        ))
+                
+                self.logger.info(f"静态BM25检索结果数: {len(self.static_nodes)}")
+            except Exception as e:
+                self.logger.error(f"从静态索引进行BM25检索失败: {str(e)}")
+                self.logger.error(traceback.format_exc())
+        
+        # 排序
+        # results.sort(key=lambda x: x.score, reverse=True)
+        
+        # 返回前top_k个结果
+        # return results[:top_k]
+        return results
+    
+    
+    def reciprocal_rank_fusion(self, vector_results, bm25_results, k=60, top_k=3):
+        """
+        实现RRF (Reciprocal Rank Fusion)
+        
+        参数:
+            - vector_results: 向量检索结果
+            - bm25_results: BM25检索结果
+            - k: 常数，控制排名得分衰减 (通常为60)
+            - top_k: 返回的结果数量
+        """
+        # 结果映射
+        results_map = {}
+        
+        # 处理向量检索结果
+        for i, node in enumerate(vector_results):
+            key = node.node.id_ if hasattr(node.node, 'id_') else node.node.text
+            rank = i + 1  # 排名从1开始
+            results_map[key] = {
+                'node': node.node,
+                'score': 1.0 / (k + rank)
+            }
+        
+        # 处理BM25检索结果
+        for i, node in enumerate(bm25_results):
+            key = node.node.id_ if hasattr(node.node, 'id_') else node.node.text
+            rank = i + 1  # 排名从1开始
             
+            if key in results_map:
+                # 累加RRF分数
+                results_map[key]['score'] += 1.0 / (k + rank)
+            else:
+                results_map[key] = {
+                    'node': node.node,
+                    'score': 1.0 / (k + rank)
+                }
         
-        # 如果两个源都没有结果
-        if not results:
-            self.logger.warning("No retrieval results found!")
-            return []
+        # 生成最终排序结果
+        final_results = [
+            NodeWithScore(node=item['node'], score=item['score'])
+            for item in results_map.values()
+        ]
         
-        results.sort(key=lambda x: getattr(x, 'score', 0.0) if hasattr(x, 'score') else getattr(x, 'similarity', 0.0), reverse=True)
+        # 按分数排序
+        final_results.sort(key=lambda x: x.score, reverse=True)
         
-        # 只返回top_k个结果
-        return results[:top_k] if len(results) > top_k else results
+        return final_results[:top_k]
+    
+    
+    def rerank(
+        self, 
+        query: str = None, 
+        vector_results: List = None,
+        bm25_results: List = None,
+        top_k: int = 3,
+        rank_type: Optional[str] = "reciprocal_rank_fusion"
+    ):
+        """重排序
+
+        Args:
+            query (str, optional): _description_. Defaults to None.
+            candidates (List, optional): _description_. Defaults to None.
+            top_k (int, optional): _description_. Defaults to 3.
+
+        Returns:
+            _type_: _description_
+        """
+        if rank_type == RankType.reciprocal_rank_fusion:
+            try:
+                return self.reciprocal_rank_fusion(vector_results, bm25_results, top_k=top_k)
+            except Exception as e:
+                raise ValueError(f"Fail to exec reciprocal_rank_fusion function! {str(e)}") from e
+            
+        else:
+            # 普通重排序
+            # 合并混合检索候选结果并去重
+            candidate_map = {}
+            for result in vector_results + bm25_results:
+                key = result.node.id_ if hasattr(result.node, 'id_') else result.node.text
+                if key not in candidate_map:
+                    candidate_map[key] = result
+        
+            candidates = list(candidate_map.values())
+            try:
+                candidates.sort(key=lambda x: getattr(x, 'score', 0.0) if hasattr(x, 'score') else getattr(x, 'similarity', 0.0), reverse=True)
+                # 只返回top_k个结果
+                return candidates[:top_k] if len(candidates) > top_k else candidates
+            except Exception as e:
+                raise ValueError(f"Fail to exec rerank function! {str(e)}") from e
+    
+    
+    async def execute(
+        self, 
+        text_list: List[Dict[str, str]], 
+        top_k: int = 3, 
+        retrieval_word: str = None,
+        static_flag: int = 1,
+        rank_type: Optional[str] = "reciprocal_rank_fusion"
+    ):
+        if retrieval_word is None:
+            raise ValueError("retrieval_word must not be null!")
+        
+        
+        vector_results = self.vector_retrieval(retrieval_word=retrieval_word, text_list=text_list, top_k=top_k, static_flag=static_flag)
+        bm25_results = self.keyword_retrieval(retrieval_word=retrieval_word, text_list=text_list, top_k=top_k, static_flag=static_flag)
+        
+        
+        return self.rerank(
+            query=retrieval_word, 
+            vector_results=vector_results, 
+            bm25_results=bm25_results,
+            top_k=top_k,
+            rank_type=rank_type
+        )
+        
         
 
 
@@ -251,7 +634,7 @@ class Retrieval:
 if __name__ == '__main__':
     text_list = [
         {"123": "我是卫宇涛，我28，我来自山西运城"}, 
-        {"456": "我是卫小涛，30岁，来自山西运城"}, 
+        {"456": "我们公司地址在山西省运城市万荣县科创城"}, 
         {"789": "我是卫jin涛，30岁，来自山西运城"},
         {"1011": "我是卫jin涛，30岁，来自山西运城"},
         {"1012": "我是卫jin涛，30岁，来自山西运城"},
@@ -259,9 +642,8 @@ if __name__ == '__main__':
         {"1014": "我是卫jin涛，30岁，来自山西运城"},
     ]
     retrieval = Retrieval()
-    print(retrieval)
     async def main():
-        nodes = await retrieval.execute(text_list=text_list, retrieval_word='你是谁？')
+        nodes = await retrieval.execute(text_list=text_list, retrieval_word='如何查看单日睡眠报告?', top_k=5)
         print(nodes)
     asyncio.run(main())
     

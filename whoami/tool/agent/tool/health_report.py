@@ -9,11 +9,16 @@ from typing import (
     Any
 )
 import datetime
-
+import asyncio
 from whoami.tool.agent.base_tool import tool
 from whoami.tool.agent.tool.enhance_retrieval import EnhanceRetrieval
 from whoami.tool.agent.tool.sleep_indices_sql_data import SleepIndicesSqlData
 from whoami.tool.agent.tool import TimeExtract
+from whoami.tool.agent.tool import WeatherApi
+from whoami.tool.agent.tool.zhoubian import ZhouBian
+from whoami.tool.agent.tool.health_advice import HealthAdvice
+
+weather_api = WeatherApi()
 
 class HealthReportSchema(BaseModel):
     health_report_question: str = Field(
@@ -23,6 +28,7 @@ class HealthReportSchema(BaseModel):
     )
     
     
+zhoubian = ZhouBian()
 
 @tool
 class HealthReport:
@@ -39,6 +45,9 @@ class HealthReport:
     enhance_llm: Optional[EnhanceRetrieval] = None
     sql_data: Optional[Dict[str, List[Dict[str, Any]]]] = None
     time_extract: Optional[TimeExtract] = None
+    time_extract: Optional[TimeExtract] = None
+    health_advice: Optional[HealthAdvice] = None
+    
     def __init__(self, **kwargs):
         
         super().__init__(**kwargs)
@@ -51,6 +60,8 @@ class HealthReport:
             self.sql_data = kwargs.get('sql_data')
         if 'time_extract' in kwargs:
             self.time_extract = kwargs.get('time_extract')
+        if 'health_advice' in kwargs:
+            self.health_advice = kwargs.get('health_advice')
             
         # 验证 enhance_llm 是否设置
         if self.enhance_llm is None:
@@ -78,7 +89,7 @@ class HealthReport:
                 self.logger.error(f"SQL数据初始化失败: {str(e)}")
                 self.sql_data = {}
                 
-                    
+        self.health_advice = HealthAdvice(enhance_llm=self.enhance_llm) if self.health_advice is None else self.health_advice    
     
     def filter_sleep_data_by_date_range(self, data, time_range: Dict):
         if not time_range:
@@ -123,12 +134,7 @@ class HealthReport:
         prompt = ""
         try:
             prompt = self.system_prompt.replace("current_time", date_string)
-            prompt = prompt.replace("elder_info", str(sql_data_[self.device_sn][1]))
-            prompt = prompt.replace("location_environment_factors", "山西省，运城市，盐湖区，黄河金三角(运城)创新生态集聚区科创城，附近没有大型施工情况")
-            prompt = prompt.replace("nearby_parks_activity_centers", "运城尧梦湖公园、运城职业技术大学")
-            prompt = prompt.replace("nearby_markets", "吾悦广场地下超市")
-            prompt = prompt.replace("seasonal_foods", "春玉米、香椿、荠菜、苦菜、蒲公英等")
-            prompt = prompt.replace("nearby_hospitals", "山西天慈医院、运城崇济医院、运城市第一医院等")
+            prompt = self.system_prompt.replace("latest_data_date", date_string)
         except Exception as e:
             raise ValueError(f"fail to init prompt {str(e)}") from e
         result = await self.time_extract.execute(question=health_report_question)
@@ -140,6 +146,7 @@ class HealthReport:
         self.logger.info(f"成功获取 sql_data: {sql_data_}")
         
         self.logger.info(f"time_range -------------------------------- : {time_range}")
+        self.logger.info(f"prompt -------------------------------- : {prompt}")
         full_response = ""
         async for chunk in self.enhance_llm.execute(
             text_list=[], 
@@ -152,4 +159,12 @@ class HealthReport:
             stream_flag=1
         ):
             full_response += chunk
-        return full_response
+            
+            
+        final_result = await self.health_advice.execute(
+            health_report=full_response, 
+            device_sn=self.device_sn, 
+            elder_info=str(sql_data_[self.device_sn][1])
+        )
+        final = full_response + "\n" + final_result
+        return final

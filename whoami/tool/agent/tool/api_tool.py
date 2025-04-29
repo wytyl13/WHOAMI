@@ -42,7 +42,7 @@ class ApiTool:
     
     
     @abstractmethod
-    async def request_url(self, url, ak, query) -> str:
+    async def request_url(self, **kwargs) -> str:
         """
         Request_url function need to implement in inherited class.  
         """
@@ -50,11 +50,8 @@ class ApiTool:
     
     async def execute(
         self, 
-        query_key: Optional[str] = None, 
+        **kwargs,
     ) -> str:
-        
-        if query_key is None or query_key == "":
-            raise ValueError("query must not be null!")
         
         if self.ak is None:
             raise ValueError("ak must not be null!")
@@ -62,6 +59,8 @@ class ApiTool:
         if self.url is None:
             raise ValueError("url must not be null!")
         
-        return await self.request_url(self.url, self.ak, query_key)
+        kwargs["url"] = self.url
+        kwargs["ak"] = self.ak
+        return await self.request_url(**kwargs)
         
         
