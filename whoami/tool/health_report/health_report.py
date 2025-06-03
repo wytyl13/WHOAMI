@@ -142,8 +142,8 @@ class HealthReport(BaseProvider):
                 end = current_date_str + ' 07:00:00'
                 self.logger.info(start)
                 self.logger.info(end)
-                sql_query = f"SELECT in_out_bed, signal_intensity, breath_line, heart_line, breath_bpm, heart_bpm, state, body_move_data, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
-                # sql_query = f"SELECT in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
+                sql_query = f"SELECT in_out_bed, signal_intensity, breath_line, heart_line, breath_bpm, heart_bpm, state, body_move_data, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log_20250602 WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
+                # sql_query = f"SELECT in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log_20250518 WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
                 self.data_provider = SxDataProvider(sql_config_path=self.sql_config_path, sql_config=self.sql_config, sql_provider=self.sql_provider, sql_query=sql_query, model=self.model)
             else:
                 self.data_provider = SxDataProvider(sql_config_path=self.sql_config_path, sql_config=self.sql_config, sql_provider=self.sql_provider, model=self.model)

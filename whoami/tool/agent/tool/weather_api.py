@@ -111,7 +111,7 @@ class WeatherApi(ApiTool):
         district_id = self.get_district_id_query(query_key)
         request_url = f"{url}?district_id={district_id}&data_type=all&ak={ak}"
         try:
-            response = requests.get(request_url)
+            response = requests.get(request_url, proxies=None)
             # 检查请求是否成功
             response.raise_for_status()
             # 返回响应的文本内容

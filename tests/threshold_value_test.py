@@ -24,6 +24,7 @@ from whoami.tool.health_report.sx_device_wavve_vital_sign_realtime import SxDevi
 from whoami.tool.health_report.standard_breath_heart import StandardBreathHeart
 from whoami.tool.health_report.sx_device_wavve_vital_sign_config_info import DeviceWavveVitalSignConfigInfo
 
+
 @pytest.mark.parametrize(
     "sql_config_path, sql_config, sql_provider, model, device_sn",
     [
@@ -43,7 +44,7 @@ def test_threshold(
     model,
     device_sn
 ):
-    query_date = "2025-4-29"
+    query_date = "2025-6-2"
     
     realtime_sql_provider = SqlProvider(sql_config_path=sql_config_path, sql_config=sql_config, model=SxDeviceWavveVitalSignLogRealTime)
     device_sn_ = realtime_sql_provider.get_record_by_condition({}, fields=["device_sn"])
@@ -64,6 +65,7 @@ def test_threshold(
         "device_sn": device_sn_list,
         "query_date": query_date
     }
+    
     def background_request(json_data):
         try:
             response_ = requests.post("http://localhost:8000/sleep_indices", json=json_data)
@@ -76,7 +78,6 @@ def test_threshold(
     
     """
     从info表查询到当天的呼吸率心率阈值数据并进行计算分析，然后存储到对应的阈值配置表
-    
     """
     # 获取阈值信息
     sign_config_info_sql_provider = SqlProvider(sql_config_path=sql_config_path, sql_config=sql_config, model=DeviceWavveVitalSignConfigInfo)

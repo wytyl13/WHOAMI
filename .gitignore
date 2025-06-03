@@ -31,3 +31,4 @@ tests/key.pem
 **/*.wav
 **/*.crt
 **/*.key
+**/*.csv

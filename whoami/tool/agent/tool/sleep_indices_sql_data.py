@@ -19,6 +19,7 @@ class SleepIndicesSqlData:
     sql_provider: Optional[SqlProvider] = None
     sql_config_path: Optional[str] = None
     sql_result: Optional[Dict[str, List[Dict[str, Any]]]] = None
+    field_description: Optional[Dict[str, str]] = None
     # "/work/ai/WHOAMI/whoami/scripts/health_report/sql_config.yaml"
     def __init__(self, **kwargs):
         print(f"self.sql_result: {self.sql_result}")
@@ -48,7 +49,6 @@ class SleepIndicesSqlData:
             result = self.sql_provider.get_record_by_condition(
                 condition={},
                 exclude_fields=[
-                    'health_advice',
                     'sleep_stage_image_x_y',
                     'body_move_image_x_y',
                     'breath_exception_image_sixty_x_y',
@@ -70,7 +70,7 @@ class SleepIndicesSqlData:
                     'update_time',
                     'deleted',
                     'tenant_id',
-                    'id'
+                    'id',
                 ],
                 date_range={"date_field": "query_date", "start_date": start_date, "end_date": end_date}
             )
@@ -83,6 +83,9 @@ class SleepIndicesSqlData:
             # 按设备分组
             self.sql_result = self.group_by_device_sn(result_list)
             self.sql_result = self.process_sql_data(self.sql_result)
+            
+            # 获取字段信息
+            self.field_description = self.sql_provider.get_field_names_and_descriptions()
             self.logger.info(f"数据分组完成，共有 {len(self.sql_result)} 个设备")
         except Exception as e:
             self.logger.error(f"获取SQL数据失败: {str(e)}")
@@ -93,7 +96,12 @@ class SleepIndicesSqlData:
     @property
     def sql_data(self):
         return self.sql_result
-        
+    
+    @property
+    def sql_data(self):
+        return self.sql_result
+    
+    
         
     def group_by_device_sn(self, data_list):
         result = {}
@@ -184,7 +192,7 @@ class SleepIndicesSqlData:
         """执行查询并返回数据
         return: {'device_sn': (health_report_data: list, elder_info)}
         """
-        return {key: self.sql_result[key] for key in device_sn if key in self.sql_result}
+        return {key: self.sql_result[key] for key in device_sn if key in self.sql_result}, self.sql_provider.get_field_names_and_descriptions()
     
 
 if __name__ == '__main__':

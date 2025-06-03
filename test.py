@@ -18,7 +18,53 @@
 
 
 if __name__ == "__main__":
-    
+    #!/usr/bin/env python3
+    # -*- coding: utf-8 -*-
+    import pandas as pd
+    import pymysql
+    import sys
+    from datetime import datetime
+
+    def export_to_excel():
+        # 数据库连接配置
+        config = {
+            'host': '192.168.0.10',
+            'port': 3366,
+            'user': 'root',
+            'password': '2xryuf@I73T',
+            'database': 'shunxikeji',
+            'charset': 'utf8mb4'
+        }
+        
+        try:
+            print("正在连接数据库...")
+            connection = pymysql.connect(**config)
+            
+            print("正在查询数据...")
+            query = "SELECT * FROM sx_institution_elderly_bed"
+            df = pd.read_sql(query, connection)
+            connection.close()
+            
+            print(f"查询到 {len(df)} 条记录")
+            
+            # 导出为XLSX
+            today = datetime.now().strftime('%Y%m%d')
+            filename = f'/work/ai/WHOAMI/elderly_bed_{today}.xlsx'
+            
+            print("正在导出Excel文件...")
+            df.to_excel(filename, index=False, engine='openpyxl')
+            
+            print(f'✅ 数据已成功导出到: {filename}')
+            
+            # 显示前几行数据预览
+            print("\n数据预览:")
+            print(df.head())
+            
+        except Exception as e:
+            print(f'❌ 导出失败: {e}')
+            sys.exit(1)
+
+        export_to_excel()
     # https://api.map.baidu.com/weather/v1/?district_id=222405&data_type=all&ak=lEnj3LGZkkyUYhdkIF0yYcfw603jq284
     
     

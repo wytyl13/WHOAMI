@@ -33,7 +33,7 @@ class SxDataProvider(DataProvider):
         sql_config: Optional[SqlConfig] = None, 
         data: Optional[np.ndarray] = None,
         sql_provider: Optional[SqlProvider] = None,
-        sql_query: Optional[str] = "SELECT in_out_bed, signal_intensity, breath_line, heart_line, breath_bpm, heart_bpm, state, body_move_data, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log WHERE device_sn='13D7F349200080712111150807' AND create_time >= '2024-11-13 20:00:00' AND create_time < '2024-11-14 09:00:00'",
+        sql_query: Optional[str] = "SELECT in_out_bed, signal_intensity, breath_line, heart_line, breath_bpm, heart_bpm, state, body_move_data, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log_20250430 WHERE device_sn='13331C9D100040711117950407' AND create_time >= '2025-4-29 19:00:00' AND create_time < '2025-4-30 07:00:00'",
         # sql_query: Optional[str] = "SELECT in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log_bxx_0103 WHERE device_sn='13D7F349200080712111150807' AND create_time >= '2024-11-13 20:00:00' AND create_time < '2024-11-14 09:00:00'",
         model: Type[ModelType] = None
     ) -> None:
@@ -47,7 +47,6 @@ class SxDataProvider(DataProvider):
         )
         
         
-    
     def process_zeros_numpy(self, arr, threshold=30):
         """
         处理NumPy数组中的连续零元素：
@@ -94,7 +93,6 @@ class SxDataProvider(DataProvider):
         return result
     
     
-        
     def get_data(self, query: Optional[str] = None):
         data = self.sql_provider.exec_sql(self.sql_query)
         if data.size != 0:
@@ -130,7 +128,7 @@ class SxDataProvider(DataProvider):
                 condition2 = (signal_intensity == 0) & (in_out_bed != 1) # 离床
                 result[condition1] = 1   # 满足条件1的标记为1
                 result[condition2] = 0
-                result = self.process_zeros_numpy(result, 30)
+                result = self.process_zeros_numpy(result, 120)
                 if np.any(result == -1):
                     raise ValueError('condition1 and condition2 not fill all data!')
                 original_data[:, 0] = result
@@ -140,10 +138,6 @@ class SxDataProvider(DataProvider):
             # 最后切记在转换为tensor之前一定要转换为numpy.float64或者其他数字格式，否则np.object格式是无法转换为tensor格式的
             return original_data.astype(np.float64)
         return data
-    
-    
-    
-    
     
     
     def get_item(self, index):
@@ -170,4 +164,19 @@ class SxDataProvider(DataProvider):
         }
         """
 
+
+
+if __name__ == '__main__':
+    from torch.utils.data import DataLoader
+    
+    data_provider = SxDataProvider(
+        sql_config_path="/work/ai/WHOAMI/whoami/scripts/health_report/sql_config.yaml", 
+        model=BaseModel
+    )
+    # in_out_bed, signal_intensity, breath_line, heart_line, breath_bpm, heart_bpm, state, body_move_data, time
+    dataloader = DataLoader(data_provider, batch_size=100000, shuffle=False)
+    for batch in dataloader:
+        float_array = batch.numpy()
+        # float_array = float_array[float_array[:, 1] != 0]
+        print(np.sum(float_array[:, 0]))
     

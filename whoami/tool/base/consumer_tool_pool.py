@@ -27,9 +27,9 @@ from abc import ABC, abstractmethod
 from queue import Queue, Empty
 
 from whoami.tool.base.base_tool import BaseTool
-from whoami.tool.detect.ultralitics_detector import UltraliticsDetector
-from whoami.tool.base.model_info import ModelInfo
-from whoami.tool.detect.detector import Detector
+# from whoami.tool.base.model_info import ModelInfo
+# from whoami.tool.detect.detector import Detector
+
 
 class ConsumerToolPool(BaseTool):
 
@@ -40,7 +40,8 @@ class ConsumerToolPool(BaseTool):
     regular_instances: int = 0
     topic_instances: Dict = {}
     
-    def __init__(self, model_paths: Dict[str, ModelInfo], total_pool_size=30, default_ratio=0.88):
+    
+    def __init__(self, model_paths: Dict[str, Any], total_pool_size=30, default_ratio=0.88):
         super().__init__()
         """
         初始化检测器对象池
@@ -128,7 +129,8 @@ class ConsumerToolPool(BaseTool):
             self.logger.error(error_info)
             raise ValueError(error_info) from e
         return default_topic
-        
+    
+    
     def get_consumer_tool(self, topic_model_key):
         """
         获取指定主题的检测器实例
@@ -156,7 +158,8 @@ class ConsumerToolPool(BaseTool):
                 return None
         
         # 从池中获取实例
-        detector: Detector = self.pools[topic_model_key].get()
+        # detector: Detector = self.pools[topic_model_key].get()
+        detector: Any = self.pools[topic_model_key].get()
         
         # 记录获取实例后的线程池状态
         self._log_pool_status()
@@ -190,9 +193,10 @@ class ConsumerToolPool(BaseTool):
         
         # 记录释放实例后的线程池状态
         self._log_pool_status()
+    
+    
     def _run(self, *args, **kwargs):
         pass
-    
     
     
     def _log_pool_status(self):

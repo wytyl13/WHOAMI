@@ -38,6 +38,7 @@ class InfoExtract(JsonProcessor):
         namespace_message_history = [{"role": "user", "content": message}]
         try:
             # 调用LLM生成回答
+            self.logger.info(namespace_message_history)
             response = await self.llm._whoami_text(namespace_message_history, timeout=30, user_stop_words=[])
             # 使用基类的JSON解析方法处理回答
             result = self.parse_json_response(response, self.default_extract_result)

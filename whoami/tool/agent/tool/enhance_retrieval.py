@@ -64,11 +64,11 @@ class EnhanceRetrieval:
         if question is None or question == "":
             raise ValueError("Question must not be null!")
         prompt = prompt if prompt is not None else self.system_prompt
-        
         if retrieval_flag:
             nodes = await self.retrieval.execute(
                 text_list=text_list, 
-                top_k=top_k, 
+                # top_k=top_k, 
+                top_k=1, 
                 retrieval_word=question, 
                 static_flag=static_flag
             )
@@ -93,7 +93,7 @@ class EnhanceRetrieval:
                 question=question
             )
         else:
-            message = prompt + f"\n\n上下文信息：\n{text_list}" + f"\n\n当前系统时间：\n{current_time}" + f"\n\n数据库检索内容/检索结果：\n{database_enhance_prompt}" + f"\n\n历史会话消息：\n{message_history}" + f"\n\n用户当前问题：\n{question}"
+            message = prompt + f"位置：山西省运城市盐湖区复旦西街2155号 运城护理职业学院。\n\n上下文信息：\n{text_list}" + f"\n\n当前系统时间：\n{current_time}" + f"\n\n数据库检索内容/检索结果：\n{database_enhance_prompt}" + f"\n\n历史会话消息：\n{message_history}" + f"\n\n用户当前问题：\n{question}"
 
         namespace_message_history = [{"role": "user", "content": message}]
         if stream_flag == 1:
@@ -122,6 +122,7 @@ class EnhanceRetrieval:
                 self.logger.error(f"非流式处理时出错: {str(e)}")
                 yield f"Error: {str(e)}"
                 return
+
 
 if __name__ == '__main__':
     text_list = [

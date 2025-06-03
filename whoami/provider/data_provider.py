@@ -37,6 +37,8 @@ class DataProvider(BaseProvider, Dataset):
     sql_provider: Optional[SqlProvider] = None
     sql_query: Optional[str] = None
     model: Type[ModelType] = None
+    
+    
     def __init__(
         self, 
         sql_config_path: Optional[str] = None, 
@@ -48,6 +50,7 @@ class DataProvider(BaseProvider, Dataset):
     ) -> None:
         super().__init__()
         self._init_param(sql_config_path, sql_config, data, sql_provider, sql_query, model)
+    
     
     def _init_param(
         self, 
@@ -77,20 +80,25 @@ class DataProvider(BaseProvider, Dataset):
             raise ValueError("the data and sql query must not be none!")
         self.data = self.get_data() if self.data is None else self.data
 
+
     def __len__(self):
         return len(self.data)
     
+    
     def __getitem__(self, index):
         return self.get_item(index)
+    
     
     @abstractmethod
     def get_data(self):
         """get data function implemented by inherited class."""
         
+        
     def set_sql_query(self, sql_query):
         """get data function implemented by inherited class."""
         self.sql_query = sql_query
         self.data = self.get_data()
+
 
     def get_item(self, index):
         """you should overwrite this method if you want to change it."""

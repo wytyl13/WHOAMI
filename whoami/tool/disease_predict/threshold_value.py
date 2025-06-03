@@ -26,6 +26,8 @@ class ThresholdValue(BaseProvider):
     sql_provider: Optional[SqlProvider] = None
     model: Type[ModelType] = None
     device_sn: Optional[str] = None
+    
+    
     def __init__(
         self, 
         sql_config_path: Optional[str] = None, 
@@ -36,6 +38,7 @@ class ThresholdValue(BaseProvider):
     ) -> None:
         super().__init__()
         self._init_param(sql_config_path=sql_config_path, sql_config=sql_config, sql_provider=sql_provider, model=model, device_sn=device_sn)  
+    
     
     def _init_param(self, sql_config_path, sql_config, sql_provider, model, device_sn):
         self.sql_config_path = sql_config_path
@@ -51,6 +54,7 @@ class ThresholdValue(BaseProvider):
         
         if self.sql_provider is None:
             self.sql_provider = SqlProvider(sql_config_path=self.sql_config_path, sql_config=self.sql_config, model=self.model)
+    
     
     def calculate_thresholds(self, data, method='percentile', 
                         window_days=7,

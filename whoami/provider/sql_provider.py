@@ -61,17 +61,19 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
         super().__init__()
         self._init_param(sql_config_path, sql_config, model)
     
+    
     def _init_param(self, sql_config_path: Optional[str] = None, sql_config: Optional[SqlConfig] = None, model : Type[ModelType] = None):
         self.sql_config_path = sql_config_path
         self.sql_config = sql_config
         self.sql_config = SqlConfig.from_file(self.sql_config_path) if self.sql_config is None and self.sql_config_path is not None else self.sql_config
         # if self.sql_config is None and self.data is None:
         #     raise ValueError("config config_path and data must not be null!")
-        self.sql_connection = self.get_sql_connection() if self.sql_config is not None else self.sql_connection
+        self.sql_connection = self.get_sql_connection() if self.sql_connection is None else self.sql_connection
         self.model = model
         if self.model is None:
             raise ValueError("model must not be null!")
-        
+
+    
     def get_sql_connection(self):
         try:
             sql_info = self.sql_config
@@ -94,11 +96,13 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
             raise ValueError("fail to create the sql connector engine!") from e
         return SessionLocal
     
+    
     def set_model(self, model: Type[ModelType] = None):
         """reset model"""
         if model is None:
             raise ValueError('model must not be null!')
         self.model = model
+    
     
     @contextmanager
     def get_db_session(self):
@@ -116,6 +120,7 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
         finally:
             session.close()
     
+    
     def add_record(self, data: Dict[str, Any]) -> int:
         """添加记录"""
         with self.get_db_session() as session:
@@ -131,6 +136,7 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 self.logger.error(traceback.print_exc())
                 raise ValueError(error_info) from e
     
+    
     def delete_record(self, record_id: int) -> bool:
         """软删除记录"""
         with self.get_db_session() as session:
@@ -144,6 +150,7 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 error_info = f"Failed to delete record: {record_id}"
                 self.logger.error(error_info)
                 raise ValueError(error_info) from e
+    
     
     def update_record(self, record_id: int, data: Dict[str, Any]) -> bool:
         """更新记录"""
@@ -274,7 +281,6 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 self.logger.error(f"{error_info}. Error: {str(e)}")
                 raise ValueError(error_info) from e
     
-    
 
     def get_record_by_id(self, record_id: int) -> Optional[Dict[str, Any]]:
         """根据ID查询记录"""
@@ -289,6 +295,7 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 error_info = f"Failed to get record by id: {record_id}"
                 self.logger.error(error_info)
                 raise ValueError(error_info) from e
+    
     
     def get_record_by_condition(
         self, 
@@ -687,8 +694,6 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
         return result
     
     
-    
-    
     def _get_device_based_name(
         self, 
         person_name: str,
@@ -990,6 +995,7 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
             field_info[column.name] = column.comment  if column.comment else "无描述"
         return field_info
     
+    
     def update_rank_by_id(self, record_id: int, new_rank: int) -> Optional[Dict[str, Any]]:
         with self.get_db_session() as session:
             try:
@@ -1015,6 +1021,7 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 self.logger.error(error_info)
                 raise ValueError(error_info) from e
     
+    
     def update_health_advice_by_id(self, record_id: int, new_health_advice) -> Optional[Dict[str, Any]]:
         with self.get_db_session() as session:
             try:
@@ -1039,7 +1046,8 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 error_info = f"Failed to update health advice for record ID {record_id}: {str(e)}"
                 self.logger.error(error_info)
                 raise ValueError(error_info) from e
-        
+    
+    
     def delete_records_by_condition(self, condition: Dict[str, Any]) -> int:
         """
         按照指定条件硬删除多条记录（永久从数据库中删除）
@@ -1079,7 +1087,6 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 self.logger.error(error_info)
                 self.logger.error(traceback.format_exc())
                 raise ValueError(error_info) from e
-    
     
     
     def exec_sql(self, query: Optional[str] = None):

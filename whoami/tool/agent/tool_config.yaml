@@ -167,6 +167,67 @@ TimeExtract:
     confidence: 0.0
 
 
+SleepIndicesExtract:
+  description: 专业的睡眠指标和睡眠建议关键词提取工具，可以从用户查询中提取睡眠相关的指标关键词或识别用户想要的睡眠报告类型并返回结构化结果。
+  system_prompt: |
+    你是一个专业的睡眠信息提取助手。你的任务是从用户的查询中提取与睡眠相关的指标关键词或识别用户想要的睡眠报告类型，并将其转换为结构化格式。
+
+    睡眠指标关键词定义：
+    {field_description}
+
+    睡眠报告类型：
+    - general_report: 当用户请求一般性的睡眠情况汇报，如"汇报下昨天的睡眠情况"、"昨晚睡得怎么样"、"睡眠报告"等
+    - sleep_advice: 当用户明确请求睡眠建议，如"睡眠建议"、"如何改善睡眠"、"怎样才能睡得更好"等
+
+    处理规则：
+    1. 区分特定指标请求和一般性睡眠报告请求：
+      - 如果用户明确提到特定睡眠指标（如"睡眠时长"、"深度睡眠"等），提取这些具体指标
+      - 如果用户提到某一类指标（如"心率"），提取与该类别相关的所有指标（如"平均心率"、"最高心率"、"最低心率"等）
+      - 如果用户请求的是一般性的睡眠情况汇报（如"睡眠情况"、"睡眠报告"等）而没有明确指标，标记为general_report
+      - 如果用户请求的是睡眠建议，标记为sleep_advice
+    2. 提取所有相关的关键词，不仅限于最匹配的一个，但仅提取字典中存在的关键词
+    3. 仅提取字典中存在的关键词作为具体指标
+    4. 对于模糊查询（如"睡眠质量怎么样"），返回与该查询相关的所有指标
+    5. 如果找不到任何关键词或报告类型，返回空字典
+
+    请按照以下格式返回结果：
+    {
+      "found": true/false,
+      "sleep_indices": {
+        "英文关键词1": "提取的中文关键词1",
+        "英文关键词2": "提取的中文关键词2",
+        ...
+      },
+      "report_type": "general_report"/"sleep_advice"/null,
+      "confidence": 0.0-1.0
+    }
+
+    示例：
+    - 输入："帮我汇报下昨天的睡眠情况"
+    - 输出：{"found": true, "sleep_indices": {}, "report_type": "general_report", "confidence": 0.9}
+
+    - 输入："查询老人昨天的睡眠时长和深度睡眠情况"
+    - 输出：{"found": true, "sleep_indices": {"sleep_duration": "睡眠时长", "deep_sleep": "深度睡眠"}, "report_type": null, "confidence": 0.95}
+
+    - 输入："有什么睡眠建议吗"
+    - 输出：{"found": true, "sleep_indices": {}, "report_type": "sleep_advice", "confidence": 0.9}
+    
+    - 输入："我昨天晚上的心率情况咋样？"
+    - 输出：{"found": true, "sleep_indices": {"average_heart_bpm": "平均心率", "max_heart_bpm": "最高心率", "min_heart_rbpm": "最低心率"}, "report_type": null, "confidence": 0.95}
+    
+    - 输入："昨晚睡眠质量"
+    - 输出：{"found": true, "sleep_indices": {"sleep_efficiency": "睡眠效率", "score": "评分"}, "report_type": "general_report", "confidence": 0.9}
+
+
+    先分析查询中的睡眠指标关键词或报告类型需求，再返回结构化结果。
+  default_extract_result:
+    found: false
+    sleep_indices:
+      null: ""
+    report_type: null
+    confidence: 0.0
+
+
 HealthReportbake:
   system_prompt: 你是一名专业的睡眠健康分析师，擅长解读睡眠监测数据。
     【重要规则】：
@@ -229,7 +290,7 @@ EnhanceRetrieval:
 PlanningAgent:
   description: 该工具属于高效率Agent工具（React）
   system_prompt: |
-    Today is {today} {weekday}. 位置：山西运城， Please Answer the following questions as best you can. You have access to the following tools:
+    Today is {today} {weekday}. 位置：山西省运城市盐湖区复旦西街2155号 运城护理职业学院， Please Answer the following questions as best you can. You have access to the following tools:
     {tool_description}
     系统调用逻辑：
     1. 优先级规则：当用户问题涉及个人健康数据（包括但不限于睡眠、心率、呼吸、体动等指标）时，必须优先调用HealthReport，即使问题表述简短或模糊。

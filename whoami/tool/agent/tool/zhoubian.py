@@ -100,7 +100,7 @@ class ZhouBian(ApiTool):
             "ak": ak,
         }
         try:
-            response = requests.get(url=url, params=params)
+            response = requests.get(url=url, params=params, proxies=None)
             # 解析经纬度
             result = response.json()
             if result.get('status') != 0 or 'result' not in result:
@@ -121,7 +121,7 @@ class ZhouBian(ApiTool):
             }
             print(f"周边搜索参数: {params_}")
             search_url = 'https://api.map.baidu.com/place/v2/search'
-            response = requests.get(url=search_url, params=params_)
+            response = requests.get(url=search_url, params=params_, proxies=None)
             response.raise_for_status()
             if response:
                 return self.parse_result(response.json())

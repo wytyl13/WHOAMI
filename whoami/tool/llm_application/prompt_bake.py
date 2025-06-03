@@ -29,7 +29,26 @@ prompt_health_report = """
 - 针对异常指标给出专业建议
 - 鼓励用户持续关注身体健康
 
-用户问题：{query}
+用户问题：{我是谁}
 
 请根据上述指南，全面且专业地回答用户的具体问题。
 """
+
+
+if __name__ == '__main__':
+    from whoami.llm_api.ollama_llm import OllamaLLM
+    from whoami.configs.llm_config import LLMConfig
+    from pathlib import Path
+    import asyncio
+    
+    llm_qwen = OllamaLLM(config=LLMConfig.from_file(Path('/work/ai/WHOAMI/whoami/scripts/test/ollama_config_qwen.yaml')))
+    
+    async def main():
+        content_ = "我是谁"
+        # content_ = "我是谁，我来自哪里，我要到哪里去"
+        content = await llm_qwen._whoami_text(messages=[{"role": "user", "content": content_}], timeout=10, user_stop_words=[])
+        print("问题", content_)
+        print("答案", content)
+        
+    asyncio.run(main())
+    

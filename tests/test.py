@@ -198,7 +198,6 @@ messages = [
 
 async def main():
     content = await llm._whoami_text(messages=messages, timeout=30, user_stop_words=[])
-
     print(content)
 
 if __name__ == '__main__':

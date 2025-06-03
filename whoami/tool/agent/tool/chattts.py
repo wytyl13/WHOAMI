@@ -12,6 +12,7 @@ from typing import (
 )
 import ChatTTS
 import asyncio
+import numpy as np
 
 from whoami.tool.agent.base_tool import tool
 from whoami.tool.agent.tool import TTS
@@ -82,16 +83,26 @@ class ChatTTSImpl(TTS):
         text=None
     ) -> str:
         try:
+            if not text or text.strip() == "":
+                self.logger.warning("输入文本为空!")
+                # 返回一个小的空音频数组(采样率24000，持续0.1秒的静音)
+                return np.zeros(2400, dtype=np.float32)
             results = self.chat.infer(
                 text,
                 params_refine_text=self.chat_params.params_refine_text,
                 params_infer_code=self.chat_params.params_infer_code,
             )
+            self.logger.info(text)
+            self.logger.info(results)
+            if not results:
+                self.logger.warning("ChatTTS返回了空结果!")
+                return np.zeros(2400, dtype=np.float32)
+            
+            return results[0]
         except Exception as e:
             raise ValueError(f"Fail to execute the chattts! {str(e)}") from e
-        return results[0]
-    
-    
+
+
 if __name__ == '__main__':
     chattts_impl = ChatTTSImpl()
     

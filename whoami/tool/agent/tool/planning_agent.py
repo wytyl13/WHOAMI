@@ -62,7 +62,7 @@ class PlanningAgent:
         
         if self.tools:
             self._init_descs_names()
-           
+
 
     def _init_descs_names(self):
         """初始化工具描述信息
@@ -106,7 +106,7 @@ class PlanningAgent:
             # retrieval anytime
             context = "无可用上下文信息"
             if retrieval_flag:
-                nodes = await self.enhance_llm.retrieval.execute(text_list=[], top_k=2, retrieval_word=query)
+                nodes = await self.enhance_llm.retrieval.execute(text_list=[], top_k=1, retrieval_word=query)
                 context_texts = [node.node.text.replace('\n', '') for node in nodes]
                 if context_texts:
                     context = "\n\n".join(context_texts)

@@ -643,7 +643,7 @@ if __name__ == '__main__':
     ]
     retrieval = Retrieval()
     async def main():
-        nodes = await retrieval.execute(text_list=text_list, retrieval_word='如何查看单日睡眠报告?', top_k=5)
+        nodes = await retrieval.execute(text_list=text_list, retrieval_word='母乳的成分变化', top_k=5)
         print(nodes)
     asyncio.run(main())
     

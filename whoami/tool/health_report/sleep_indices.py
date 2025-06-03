@@ -79,5 +79,5 @@ class SleepIndices(Base):
     leave_bed_time=Column(DateTime, comment='离床时间')
     device_sn=Column(String(255), comment='设备编号')
     score_rank=Column(Float, comment='超越人数百分比')
-    health_advice=Column(Text, comment='超越人数百分比')
+    health_advice=Column(Text, comment='睡眠建议')
     
