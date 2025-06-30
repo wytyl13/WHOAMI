@@ -69,9 +69,9 @@ class ProducerConsumerManager(BaseTool):
 
         # set the consumer thread status and start to consume the product use consumer function.
         self.consumer_worker_running = True
-        self.consumer_worker_thread = threading.Thread(target=self._start_consumer_worker)
-        self.consumer_worker_thread.daemon = True
-        self.consumer_worker_thread.start()
+        # self.consumer_worker_thread = threading.Thread(target=self._start_consumer_worker)
+        # self.consumer_worker_thread.daemon = True
+        # self.consumer_worker_thread.start()
 
         self._is_running = True
 

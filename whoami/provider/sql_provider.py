@@ -31,6 +31,7 @@ import traceback
 import urllib.parse
 from sqlalchemy import and_
 from datetime import datetime, date
+from sqlalchemy.exc import IntegrityError
 
 
 from whoami.provider.base_provider import BaseProvider
@@ -135,6 +136,60 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 self.logger.error(error_info)
                 self.logger.error(traceback.print_exc())
                 raise ValueError(error_info) from e
+    
+    
+    def bulk_insert_with_update(self, data_list: List[Dict[str, Any]]) -> int:
+        """批量插入，遇到重复数据时覆盖旧数据"""
+        if not data_list:
+            return 0
+        
+        try:
+            from sqlalchemy import text
+            
+            # 获取表名
+            table_name = self.model.__tablename__
+            
+            # 构建字段列表（排除自增主键id）
+            sample_data = data_list[0]
+            columns = [col for col in sample_data.keys() if col != 'id']
+            columns_str = ', '.join(columns)
+            
+            # 构建VALUES占位符
+            values_placeholder = ', '.join([f':{col}' for col in columns])
+            
+            # 构建UPDATE部分（覆盖所有字段）
+            update_assignments = []
+            for col in columns:
+                update_assignments.append(f'{col} = VALUES({col})')
+            update_str = ', '.join(update_assignments)
+            
+            # 构建完整SQL
+            sql = f"""
+            INSERT INTO {table_name} ({columns_str})
+            VALUES ({values_placeholder})
+            ON DUPLICATE KEY UPDATE {update_str}
+            """
+            
+            success_count = 0
+            with self.get_db_session() as session:
+                for data in data_list:
+                    try:
+                        # 移除id字段（如果存在）
+                        clean_data = {k: v for k, v in data.items() if k != 'id'}
+                        session.execute(text(sql), clean_data)
+                        success_count += 1
+                    except Exception as e:
+                        self.logger.error(f"插入失败: {e}")
+                        continue
+                
+                session.commit()
+            
+            self.logger.info(f"批量插入/更新完成: {success_count}/{len(data_list)} 条成功")
+            return success_count
+            
+        except Exception as e:
+            self.logger.error(f"批量插入/更新失败: {e}")
+            return 0
     
     
     def delete_record(self, record_id: int) -> bool:
@@ -297,7 +352,7 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 raise ValueError(error_info) from e
     
     
-    def get_record_by_condition(
+    def get_record_by_condition_bake(
         self, 
         condition: Optional[Dict[str, Any]],
         fields: Optional[List[str]] = None,
@@ -376,6 +431,179 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 error_info = f"Failed to get records by condition: {condition}"
                 self.logger.error(error_info)
                 raise ValueError(error_info) from e
+    
+    
+    def get_record_by_condition(
+        self, 
+        condition: Optional[Dict[str, Any]] = None,
+        fields: Optional[List[str]] = None,
+        exclude_fields: Optional[List[str]] = None,
+        date_range: Optional[Dict[str, str]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        增强版条件查询函数 - 支持精确到秒的时间查询
+        
+        Args:
+            condition: 查询条件字典 {'device_id': 'DEV001', 'state': '呼吸暂停'}
+            fields: 指定返回字段列表 ['timestamp', 'state', 'heart_bpm']
+            exclude_fields: 排除字段列表 ['id', 'create_time']
+            date_range: 日期范围查询
+                {
+                    'date_field': 'timestamp',  # 日期字段名
+                    'start_date': '2025-06-27 15:30:45',  # 开始时间
+                    'end_date': '2025-06-27 16:30:45'     # 结束时间
+                }
+        
+        支持的时间格式：
+            - '2025-06-27 15:30:45' (精确到秒)
+            - '2025-06-27 15:30' (精确到分钟)
+            - '2025-06-27' (整天范围)
+            - '1751011266.382772' (时间戳)
+        
+        Returns:
+            List[Dict]: 查询结果列表
+        """
+        with self.get_db_session() as session:
+            try:
+                # 获取模型的所有字段
+                all_fields = [column.key for column in self.model.__table__.columns]
+                
+                if fields:
+                    # 如果指定了字段，只查询指定字段
+                    query_fields = fields
+                else:
+                    query_fields = all_fields
+                
+                # 排除不需要的字段
+                if exclude_fields:
+                    query_fields = [f for f in query_fields if f not in exclude_fields]
+                    
+                # 构建查询条件
+                query = session.query(*[getattr(self.model, field) for field in query_fields])
+                
+                # 添加未删除条件
+                query = query.filter(self.model.deleted == False)
+
+                # 应用基础查询条件
+                if condition:
+                    for key, value in condition.items():
+                        # 支持范围查询
+                        if isinstance(value, dict) and 'min' in value or 'max' in value:
+                            field_attr = getattr(self.model, key)
+                            if 'min' in value:
+                                query = query.filter(field_attr >= value['min'])
+                            if 'max' in value:
+                                query = query.filter(field_attr <= value['max'])
+                        # 支持列表查询 (IN 操作)
+                        elif isinstance(value, (list, tuple)):
+                            query = query.filter(getattr(self.model, key).in_(value))
+                        # 普通等值查询
+                        else:
+                            query = query.filter(getattr(self.model, key) == value)
+
+                # 🔧 增强版日期范围过滤 - 支持精确到秒
+                if date_range:
+                    date_field = date_range.get('date_field')
+                    start_date_str = date_range.get('start_date')
+                    end_date_str = date_range.get('end_date')
+
+                    if not date_field:
+                        raise ValueError("date_field must be specified for date range filtering")
+
+                    try:
+                        if start_date_str:
+                            start_date = self._parse_datetime_unified(start_date_str, is_end_date=False)
+                            query = query.filter(getattr(self.model, date_field) >= start_date)
+                        
+                        if end_date_str:
+                            end_date = self._parse_datetime_unified(end_date_str, is_end_date=True)
+                            query = query.filter(getattr(self.model, date_field) <= end_date)
+                    except ValueError as e:
+                        raise ValueError(f"Invalid date format. {str(e)}")
+
+                # 执行查询
+                records = query.all()
+
+                # 处理查询结果
+                if not records:
+                    return []
+                
+                # 返回查询结果
+                return [dict(zip(query_fields, record)) for record in records]
+                
+            except Exception as e:
+                error_info = f"Failed to get records by condition: {condition}"
+                self.logger.error(error_info)
+                raise ValueError(error_info) from e
+
+
+    def _parse_datetime_unified(self, datetime_str: str, is_end_date: bool = False) -> datetime:
+        """
+        统一的日期时间解析方法，支持多种格式
+        
+        支持的格式：
+        - '2025-06-27' → 2025-06-27 00:00:00 (开始) 或 2025-06-27 23:59:59 (结束)
+        - '2025-06-27 15:30:45' → 2025-06-27 15:30:45
+        - '2025-06-27 15:30' → 2025-06-27 15:30:00
+        - '1751011266.382772' → 时间戳转换
+        - '1751011266' → 整数时间戳转换
+        
+        Args:
+            datetime_str: 时间字符串
+            is_end_date: 是否为结束时间（影响只有日期时的处理）
+            
+        Returns:
+            datetime: 解析后的datetime对象
+        """
+        # 尝试解析时间戳（浮点数）
+        try:
+            timestamp = float(datetime_str)
+            return datetime.fromtimestamp(timestamp)
+        except ValueError:
+            pass
+        
+        # 尝试解析整数时间戳
+        try:
+            timestamp = int(datetime_str)
+            return datetime.fromtimestamp(timestamp)
+        except ValueError:
+            pass
+        
+        # 定义支持的日期格式（按精确度排序）
+        formats = [
+            '%Y-%m-%d %H:%M:%S.%f',  # 2025-06-27 15:30:45.123456
+            '%Y-%m-%d %H:%M:%S',     # 2025-06-27 15:30:45
+            '%Y-%m-%d %H:%M',        # 2025-06-27 15:30
+            '%Y-%m-%d',              # 2025-06-27
+            '%Y/%m/%d %H:%M:%S',     # 2025/06/27 15:30:45
+            '%Y/%m/%d %H:%M',        # 2025/06/27 15:30
+            '%Y/%m/%d',              # 2025/06/27
+        ]
+        
+        for fmt in formats:
+            try:
+                parsed_date = datetime.strptime(datetime_str, fmt)
+                
+                # 如果只有日期，需要特殊处理
+                if fmt in ['%Y-%m-%d', '%Y/%m/%d']:
+                    if is_end_date:
+                        # 结束日期：设置为当天的23:59:59.999999
+                        parsed_date = parsed_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+                    # 开始日期：保持00:00:00（默认）
+                
+                return parsed_date
+                
+            except ValueError:
+                continue
+        
+        # 所有格式都失败
+        raise ValueError(
+            f"Unsupported datetime format: '{datetime_str}'. "
+            f"Supported formats: 'YYYY-MM-DD', 'YYYY-MM-DD HH:MM', 'YYYY-MM-DD HH:MM:SS', "
+            f"'YYYY-MM-DD HH:MM:SS.fff', 'YYYY/MM/DD...', or timestamp"
+        )
+
+    
     
     
     def get_device_info(
@@ -1046,6 +1274,34 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 error_info = f"Failed to update health advice for record ID {record_id}: {str(e)}"
                 self.logger.error(error_info)
                 raise ValueError(error_info) from e
+    
+    
+    def update_deep_health_advice_by_id(self, record_id: int, new_health_advice) -> Optional[Dict[str, Any]]:
+        with self.get_db_session() as session:
+            try:
+                # 查询要更新的记录
+                record = session.query(self.model).filter(self.model.id == record_id, self.model.deleted == False).one_or_none()
+                
+                if record is None:
+                    error_info = f"Record with ID {record_id} not found."
+                    self.logger.error(error_info)
+                    raise ValueError(error_info)
+
+                # 更新 rank 字段
+                record.deep_health_advice = new_health_advice
+                
+                # 提交更改
+                session.commit()
+                
+                # 返回更新后的记录（可选）
+                return {key: value for key, value in record.__dict__.items() if key != '_sa_instance_state'}
+            
+            except Exception as e:
+                error_info = f"Failed to update health advice for record ID {record_id}: {str(e)}"
+                self.logger.error(error_info)
+                raise ValueError(error_info) from e
+    
+    
     
     
     def delete_records_by_condition(self, condition: Dict[str, Any]) -> int:

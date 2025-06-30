@@ -12,7 +12,7 @@ from typing import (
     Dict
 )
 from pydantic import BaseModel, Field
-from whoami.tool.agent.tool import Retrieval
+from whoami.tool.agent.tool.retrieval import Retrieval
 from datetime import datetime
 from pathlib import Path
 import asyncio
@@ -67,8 +67,8 @@ class EnhanceRetrieval:
         if retrieval_flag:
             nodes = await self.retrieval.execute(
                 text_list=text_list, 
-                # top_k=top_k, 
-                top_k=1, 
+                top_k=top_k, 
+                # top_k=1, 
                 retrieval_word=question, 
                 static_flag=static_flag
             )

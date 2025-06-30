@@ -64,21 +64,21 @@ class HealthAdvice:
         device_sn: Optional[str] = None,
         elder_info: str = None
     ) -> str:
+        self.logger.info(elder_info)
         self.device_sn = device_sn if device_sn is not None else self.device_sn
+        address = elder_info[0]["elderly_address"] if "elderly_address" in elder_info[0] else "山西省运城市盐湖区黄河金三角(运城)创新生态集聚区科创城"
         device_sn_ = [self.device_sn]
         # current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         today = datetime.now().strftime('%Y-%m-%d')
         weekday_num = datetime.now().weekday()
-
         # 中文星期名称列表，Monday对应“星期一”
         weekday_cn = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日']
         weekday = weekday_cn[weekday_num]
         prompt = ""
         weather_task = weather_api.execute(query_key="who")
-        sport_task = zhoubian.execute(query_district="山西省运城市盐湖区安邑西路科创城C4三楼301室", query_type="公园$大学")
-        shopping_task = zhoubian.execute(query_district="山西省运城市盐湖区安邑西路科创城C4三楼301室", query_type="超市$商场")
-        hospital_task = zhoubian.execute(query_district="山西省运城市盐湖区安邑西路科创城C4三楼301室", query_type="医院$药房$诊所")
-        
+        sport_task = zhoubian.execute(query_district=address, query_type="公园$大学")
+        shopping_task = zhoubian.execute(query_district=address, query_type="超市$商场")
+        hospital_task = zhoubian.execute(query_district=address, query_type="医院$药房$诊所")
         
         weather_info, sport_info, shopping_info, hospital_info = await asyncio.gather(
             weather_task,
@@ -86,11 +86,15 @@ class HealthAdvice:
             shopping_task,
             hospital_task
         )
+        weather_info = "未查询到结果！" if weather_info is None else weather_info 
+        sport_info = "未查询到结果！" if sport_info is None else sport_info 
+        shopping_info = "未查询到结果！" if shopping_info is None else shopping_info 
+        hospital_info = "未查询到结果！" if hospital_info is None else hospital_info 
         try:
             prompt = self.system_prompt.replace("today", today)
             prompt = self.system_prompt.replace("weekday", weekday)
             prompt = self.system_prompt.replace("health_report", health_report)
-            prompt = prompt.replace("elder_info", elder_info)
+            prompt = prompt.replace("elder_info", str(elder_info))
             prompt = prompt.replace("weather_info", str(weather_info))
             prompt = prompt.replace("location_environment_factors", "山西省，运城市，盐湖区，黄河金三角(运城)创新生态集聚区科创城，附近没有大型施工情况")
             prompt = prompt.replace("nearby_parks_activity_centers", str(sport_info))

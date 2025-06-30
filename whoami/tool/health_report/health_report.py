@@ -40,6 +40,7 @@ import matplotlib
 import pandas as pd
 import pytz
 import re
+import asyncio
 
 
 from whoami.configs.sql_config import SqlConfig
@@ -55,6 +56,12 @@ from whoami.utils.utils import Utils
 from whoami.tool.health_report.pie_legend import PieLegendHandler
 from whoami.tool.disease_predict.threshold_value import ThresholdValue
 from whoami.tool.health_report.sx_device_wavve_vital_sign_config_info import DeviceWavveVitalSignConfigInfo
+from whoami.configs.llm_config import LLMConfig
+from whoami.llm_api.ollama_llm import OllamaLLM
+from pathlib import Path
+from whoami.tool.agent.tool.enhance_retrieval import EnhanceRetrieval
+llm_qwen = OllamaLLM(config=LLMConfig.from_file(Path('/work/ai/WHOAMI/whoami/scripts/test/ollama_config_qwen.yaml')))
+enhance_qwen = EnhanceRetrieval(llm=llm_qwen)
 
 ROOT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 PROGRAM_ROOT_DIRECTORY = os.path.abspath(os.path.join(ROOT_DIRECTORY, "../../"))
@@ -142,7 +149,7 @@ class HealthReport(BaseProvider):
                 end = current_date_str + ' 07:00:00'
                 self.logger.info(start)
                 self.logger.info(end)
-                sql_query = f"SELECT in_out_bed, signal_intensity, breath_line, heart_line, breath_bpm, heart_bpm, state, body_move_data, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log_20250602 WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
+                sql_query = f"SELECT in_out_bed, signal_intensity, breath_line, heart_line, breath_bpm, heart_bpm, state, body_move_data, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
                 # sql_query = f"SELECT in_out_bed, distance, breath_line, heart_line, breath_bpm, heart_bpm, state, UNIX_TIMESTAMP(create_time) as create_time_timestamp FROM sx_device_wavve_vital_sign_log_20250518 WHERE device_sn='{self.device_sn}' AND create_time >= '{start}' AND create_time < '{end}'"
                 self.data_provider = SxDataProvider(sql_config_path=self.sql_config_path, sql_config=self.sql_config, sql_provider=self.sql_provider, sql_query=sql_query, model=self.model)
             else:
@@ -941,6 +948,7 @@ class HealthReport(BaseProvider):
                 condition=condition, 
                 exclude_fields= [
                     'health_advice',
+                    'deep_health_advice',
                     'sleep_stage_image_x_y',
                     'body_move_image_x_y',
                     'breath_exception_image_sixty_x_y',
@@ -980,6 +988,31 @@ class HealthReport(BaseProvider):
                 self.data_provider.sql_provider.update_health_advice_by_id(health_data['id'], cleaned_response)
         except Exception as e:
             raise ValueError('fail to exec the function health advice!') from e
+    
+    
+    async def deep_health_advice(self, ):
+        try:
+            condition = {"query_date": self.query_date}
+            record_ = self.data_provider.sql_provider.get_record_by_condition(
+                condition=condition, 
+                fields=["id", "device_sn"]
+            )
+            from whoami.tool.agent.tool.health_report import HealthReport
+            health_report_tool = HealthReport(enhance_llm=enhance_qwen, device_sn='13D6F349200080712111957107')
+            for record in record_:
+                result = await health_report_tool.execute(
+                    health_report_question="汇报下睡眠报告，并给出针对性建议", 
+                    device_sn=record["device_sn"],
+                    current_generate_flag=1,
+                    silent=1
+                )
+                self.logger.info(result)
+                self.data_provider.sql_provider.update_deep_health_advice_by_id(record['id'], result)
+        except Exception as e:
+            self.logger.error(f"Error in deep_health_advice: {e}")
+            raise ValueError('fail to exec the function health advice!') from e
+    
+    
     
     def split_continuous_data(self, data: np.ndarray, condition_array: np.ndarray) -> List[np.ndarray]:
         """

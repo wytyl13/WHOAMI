@@ -4,7 +4,8 @@ from typing import (
     Optional,
     Dict,
     Type,
-    Any
+    Any,
+    overload
 )
 
 
@@ -40,10 +41,20 @@ class GoogleSearch:
     google_search_provider: Optional[GoogleSearchProvider] = None # 自定义新的属性一定要在构造函数中初始化，否则会出现深拷贝错误
     retrieval: Optional[Retrieval] = None
     
-    def __init__(self, **kwargs):
+    
+    @overload
+    def __init__(
+        self,
+        retrieval: Optional[Retrieval] = None,
+        google_search_provider: Optional[GoogleSearchProvider] = None
+    ):
+        ...
+    
+    
+    def __init__(self, *args, **kwargs):
         self.logger.info("初始化GoogleSearch！")
         # you should implement any private attribute here first. 
-        super().__init__(**kwargs)
+        super().__init__(*args, **kwargs)
         # 先保存关键参数
         if 'retrieval' in kwargs:
             self.retrieval = kwargs.get('retrieval')

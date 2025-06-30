@@ -1,0 +1,102 @@
+topics:
+  /fire/smoke/warning: "烟火预警"
+  /fallen/falling/warning: "跌倒预警"
+  /mouse/warning: "鼠患预警"
+  /violence/warning: "暴力预警"
+
+model_path:
+  /fallen/falling/warning: "models/detect/fall_yolov10_7000_218.pt"
+  /fire/smoke/warning: "models/detect/fire_smoke_yolov10m_v2_epochs_250.pt"
+  /mouse/warning: "models/detect/mouse_yolov10l_epochs_250.pt"
+  /violence/warning: "models/detect/fight_yolov10m_199_epoch.pt"
+
+class_list:
+  /fallen/falling/warning: [0]
+  /fire/smoke/warning: [0, 1]
+  /mouse/warning: [0]
+  /violence/warning: [0]
+
+url_str_flag:
+  - old
+  - new
+
+call_url:
+  old: "old.shunxikj.com"
+  new: "api.shunxikj.com"
+
+get_video_stream_url:
+  url:
+    old: "http://old.shunxikj.com/webcam/getLiveAddress"
+    new: "http://1.71.15.102:48080/admin-api/device/yingShiWebcam/getWebcamLiveAddress"
+  request_json:
+    old: 
+      uid: device_sn,
+      channelNo: "1"
+      protocol: "2"
+      videoLevel: "1"
+      videoFrameRate: "16" # 16为指定帧率为22FPS
+      encodeType: "H264"
+      expireTime: "86400"
+    new:
+      deviceSn: device_sn
+      channelNo: 1
+      protocol: 2
+      quality: 1 
+      bitRateType: 0 # 变码率，默认为固定码率
+      videoFrameRate: 0 # 0为全帧率一般为15
+      resolution: VGA # 分辨率，使用较低的640*480。对应较低的码率，可以减少带宽占用
+      videoBitRate: 21 # 码率决定视频流的带宽占用，较低的视频流分辨率适配较低的码率，码率=宽*高*位深*帧率=2304*1296*8*15=358318080bps=358318kbps=358.318Mbps=358.318/8(Mb/s)=44.8MB/s
+      encodeType: "H264"
+      expireTime: "86400"
+
+upload_url:
+  old: "http://old.shunxikj.com/attachmentFile/upload"
+  new: "http://1.71.15.102:48080/admin-api/infra/file/upload"
+
+warning_url:
+  old: "http://old.shunxikj.com/webcamAIConfig/webcamConfigAlarmNotify"
+  new: "http://1.71.15.102:48080/admin-api/device/webcamAIConfig/webcamConfigAlarmNotify"
+
+port_dict:
+  old: 8888
+  new: 9999
+
+conf:
+  default:
+    /fallen/falling/warning: 0.98
+    /fire/smoke/warning: 0.83
+    /mouse/warning: 0.9
+    /violence/warning: 0.97
+  BE6992706:
+    /fallen/falling/warning: 0.86
+    /fire/smoke/warning: 0.7
+    /mouse/warning: 0.9
+    /violence/warning: 0.97
+  BD3202818:
+    /fallen/falling/warning: 0.86
+    /fire/smoke/warning: 0.5
+    /mouse/warning: 0.9
+    /violence/warning: 0.97
+  # BD0632136:
+  #   /fallen/falling/warning: 0.98
+  #   /fire/smoke/warning: 0.8
+  #   /mouse/warning: 0.9
+  #   /violence/warning: 0.97
+
+sql:
+  old:
+    host: 192.168.0.10 # shunxikj.com
+    port: 3366
+    username: root
+    password: 2xryuf@I73T # PVWadz6fhLCkRG6Z2rZ1
+    database: shunxikeji # sxkj_yl
+    table: webcam_ai_config
+  new:
+    host: 192.168.0.10 # 39.105.172.211
+    port: 3366
+    username: root
+    password: 2xryuf@I73T # PVWadz6fhLCkRG6Z2rZ1
+    database: shunxikeji
+    table: webcam_ai_config
+
+warning_gap: 30

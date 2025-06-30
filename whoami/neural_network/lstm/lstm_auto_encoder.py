@@ -16,6 +16,18 @@ approaches based on mathematical models that rely on stationarity, or prediction
 errors to detect anomalies. 
 
 
+Definition of anomalies
+Pointwise: A data point is anomalous if this point is distant from other observations according to some specific measurement metrics.
+This is used in fine-grained anomaly detection tasks, that need to find out every single anomalous instance, credit card fraud detection,
+spam email detection.
+
+Window-based: Sometimes, a data point is apparently normal, but this point, or potentially together with its neighbors violates the overall
+periodicity or other character of the time series, we also treat theme as anomaly, which is called window-based anomaly or contextual anomaly.
+
+The long short-term memory networks are a kind of reinforces RNN that are able to remember valuable information in arbitrary time interval.
+
+
+
 """
 
 import torch

@@ -152,11 +152,17 @@ class HealthReport:
     async def execute(
         self, 
         health_report_question: str,
-        device_sn: Optional[str] = None
+        device_sn: Optional[str] = None,
+        current_generate_flag: Optional[int] = None,
+        silent: Optional[int] = None
     ) -> str:
+        current_generate_flag = 0 if current_generate_flag is None else current_generate_flag
+        silent = 0 if silent is None else silent
+        
         self.device_sn = device_sn if device_sn is not None else self.device_sn
         device_sn_ = [self.device_sn]
         advice_flag = False
+
         # current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         date_string = datetime.datetime.now().strftime("%Y-%m-%d")
         try:
@@ -164,48 +170,58 @@ class HealthReport:
         except Exception as e:
             # 报错说明是自定义上传的数据，直接使用它自己
             sql_data_ = self.sql_data
-        self.logger.info(f"成功获取 sql_data: {sql_data_}")
+        if not silent:
+            self.logger.info(f"成功获取 sql_data: {sql_data_}")
+        time_range = {}
+        sleep_indices = {}
         prompt = ""
         try:
             prompt = self.system_prompt.replace("current_time", date_string)
             prompt = self.system_prompt.replace("latest_data_date", date_string)
         except Exception as e:
             raise ValueError(f"fail to init prompt {str(e)}") from e
-        # result_time_range = await self.time_extract.execute(question=health_report_question)
-        # result_sleep_indices = await self.sleep_indices_extract.execute(question=health_report_question)
-        results = await asyncio.gather(
-            self.time_extract.execute(question=health_report_question),
-            self.sleep_indices_extract.execute(question=health_report_question)
-        )
-
-        # 从结果列表中获取各自的返回值
-        result_time_range = results[0]
-        result_sleep_indices = results[1]
+        if not silent:
+            self.logger.info(f"prompt -------------------------------- : {prompt}")
         
-        if result_sleep_indices.get('found', False):
-            sleep_indices = result_sleep_indices.get('sleep_indices', {})
+        if current_generate_flag == 0:
+            # result_time_range = await self.time_extract.execute(question=health_report_question)
+            # result_sleep_indices = await self.sleep_indices_extract.execute(question=health_report_question)
+            results = await asyncio.gather(
+                self.time_extract.execute(question=health_report_question),
+                self.sleep_indices_extract.execute(question=health_report_question)
+            )
+
+            # 从结果列表中获取各自的返回值
+            result_time_range = results[0]
+            result_sleep_indices = results[1]
+            
+            if result_sleep_indices.get('found', False):
+                sleep_indices = result_sleep_indices.get('sleep_indices', {})
+                sleep_indices["query_date"] = "查询日期"
+                # 获取报告类型
+                report_type = result_sleep_indices.get('report_type')
+                if report_type == 'general_report' or report_type == 'sleep_advice':
+                    advice_flag = True
+                    sleep_indices["health_advice"] = "睡眠建议"
+            if result_time_range.get('found', False):
+                time_range = result_time_range.get('time_range', {})
+        else:
+            advice_flag = True
             sleep_indices["query_date"] = "查询日期"
-            # 获取报告类型
-            report_type = result_sleep_indices.get('report_type')
-            if report_type == 'general_report' or report_type == 'sleep_advice':
-                advice_flag = True
-                sleep_indices["health_advice"] = "睡眠建议"
-
-        self.logger.info(f"sleep_indices: {sleep_indices}")
-        sql_data_ = self.filter_sleep_data_by_fields(sql_data_, sleep_indices)
+            sleep_indices["health_advice"] = "睡眠建议"
         
-        self.logger.info(f"field_description ----------------------------- \n: {self.field_description}")
-        time_range = {}
-        if result_time_range.get('found', False):
-            time_range = result_time_range.get('time_range', {})
+        if not silent:
+            self.logger.info(f"sleep_indices: {sleep_indices}")
+        health_report_sql_data = self.filter_sleep_data_by_fields(sql_data_, sleep_indices)
+        if not silent:
+            self.logger.info(f"field_description ----------------------------- \n: {self.field_description}")
+        
         time_range = {'start': date_string, 'end': date_string} if not time_range else time_range
-        sql_data_ = self.filter_sleep_data_by_date_range(sql_data_, time_range)
-        
-        
-        self.logger.info(f"成功获取 sql_data: {sql_data_}")
-        
-        self.logger.info(f"time_range -------------------------------- : {time_range}")
-        self.logger.info(f"prompt -------------------------------- : {prompt}")
+        health_report_sql_data = self.filter_sleep_data_by_date_range(health_report_sql_data, time_range)
+        if not silent:
+            self.logger.info(f"成功获取 sql_data: {health_report_sql_data}")
+        if not silent:
+            self.logger.info(f"time_range -------------------------------- : {time_range}")
         
         # database sql_data_, need to filter used time_range and keywords.
         
@@ -221,14 +237,15 @@ class HealthReport:
             stream_flag=1
         ):
             full_response += chunk
-        self.logger.info(f"是否提供建议？{advice_flag}")
+        if not silent:
+            self.logger.info(f"是否提供建议？{advice_flag}")
         if not advice_flag:
             return full_response
         
         final_result = await self.health_advice.execute(
             health_report=full_response, 
-            device_sn=self.device_sn, 
-            elder_info=str(sql_data_[self.device_sn][1])
+            device_sn=device_sn, 
+            elder_info=sql_data_[device_sn][1]
         )
         final = full_response + "\n" + final_result
         return final
@@ -245,6 +262,10 @@ if __name__ == '__main__':
     health_report_tool = HealthReport(enhance_llm=enhance_qwen, device_sn='13D6F349200080712111957107')
     import asyncio
     async def main():
-        result = await health_report_tool.execute("汇报下昨天的心率情况，并给出针对性建议")
+        result = await health_report_tool.execute(
+            health_report_question="汇报下6月16日的睡眠报告，并给出针对性建议", 
+            current_generate_flag=1,
+            device_sn="13D6F349200080712111957107"
+        )
         print(result)
     asyncio.run(main())

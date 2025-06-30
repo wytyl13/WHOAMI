@@ -35,11 +35,13 @@ class SocketServer:
     port: Optional[int] = None
     is_running: Optional[bool] = None
     
+    
     def __init__(
         self,
         port: int,
         backlog: int = 5,
-        data_callback: Callable[[Dict[str, Any]], None] = None
+        data_callback: Callable[[Dict[str, Any]], None] = None,
+        injected_data: Optional[list] = None
     ):
         """_summary_
 
@@ -61,7 +63,9 @@ class SocketServer:
         self.client_threads = []
         self.logger.info(f"Socket server initialized on port {port}")
         self.devices = {}  
-        self.data_callback = data_callback      
+        self.data_callback = data_callback  
+        self.injected_data = injected_data    
+
 
     def start(self):
         if self.is_running:
@@ -69,25 +73,37 @@ class SocketServer:
             return
         
         self.is_running = True
-        self.accept_thread = threading.Thread(target=self._accept_connections)
-        self.accept_thread.daemon = True # 守护线程
-        self.accept_thread.start()
-        self.logger.info(f"Socket server started on port {self.port}")
+        if self.injected_data is None:
+            self.accept_thread = threading.Thread(target=self._accept_connections)
+            self.accept_thread.daemon = True # 守护线程
+            self.accept_thread.start()
+            self.logger.info(f"Socket server started on port {self.port}")
+        else:
+            # 注入模式：启动数据处理线程
+            self.inject_thread = threading.Thread(target=self._handle_injected_data)
+            self.inject_thread.daemon = True
+            self.inject_thread.start()
+            self.logger.info("Server started (injected data mode)")
         
     
     def stop(self):
         if not self.is_running:
             return
         self.is_running = False
-        try:
-            self.server_socket.close()
-        except Exception as e:
-            self.logger.error(f"Error closing server socket on port {self.port}: {e}")
-        
-        if self.accept_thread and self.accept_thread.is_alive():
-            self.accept_thread.join(timeout=2)
+        if self.injected_data is None:
+            try:
+                self.server_socket.close()
+            except Exception as e:
+                self.logger.error(f"Error closing server socket on port {self.port}: {e}")
+            
+            if self.accept_thread and self.accept_thread.is_alive():
+                self.accept_thread.join(timeout=2)
+        else:
+            # 注入模式
+            if hasattr(self, 'inject_thread') and self.inject_thread.is_alive():
+                self.inject_thread.join(timeout=2)
         self.logger.info(f"Socket server on port {self.port} stopped!")
-    
+
     
     def _accept_connections(self):
         while self.is_running:
@@ -119,13 +135,35 @@ class SocketServer:
                     break
                 parse_data = self._parse_data(data, addr)
                 if parse_data:
-                    self.logger.info(parse_data)
+                    # self.logger.info(parse_data)
                     self.data_callback(parse_data)
         except Exception as e:
             self.logger.error(f"Error handling client {addr} on port {self.port}: {e}")
         finally:
             client_socket.close()
             self.logger.info(f"Connection closed with {addr} on port {self.port}")
+    
+    
+    def _handle_injected_data(self):
+        """处理注入的数据列表，模拟_handle_client的行为"""
+        mock_addr = ('127.0.0.1', 0)
+        
+        try:
+            for data in self.injected_data:
+                if not self.is_running:
+                    break
+                # 使用与_handle_client相同的处理逻辑
+                parse_data = data
+                if parse_data:
+                    self.data_callback(parse_data)
+                    
+                # 可选：添加延时模拟实时数据间隔
+                time.sleep(0.1)
+                
+        except Exception as e:
+            self.logger.error(f"Error handling injected data: {e}")
+        finally:
+            self.logger.info("Finished processing all injected data")
     
     
     def _parse_device_id(self, data_bytes, addr):

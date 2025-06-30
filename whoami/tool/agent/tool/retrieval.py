@@ -603,6 +603,20 @@ class Retrieval:
                 raise ValueError(f"Fail to exec rerank function! {str(e)}") from e
     
     
+    def safe_extract_text(self, result_list):
+        text_list = []
+        for item in result_list:
+            try:
+                node = item.node if hasattr(item, 'node') else item
+                if hasattr(node, '__class__') and 'TextNode' in str(node.__class__):
+                    text_list.append(node.text)
+                elif hasattr(node, 'text_resource') and hasattr(node.text_resource, 'text'):
+                    text_list.append(node.text_resource.text)
+            except:
+                continue
+        return text_list
+    
+    
     async def execute(
         self, 
         text_list: List[Dict[str, str]], 

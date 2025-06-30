@@ -20,6 +20,8 @@ from pydantic import BaseModel
 import httpx
 import traceback
 import aiohttp
+from fastapi.staticfiles import StaticFiles
+
 
 from whoami.llm_api.ollama_llm import OllamaLLM
 from whoami.configs.llm_config import LLMConfig
@@ -73,6 +75,8 @@ app.add_middleware(
     allow_methods=["*"],  # 允许所有HTTP方法
     allow_headers=["*"],  # 允许所有头
 )
+app.mount("/aligenie", StaticFiles(directory="/work/ai/WHOAMI/tests/aligenie"), name="aligenie")
+
 
 # 配置日志
 logging.basicConfig(
@@ -360,6 +364,61 @@ async def stream_tts_audio(text: str, user_id: str):
 
 
 def test_rag():
+    
+    @app.post('/tmall_genie')
+    async def tmall_genie(request: Request):
+        """天猫精灵适配接口 - 真实格式"""
+        try:
+            # 接收天猫精灵请求
+            tmall_data = await request.json()
+            
+            # 提取用户信息和问题
+            user_id = tmall_data.get("requestData", {}).get("userOpenId", "tmall_user")
+            conversation_id = tmall_data.get("sessionId", user_id)
+            
+            # 直接使用用户说的原话
+            question = tmall_data.get("utterance", "你好")
+            
+            # 调用您现有的接口逻辑
+            response_content = ""
+            response_generator = chat_sys._run(
+                messages_history=[],
+                question=question,
+                user_id=user_id,
+                stream_flag=False
+            )
+            
+            async for chunk in response_generator:
+                response_content = chunk
+                break
+            
+            # 保存对话
+            await chat_sys.save_qa_to_db(
+                conversation_id=conversation_id,
+                user_id=user_id,
+                question=question
+            )
+            
+            # 返回天猫精灵需要的格式
+            
+            return {
+                "returnCode": "0",
+                "returnErrorSolution": "",
+                "returnMessage": "",
+                "returnValue": {
+                    "reply": response_content,
+                    "resultType": "RESULT",
+                    "executeCode": "SUCCESS"
+                }
+            }
+            
+        except Exception as e:
+            return {
+                "reply": f"抱歉，处理出错了：{str(e)}",
+                "resultType": "RESULT_TEXT"
+            }
+    
+    
     
     @app.post('/chat_health_report')
     async def chat_health_report(request_data: RequestDataChat):

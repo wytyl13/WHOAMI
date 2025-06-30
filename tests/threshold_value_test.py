@@ -44,7 +44,7 @@ def test_threshold(
     model,
     device_sn
 ):
-    query_date = "2025-6-2"
+    query_date = "2025-6-30"
     
     realtime_sql_provider = SqlProvider(sql_config_path=sql_config_path, sql_config=sql_config, model=SxDeviceWavveVitalSignLogRealTime)
     device_sn_ = realtime_sql_provider.get_record_by_condition({}, fields=["device_sn"])

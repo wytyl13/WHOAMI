@@ -75,7 +75,22 @@ class GoogleSearchProvider(BaseTool):
         self.search_config_path = search_config_path if search_config_path is not None else self.search_config_path
         self.search_config = search_config if search_config is not None else self.search_config
         self._init_param(key, cx, blocked_domains, snippet_flag, query_num)
-       
+    
+    
+    def clean_text(self, text):
+        try:
+            cleaned_text = re.sub(r'https?://[^\s]+|www\.[^\s]+', '', text)
+            cleaned_text = re.sub(r'<[^>]*>', '', cleaned_text)
+            cleaned_text = re.sub(r'[^A-Za-z0-9\u4e00-\u9fa5\s,.!?，。！？；：""''()《》【】（）<>{}]+', '', cleaned_text)
+            cleaned_text = re.sub(r'\s+', ' ', cleaned_text)
+            cleaned_text = re.sub(r'([,.!?，。！？；：""''()《》【】（）<>{}])\1+', r'\1', cleaned_text)
+            cleaned_text = re.sub(r'[A-Za-z0-9]{9,}', '', cleaned_text)
+            cleaned_text = cleaned_text.strip()
+        except Exception as e:
+            raise ValueError("fail to exec clean_text function!") from e
+        return cleaned_text
+    
+    
     def remove_duplicate_simhash(self, contents: list[str]) -> tuple[bool, Union[list[str], str]]:
         """remove duplicate paragraph used simhash
 
@@ -102,7 +117,8 @@ class GoogleSearchProvider(BaseTool):
         except Exception as e:
             return False, utils.get_error_info("fail to remove duplicate!", e)
         return True, unique_contents
-        
+    
+       
     def _init_param(self, key, cx, blocked_domains, snippet_flag, query_num):
         """Initialize parameters from arguments or config file"""
         self.key = key if key is not None else self.key
@@ -129,11 +145,12 @@ class GoogleSearchProvider(BaseTool):
         # Set defaults if still None
         self.blocked_domains = self.blocked_domains or []
         self.snippet_flag = self.snippet_flag if self.snippet_flag is not None else 0
-        self.query_num = self.query_num or 10
+        self.query_num = self.query_num or 5
         
         # Validate critical parameters
         if None in {self.key, self.cx}:
             raise ValueError('Invalid parameters in GoogleSearch: key and cx must be provided')
+
 
     def fetch_url_content(self, url: str, max_request_num: int = 3) -> tuple[bool, str]:
         """Fetch content from a URL with retries
@@ -163,6 +180,7 @@ class GoogleSearchProvider(BaseTool):
         
         # This should never be reached due to the error in the last iteration
         return False, f"Failed to fetch {url} after {max_request_num} attempts"
+    
     
     def preprocess_web_content(self, url, original_content, min_paraph_length: int = 50) -> tuple[bool, Union[list[str], str]]:
         """Preprocess web content to extract clean paragraphs
@@ -250,6 +268,7 @@ class GoogleSearchProvider(BaseTool):
             error_info = utils.get_error_info("Error preprocessing web content", e)
             self.logger.error(error_info)
             return False, error_info
+    
     
     def _parse_html(self, url: str, html_content: str) -> str:
         """Parse HTML content using multiple methods and return the best result
@@ -371,13 +390,16 @@ class GoogleSearchProvider(BaseTool):
         self.logger.info(f"HTML parsing results for {url}: {len(results)} methods successful")
         return get_longest_value(results)
     
+    
     def get_input_schema(self):
         """Return the input schema for the tool"""
         return self.args_schema
     
+    
     def _run(self, *args, **kwds) -> str:
         """Run method required by BaseTool"""
         return self.__call__(*args, **kwds)
+    
     
     def fetch_all_url_contents(self, result_items):
         """Fetch and process all URL contents in parallel
@@ -434,6 +456,7 @@ class GoogleSearchProvider(BaseTool):
         
         return processed_items
     
+    
     def __call__(self, *args, **kwds) -> tuple[bool, Union[list, str]]:
         """Main method to handle search requests
 
@@ -453,7 +476,7 @@ class GoogleSearchProvider(BaseTool):
             "key": self.key,
             "cx": self.cx,
             "q": query,
-            "num": self.query_num or 10,
+            "num": self.query_num or 5,
             "dateRestrict": "d3"
         }
         
@@ -501,7 +524,7 @@ class GoogleSearchProvider(BaseTool):
                 result.append({
                     "title": item.get('title', ''),
                     "link": item.get('link', ''),
-                    "html_snippet": item.get('htmlSnippet', '')
+                    "html_snippet": self.clean_text(item.get('htmlSnippet', ''))
                 })
                 
             self.logger.info(f"Google search returned {len(result)} results after filtering")

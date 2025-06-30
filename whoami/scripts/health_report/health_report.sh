@@ -27,7 +27,7 @@ CONDA_ENV='/home/weiyutao/miniconda3/bin/'
 export PATH=$CONDA_ENV:$PATH
 eval "$(conda shell.bash hook)"
 conda init bash
-conda activate health_report
+conda activate whoami
 
 timestamp=$(date +"%Y%m%d%H%M%S")
 LOG_PATH=$PROJECT_ROOT/whoami/logs/health_report

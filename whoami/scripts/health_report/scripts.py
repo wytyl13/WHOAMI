@@ -75,6 +75,7 @@ async def sleep_indices(request_data: RequestData, background_tasks: BackgroundT
                 model=SleepIndices
             )
             result = health_report.process()
+            
         except Exception as e:
             result_error_dict[device_sn_i] = e
             logger.error(e)
@@ -85,6 +86,26 @@ async def sleep_indices(request_data: RequestData, background_tasks: BackgroundT
                 rank_result = health_report.rank()
                 if rank_result:
                     health_report.health_advice()
+                    await health_report.deep_health_advice()
+                    
+    # 定义一个后台任务函数
+    async def process_health_report_(device_sn_i, last_flag: int):
+        logger.info(f"To start process report for device {device_sn_i}")
+        health_report = None
+        try:
+            health_report = HealthReport(
+                sql_config_path=SQL_CONFIG_PATH,
+                # sql_provider=sql_provider,
+                query_date=query_date,
+                device_sn=device_sn_i,
+                model=SleepIndices
+            )
+            await health_report.deep_health_advice()
+        except Exception as e:
+            result_error_dict[device_sn_i] = e
+            logger.error(e)
+        finally:
+            logger.info(f"Processed report for device {device_sn_i}")
                     
     
     device_sn_size = 0

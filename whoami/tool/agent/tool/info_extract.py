@@ -30,7 +30,8 @@ class InfoExtract(JsonProcessor):
     async def extract_info(self, 
         query: str, 
         message_history: List[Dict[str, str]] = None,
-        temperature: float = 0.0
+        temperature: float = 0.0,
+        str_flag: int = 0
     ) -> Dict[str, Any]:
         current_time = datetime.now()
         current_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
@@ -41,7 +42,9 @@ class InfoExtract(JsonProcessor):
             self.logger.info(namespace_message_history)
             response = await self.llm._whoami_text(namespace_message_history, timeout=30, user_stop_words=[])
             # 使用基类的JSON解析方法处理回答
-            result = self.parse_json_response(response, self.default_extract_result)
+            result = response
+            if not str_flag:
+                result = self.parse_json_response(response, self.default_extract_result)
             return result
             
         except Exception as e:
@@ -49,11 +52,11 @@ class InfoExtract(JsonProcessor):
             return self.default_extract_result
         
     
-    async def execute(self, question: str) -> Any:
+    async def execute(self, question: str, str_flag: int = 0) -> Any:
         """
         执行工具逻辑，需要子类实现
         
         子类应该重写这个方法，实现实际的工具功能。
         框架会自动处理参数验证和类型检查。
         """
-        return await self.extract_info(question, message_history=[])
+        return await self.extract_info(question, message_history=[], str_flag=str_flag)

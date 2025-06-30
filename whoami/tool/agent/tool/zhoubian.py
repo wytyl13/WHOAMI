@@ -100,7 +100,7 @@ class ZhouBian(ApiTool):
             "ak": ak,
         }
         try:
-            response = requests.get(url=url, params=params, proxies=None)
+            response = requests.get(url=url, params=params, proxies=None, timeout=3)
             # 解析经纬度
             result = response.json()
             if result.get('status') != 0 or 'result' not in result:

@@ -7,7 +7,7 @@ retrieval_storage
 
 # 忽略特定配置文件
 whoami/scripts/health_report/sql_config.yaml
-whoami/scripts/detect/detect_config.yaml
+# whoami/scripts/detect/detect_config.yaml
 whoami/scripts/test/ollama_config.yaml
 whoami/scripts/test/search_config.yaml
 whoami/scripts/test/ollama_config_qwen.yaml

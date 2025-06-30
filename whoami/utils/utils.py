@@ -15,6 +15,7 @@ from typing import (
 )
 from enum import Enum
 import jieba
+import numpy as np
 
 from whoami.utils.log import Logger
 logger = Logger('Utils')
@@ -171,7 +172,71 @@ class Utils:
         filtered_words = [word for word in words if word not in stop_words]
         return ''.join(filtered_words).replace(' ', '')
         
+    
+    def clean_text(self, text):
+        try:
+            cleaned_text = re.sub(r'https?://[^\s]+|www\.[^\s]+', '', text)
+            cleaned_text = re.sub(r'<[^>]*>', '', cleaned_text)
+            cleaned_text = re.sub(r'[^A-Za-z0-9\u4e00-\u9fa5\s,.!?，。！？；：""''()《》【】（）<>{}]+', '', cleaned_text)
+            cleaned_text = re.sub(r'\s+', ' ', cleaned_text)
+            cleaned_text = re.sub(r'([,.!?，。！？；：""''()《》【】（）<>{}])\1+', r'\1', cleaned_text)
+            cleaned_text = re.sub(r'[A-Za-z0-9]{9,}', '', cleaned_text)
+            cleaned_text = cleaned_text.strip()
+        except Exception as e:
+            raise ValueError("fail to exec clean_text function!") from e
+        return cleaned_text
+    
+    
+    def create_sliding_windows(
+            self, 
+            data, 
+            window_size=20, 
+            step_size=1, 
+            field_index=None
+        ):
+        """
+        创建滑动窗口数据
         
+        Args:
+            data: numpy数组，可以是1D或2D
+                - 如果是1D: 直接对该数组做滑动窗口
+                - 如果是2D: 需要指定field_index来选择列
+            window_size: 窗口大小，默认20
+            step_size: 滑动步长，默认1
+            field_index: 当data是2D时，指定要处理的列索引
+        
+        Returns:
+            windows: shape为(n_windows, window_size)的numpy数组
+        """
+        
+        # 处理输入数据
+        if data.ndim == 1:
+            # 1D数据，直接使用
+            time_series = data
+        elif data.ndim == 2:
+            # 2D数据，需要选择列
+            if field_index is None:
+                raise ValueError("对于2D数据，必须指定field_index")
+            time_series = data[:, field_index]
+        else:
+            raise ValueError("数据维度不支持，只支持1D或2D数组")
+        
+        # 计算窗口数量
+        n_samples = len(time_series)
+        n_windows = (n_samples - window_size) // step_size + 1
+        
+        if n_windows <= 0:
+            raise ValueError(f"数据长度({n_samples})小于窗口大小({window_size})")
+        
+        # 创建滑动窗口
+        windows = np.zeros((n_windows, window_size))
+        
+        for i in range(n_windows):
+            start_idx = i * step_size
+            end_idx = start_idx + window_size
+            windows[i] = time_series[start_idx:end_idx]
+        return windows
+
 
 
     
