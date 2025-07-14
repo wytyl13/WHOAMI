@@ -47,11 +47,11 @@ class RealTimeStateMonitor:
     
     def __init__(self,
         # 基础状态阈值
-        off_bed_threshold: float = 0.1,        # 离床阈值
+        off_bed_threshold: float = 0.4,        # 离床阈值
         apnea_threshold: float = 2,          # 呼吸暂停上限阈值
         
         # 状态持续时间要求
-        off_bed_duration: float = 5.0,        # 离床状态需要持续20秒
+        off_bed_duration: float = 20.0,        # 离床状态需要持续20秒
         apnea_duration: float = 8.0,          # 呼吸暂停需要持续20秒
         normal_duration: float = 45.0,          # 在床正常需要持续45秒
         
@@ -61,21 +61,29 @@ class RealTimeStateMonitor:
         min_baseline: float = 0.1,             # 最小基线值
         baseline_alpha: float = 0.1,           # 基线适应速度
         variance_beta: float = 0.2,            # 方差适应速度
-        rise_factor: float = 1.5,              # 上升倍数
-        peak_factor: float = 2.0,              # 峰值倍数
-        fall_factor: float = 1.3,              # 下降倍数
+        
+        # rise_factor: float = 1.5,              # 上升倍数（更宽松）
+        # peak_factor: float = 2.0,              # 峰值倍数（宽更松）
+        # fall_factor: float = 1.3,              # 下降倍数（更宽松）
+
+        rise_factor: float = 2.0,              # 更严格上升倍数（更严格）
+        peak_factor: float = 2.5,              #更严格峰值倍数（更严格）
+        fall_factor: float = 1.5,              # 下降倍数（更严格）
+        
         min_peak_duration: float = 2.0,        # 最小峰值持续时间(秒)
         min_peak_height: float = 5.0,          # 最小绝对峰值高度
         warmup_samples: int = 20,             # 冷启动样本数
         
         # 深度学习模型参数
-        model_path: str = "/work/ai/WHOAMI/simple_sleep_model.pth",
+        # model_path: str = "/work/ai/WHOAMI/whoami/neural_network/simple_sleep_model_v1_12W_2dimension_60epoch.pth",
+        model_path: str = "/work/ai/WHOAMI/whoami/neural_network/simple_sleep_model_20W_150epochs_2dimensions_classifier.pth",
         seq_len: int = 30,                     # 序列长度（60秒）
         n_features: int = 5,                   # 特征数量
         n_classes: int = 3,                    # 分类数量
         embedding_dim: int = 64,               # 嵌入维度
         dropout: float = 0.2,                   # dropout比例
-        scaler_path: str = "/work/ai/WHOAMI/sleep_scaler.pkl"
+        # scaler_path: str = "/work/ai/WHOAMI/whoami/neural_network/sleep_scaler_v1_12W.pkl"
+        scaler_path: str = "/work/ai/WHOAMI/whoami/neural_network/sleep_scaler_20W_2dimensions.pkl"
     ):             
         
         # 基础状态参数
@@ -171,6 +179,16 @@ class RealTimeStateMonitor:
             2: "深睡眠",
         }
         self.scaler = load_sleep_scaler(self.scaler_path)
+        from whoami.tool.real_time_vital_analyze.dual_memory_threshold import HighPeakBiasedThreshold
+        self.dynamic_threshold = 20.0
+        self.threshold_calculator = HighPeakBiasedThreshold(
+            high_peak_percentile=0.85,    # 更严格：只有前15%才算高峰值
+            min_threshold_ratio=0.6,      # 更保守：最小阈值为高峰值均值的60%
+            peak_height_bias=0.9,         # 更偏向：90%权重给高峰值
+            downward_sensitivity=0.05,    # 更保守：对下降极其不敏感
+        )
+
+
     def _initialize_model(self):
         """延迟初始化深度学习模型"""
         if self.model_initialized:
@@ -214,7 +232,8 @@ class RealTimeStateMonitor:
         except Exception as e:
             print(f"深度学习模型加载失败: {e}")
             self.model_initialized = False
-        
+
+
     def update(
         self, 
         value: float, 
@@ -272,7 +291,9 @@ class RealTimeStateMonitor:
             deep_learning_state = self._get_deep_learning_state(timestamp)
             if deep_learning_state:
                 overall_state = deep_learning_state
-        
+        else:
+            if overall_state == "在床正常":
+                overall_state = "清醒"
         # 6. 更新状态历史
         self._update_overall_state_history(timestamp, overall_state)
         
@@ -280,6 +301,7 @@ class RealTimeStateMonitor:
         self.last_update_time = timestamp
         
         return overall_state, peak_state.value, peak_event
+    
     
     def _update_breath_line_heart_line_history(self, timestamp: float, breath_line_heart_line: np.ndarray):
         """更新breath_line_heart_line历史缓冲区，维护60秒窗口"""
@@ -293,6 +315,7 @@ class RealTimeStateMonitor:
             if t >= cutoff_time
         ]
     
+    
     def _update_overall_state_history(self, timestamp: float, overall_state: str):
         """更新总体状态历史缓冲区，维护60秒窗口"""
         # 添加当前状态到历史
@@ -304,6 +327,7 @@ class RealTimeStateMonitor:
             (t, state) for t, state in self.overall_state_history 
             if t >= cutoff_time
         ]
+    
     
     def _check_deep_learning_conditions(self, current_overall_state: str, timestamp: float) -> bool:
         """
@@ -342,6 +366,7 @@ class RealTimeStateMonitor:
             return False
         
         return True
+    
     
     def _get_deep_learning_state(self, timestamp: float) -> Optional[str]:
         """
@@ -382,7 +407,7 @@ class RealTimeStateMonitor:
             breath_line_heart_line_array = np.array([data for data in selected_data])
             breath_line_heart_line_array = breath_line_heart_line_array.reshape(self.seq_len, 3)
             
-            print(breath_line_heart_line_array)
+            # print(breath_line_heart_line_array)
             # 调用推理函数
             result, confidence = inference_single_sample_(model=self.model, scaler=self.scaler, sample_data=breath_line_heart_line_array, use_raw_features=True)
             # if confidence < 0.6:
@@ -430,6 +455,7 @@ class RealTimeStateMonitor:
         
         return debug_info
 
+
     # 以下方法保持不变...
     def _update_state_history(self, timestamp: float, state: int):
         """更新state历史缓冲区，维护20秒窗口"""
@@ -440,6 +466,7 @@ class RealTimeStateMonitor:
         cutoff_time = timestamp - self.body_move_energy_window_duration
         self.state_history = [(t, s) for t, s in self.state_history if t >= cutoff_time]
     
+    
     def _update_value_history(self, timestamp: float, value: float):
         """更新value历史缓冲区，维护8秒窗口（新增）"""
         # 添加当前value到历史
@@ -448,6 +475,8 @@ class RealTimeStateMonitor:
         # 清理超过8秒的历史数据
         cutoff_time = timestamp - self.value_window_duration
         self.value_history = [(t, v) for t, v in self.value_history if t >= cutoff_time]
+    
+    
     
     def _is_stable_in_apnea_range(self, timestamp: float) -> bool:
         """判断最近8秒内数据是否稳定在呼吸暂停范围内（新增）"""
@@ -480,6 +509,7 @@ class RealTimeStateMonitor:
         
         return True
     
+    
     def _calculate_state_statistics(self, end_timestamp: float) -> int:
         """
         计算指定时间点前20秒内的state统计
@@ -499,6 +529,7 @@ class RealTimeStateMonitor:
         
         # 根据阈值判断
         return 1 if body_move_energy_mean < self.mean_body_move_energy_threshold else 0
+    
     
     def _validate_state_duration(self, raw_state: str, timestamp: float) -> str:
         """验证状态持续时间，避免误判"""
@@ -541,6 +572,7 @@ class RealTimeStateMonitor:
                 self.candidate_start_index = None
                 return self.confirmed_state
     
+    
     def _get_required_duration(self, state: str) -> float:
         """获取状态的最小持续时间要求"""
         duration_map = {
@@ -549,6 +581,7 @@ class RealTimeStateMonitor:
             "在床正常": self.normal_duration
         }
         return duration_map.get(state, 1.0)  # 默认1秒
+    
     
     def _classify_base_state(self, value: float, timestamp: float) -> str:
         """基础状态分类 - 基于稳定性判断（修改版）"""
@@ -562,6 +595,7 @@ class RealTimeStateMonitor:
         
         # 默认为在床正常
         return "在床正常"
+    
     
     def _update_peak_detection(self, value: float, timestamp: float, state: int) -> Tuple[PeakState, Optional[PeakEvent]]:
         """峰值检测更新（加入state参数）"""
@@ -592,6 +626,7 @@ class RealTimeStateMonitor:
         
         return new_state, event
     
+    
     def _classify_overall_state(self, value: float, validated_base_state: str, 
                               peak_state: PeakState, peak_event: Optional[PeakEvent]) -> str:
         """综合状态判断 - 使用验证后的基础状态和state值"""
@@ -600,9 +635,21 @@ class RealTimeStateMonitor:
         if validated_base_state in ["离床", "呼吸暂停"]:
             return validated_base_state
         
+        
+        # 2. 峰值进行中的状态判断 - 新增
+        if peak_state in [PeakState.RISING, PeakState.PEAK, PeakState.FALLING]:
+            if self.current_peak_max > self.dynamic_threshold:  # 使用当前峰值的最大值判断
+                # 根据当前的state统计值判断
+                current_state_value = self._calculate_state_statistics(self.last_update_time)
+                if current_state_value != 0:
+                    return "呼吸急促"
+                else:
+                    return "体动"
+        
+        
         # 2. 只有峰值完成事件才能改变状态
         if peak_event and peak_event.event_type == "peak_completed":
-            if peak_event.peak_value > 30:  # 修改：峰值大于20就先判断为体动
+            if peak_event.peak_value > self.dynamic_threshold:  # 修改：峰值大于20就先判断为体动
                 # 根据峰值事件中保存的state值判断
                 if peak_event.state_value != 0:
                     return "呼吸急促"
@@ -618,7 +665,7 @@ class RealTimeStateMonitor:
             
             # 峰值完成后只保持5秒状态
             if time_since_peak <= 5.0:
-                if latest_peak.peak_value > 20:  # 修改：峰值大于20就先判断为体动
+                if latest_peak.peak_value > self.dynamic_threshold:  # 修改：峰值大于20就先判断为体动
                     # 根据峰值事件中保存的state值判断
                     if latest_peak.state_value != 0:
                         return "呼吸急促"
@@ -627,6 +674,7 @@ class RealTimeStateMonitor:
         
         # 4. 默认使用验证后的基础状态
         return validated_base_state
+
     
     def _get_recent_state_stats(self) -> dict:
         """获取最近20秒的state统计信息"""
@@ -648,6 +696,7 @@ class RealTimeStateMonitor:
             'mean': state_mean,
             'is_abnormal': state_mean < self.mean_body_move_energy_threshold
         }
+
     
     # 以下是峰值检测的内部方法（与之前的FilteredPeakDetector相同，但加入state参数）
     def _should_activate(self, value: float) -> bool:
@@ -655,6 +704,7 @@ class RealTimeStateMonitor:
             return value >= self.activation_threshold
         else:
             return value >= self.deactivation_threshold
+
     
     def _update_active_statistics(self, value: float):
         adjusted_value = max(value, self.min_baseline)
@@ -673,12 +723,14 @@ class RealTimeStateMonitor:
             self.active_variance = beta * error**2 + (1 - beta) * self.active_variance
             
         self.active_variance = max(0.1, self.active_variance)
+
     
     def _get_thresholds(self):
         rise_threshold = self.active_baseline * self.rise_factor
         peak_threshold = self.active_baseline * self.peak_factor
         fall_threshold = self.active_baseline * self.fall_factor
         return rise_threshold, peak_threshold, fall_threshold
+
     
     def _update_peak_state(self, value: float, timestamp: float, state: int) -> Tuple[PeakState, Optional[PeakEvent]]:
         """更新峰值状态（加入state参数）"""
@@ -759,6 +811,9 @@ class RealTimeStateMonitor:
                         state_value=self._calculate_state_statistics(timestamp)  # 使用统计结果
                     )
                     
+                    self.threshold_calculator.add_peak(self.current_peak_max)
+                    self.dynamic_threshold = self.threshold_calculator.calculate_threshold()
+                    
                     self.peak_history.append(event)
                 
                 self.current_peak_state = PeakState.BASELINE
@@ -777,6 +832,7 @@ class RealTimeStateMonitor:
                     self.current_peak_max_index = self.total_sample_count
         
         return self.current_peak_state, event
+
     
     def _force_complete_peak(self, timestamp: float, state: int) -> Optional[PeakEvent]:
         """强制完成峰值检测（加入state参数）"""
@@ -795,13 +851,18 @@ class RealTimeStateMonitor:
                 end_index=self.total_sample_count,
                 state_value=self._calculate_state_statistics(timestamp)  # 使用统计结果
             )
-            
+            # 将峰值添加到阈值计算器
+            self.threshold_calculator.add_peak(self.current_peak_max)
+        
+            # 更新动态阈值
+            self.dynamic_threshold = self.threshold_calculator.calculate_threshold()
             self.peak_history.append(event)
             self._reset_peak_info()
             return event
         
         self._reset_peak_info()
         return None
+
     
     def _reset_peak_info(self):
         self.current_peak_max = 0.0
@@ -809,6 +870,7 @@ class RealTimeStateMonitor:
         self.current_peak_start_index = None
         self.current_peak_max_time = None
         self.current_peak_max_index = None
+
     
     def get_recent_peaks(self, time_window: float = 30.0) -> List[PeakEvent]:
         if not self.peak_history or self.last_update_time is None:
@@ -816,6 +878,7 @@ class RealTimeStateMonitor:
         
         cutoff_time = self.last_update_time - time_window
         return [peak for peak in self.peak_history if peak.end_time >= cutoff_time]
+
     
     @property
     def sample_count(self):

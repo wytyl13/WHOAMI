@@ -154,7 +154,11 @@ class SleepDataStateStorage:
             if reason == "首次异常":
                 # 首次异常：存储前60秒数据 + 当前异常数据
                 self._store_anomaly_context(data_point)
+
+                # 是否存储异常开始前60秒数据？仅存储当前数据
+                # self._store_single_data(data_point, reason)
                 self.context_stored = True
+                
             elif reason == "持续异常":
                 # 持续异常：只存储当前数据
                 self._store_single_data(data_point, reason)
@@ -247,7 +251,7 @@ class SleepDataStateStorage:
     def _store_anomaly_context(self, anomaly_data_point: RealTimeDataPoint):
         """存储异常前60秒的数据，将存储数据的状态改为当前异常状态（不修改缓存）"""
         current_time = anomaly_data_point.timestamp
-        context_start = current_time - 60.0
+        context_start = current_time - 30.0
         current_anomaly_state = anomaly_data_point.state
         
         # 获取前60秒的数据，仅在存储时修改状态（缓存数据不变）
@@ -262,21 +266,21 @@ class SleepDataStateStorage:
         
         # 按时间戳排序，确保插入顺序正确
         context_data.sort(key=lambda x: x["timestamp"])
-        print(context_data)
+        # print(context_data)
         # 批量存储（数据库中的状态已修改，但缓存保持原始状态）
         if self.batch_insert_db and context_data:
             self.batch_insert_db(context_data)
-            print(f"🚨 存储异常上下文数据:")
-            print(f"   异常类型: {current_anomaly_state}")
-            print(f"   数据点数量: {len(context_data)} 个")
-            print(f"   ⚠️  数据库存储状态已统一改为: {current_anomaly_state} (缓存保持原始状态)")
-            print(f"   时间范围: {time.strftime('%H:%M:%S', time.localtime(context_data[0]['timestamp']))} - "
-                  f"{time.strftime('%H:%M:%S', time.localtime(context_data[-1]['timestamp']))}")
+            # print(f"🚨 存储异常上下文数据:")
+            # print(f"   异常类型: {current_anomaly_state}")
+            # print(f"   数据点数量: {len(context_data)} 个")
+            # print(f"   ⚠️  数据库存储状态已统一改为: {current_anomaly_state} (缓存保持原始状态)")
+            # print(f"   时间范围: {time.strftime('%H:%M:%S', time.localtime(context_data[0]['timestamp']))} - "
+            #       f"{time.strftime('%H:%M:%S', time.localtime(context_data[-1]['timestamp']))}")
         else:
-            print(f"🚨 存储异常上下文数据:")
-            print(f"   异常类型: {current_anomaly_state}")
-            print(f"   数据点数量: {len(context_data)} 个")
-            print(f"   ⚠️  数据库存储状态已统一改为: {current_anomaly_state} (缓存保持原始状态)")
+            # print(f"🚨 存储异常上下文数据:")
+            # print(f"   异常类型: {current_anomaly_state}")
+            # print(f"   数据点数量: {len(context_data)} 个")
+            # print(f"   ⚠️  数据库存储状态已统一改为: {current_anomaly_state} (缓存保持原始状态)")
             if context_data:
                 print(f"   时间范围: {time.strftime('%H:%M:%S', time.localtime(context_data[0]['timestamp']))} - "
                       f"{time.strftime('%H:%M:%S', time.localtime(context_data[-1]['timestamp']))}")

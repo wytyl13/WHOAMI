@@ -17,11 +17,17 @@ from typing import (
     Any
 )
 import numpy as np
-
+import pytz
+from datetime import datetime, timezone, timedelta
 
 from whoami.tool.agent.base_tool import tool
 
-
+from whoami.provider.sql_provider import SqlProvider
+from whoami.tool.health_report.sx_device_wavve_vital_sign_log_20250522 import SxDeviceWavveVitalSignLog
+sql_provider_test = SqlProvider(
+    model=SxDeviceWavveVitalSignLog, 
+    sql_config_path="/work/ai/WHOAMI/whoami/scripts/health_report/sql_config.yaml",
+)
 @tool
 class SocketServer:
     """one single instance, one port.
@@ -41,7 +47,9 @@ class SocketServer:
         port: int,
         backlog: int = 5,
         data_callback: Callable[[Dict[str, Any]], None] = None,
-        injected_data: Optional[list] = None
+        device_sn_call_back: Callable[[Dict[str, Any]], None] = None,
+        injected_data: Optional[list] = None,
+        device_sn: Optional[str] = None
     ):
         """_summary_
 
@@ -64,7 +72,66 @@ class SocketServer:
         self.logger.info(f"Socket server initialized on port {port}")
         self.devices = {}  
         self.data_callback = data_callback  
-        self.injected_data = injected_data    
+        self.device_sn_call_back = device_sn_call_back
+        self.injected_data = injected_data 
+        self.device_sn = device_sn   
+
+
+    def preprocess_data(self, data):
+        try:
+            source_tz = pytz.timezone('Asia/Shanghai')
+            utc_tz = pytz.UTC
+            if data.get('heart_bpm') is None:
+                    return None
+            processed_record = data.copy()
+            
+            if 'create_time' in processed_record and isinstance(processed_record['create_time'], datetime):
+                dt = processed_record['create_time']
+                
+                if dt.tzinfo is None:
+                    # 明确指定原始数据的时区
+                    dt_localized = source_tz.localize(dt)
+                else:
+                    dt_localized = dt
+                
+                # 转换为UTC时间戳
+                processed_record['create_time'] = dt_localized.astimezone(utc_tz).timestamp()
+            
+            if 'body_move_data' in processed_record and processed_record['body_move_data'] is None:
+                processed_record['body_move_data'] = 0
+        except Exception as e:
+            raise ValueError(f"fail to exec preprocess data {str(e)}")
+        return processed_record
+
+
+
+    def _send_registration_response(self, client_socket, original_data):
+        """回复设备注册请求，告诉设备注册成功，可以开始发送数据"""
+        try:
+            # 从原始请求中提取req_id
+            req_id = int.from_bytes(original_data[4:8], byteorder="big")
+            
+            # 构造回复消息
+            response = bytearray([
+                0x13, 0x01,                    # magic, version
+                0x00, 0x02,                    # type=response(0x00), cmd=response(0x02)
+                req_id.to_bytes(4, byteorder='big')[0],  # req_id (对应设备的请求)
+                req_id.to_bytes(4, byteorder='big')[1],
+                req_id.to_bytes(4, byteorder='big')[2], 
+                req_id.to_bytes(4, byteorder='big')[3],
+                0x00, 0x0A,                    # timeout
+                0x00, 0x00, 0x00, 0x06,        # content_len = 6
+                0x00, 0x01,                    # func_tag (对应0x0001)
+                0x00, 0x00, 0x00, 0x01         # 返回0x01表示注册成功
+            ])
+            
+            # 发送回复
+            client_socket.send(response)
+            self.logger.info(f"已发送设备注册成功回复，req_id: {req_id}")
+            
+        except Exception as e:
+            self.logger.error(f"发送注册回复失败: {e}")
+    
 
 
     def start(self):
@@ -73,7 +140,14 @@ class SocketServer:
             return
         
         self.is_running = True
+        self.logger.info(self.injected_data)
         if self.injected_data is None:
+            if self.device_sn is not None:
+                self.device_thread = threading.Thread(target=self.inject_real_time_device_sn_data)
+                self.device_thread.daemon = True
+                self.device_thread.start()
+                self.logger.info("Server started (device_sn real time data mode)")
+                
             self.accept_thread = threading.Thread(target=self._accept_connections)
             self.accept_thread.daemon = True # 守护线程
             self.accept_thread.start()
@@ -81,10 +155,78 @@ class SocketServer:
         else:
             # 注入模式：启动数据处理线程
             self.inject_thread = threading.Thread(target=self._handle_injected_data)
+            # self.inject_thread = threading.Thread(target=self.start_with_injected_data)
             self.inject_thread.daemon = True
             self.inject_thread.start()
             self.logger.info("Server started (injected data mode)")
         
+        
+    def start_with_injected_data(self):
+        if not self.injected_data:
+            return
+        
+        # 按设备分组
+        device_groups = {}
+        for data in self.injected_data:
+            device_id = data[-1]
+            if device_id not in device_groups:
+                device_groups[device_id] = []
+            device_groups[device_id].append(data)
+        
+        # 每个设备开一个线程发送
+        def send_device_data(device_id, data_list):
+            for data in data_list:
+                self.data_callback(data)
+                time.sleep(0.01)  # 发送间隔
+        
+        threads = []
+        for device_id, data_list in device_groups.items():
+            t = threading.Thread(target=send_device_data, args=(device_id, data_list))
+            t.start()
+            threads.append(t)
+        
+        for t in threads:
+            t.join()
+    
+    
+    def inject_real_time_device_sn_data(self):
+        """处理注入实时编号的数据"""
+        mock_addr = ('127.0.0.1', 0)
+        
+        def insert_at_position(original_dict, position, key, value):
+            """在字典的指定位置插入键值对"""
+            items = list(original_dict.items())
+            items.insert(position, (key, value))
+            return dict(items)
+        
+        try:
+            for i in range(100000):
+                if not self.is_running:
+                    return None
+                past_time = (datetime.now() - timedelta(seconds=2)).strftime("%Y-%m-%d %H:%M:%S")
+                data = sql_provider_test.get_record_by_condition(
+                    condition={"device_sn": self.device_sn, "create_time": past_time},  # 每次查一个设备
+                    fields=["create_time", "breath_bpm", "breath_line", "heart_bpm", "heart_line", "distance", "signal_intensity", "state", "body_move_data", "device_sn"],
+                )
+                # 使用与_handle_client相同的处理逻辑
+                self.logger.info(f"{past_time}, {data}")
+                read_data = data[-1]
+                parse_data = self.preprocess_data(read_data)
+                parse_data = insert_at_position(parse_data, 9, "body_move_range", 1)
+                parse_data = insert_at_position(parse_data, 10, "in_bed", 0)
+                parse_data = tuple(parse_data.values())
+                self.logger.info(f"parse_data: --------------------------------- {parse_data}")
+                if parse_data:
+                    self.data_callback(parse_data)
+                    
+                # 可选：添加延时模拟实时数据间隔
+                time.sleep(1)
+                
+        except Exception as e:
+            self.logger.error(f"Error handling injected data: {str(e)}")
+        finally:
+            self.logger.info("Finished processing all injected data")
+    
     
     def stop(self):
         if not self.is_running:
@@ -133,7 +275,7 @@ class SocketServer:
                 data = client_socket.recv(4096)
                 if not data:
                     break
-                parse_data = self._parse_data(data, addr)
+                parse_data = self._parse_data(data, addr, client_socket)
                 if parse_data:
                     # self.logger.info(parse_data)
                     self.data_callback(parse_data)
@@ -179,15 +321,15 @@ class SocketServer:
             # 将Radar ID格式化为十六进制字符串
             radar_id_hex = ''.join([f'{b:02x}' for b in radar_id])
             
-        
+        self.logger.info(f"radar_id_hex: -------------------------- {radar_id_hex}")
         # 存储这个addr对应的设备ID
         self.devices[addr] = radar_id_hex
-        
+        self.device_sn_call_back(radar_id_hex.upper())
         self.logger.info(f"Received device ID: {radar_id_hex} from {addr}")
         return {"device_id": radar_id_hex, "addr": addr}
     
     
-    def _parse_data(self, data, addr):
+    def _parse_data(self, data, addr, client_socket):
         """Parse received data according to the protocol."""
         try:
             if len(data) < 16:
@@ -206,11 +348,13 @@ class SocketServer:
             if func_tag == 0x03e8:  # Vital data
                 return self._parse_vital_data(data, addr)
             elif func_tag == 0x0001:  # Device ID
+                self._send_registration_response(client_socket, data) # 发送回复
                 return None  # Skip device ID packets
             elif func_tag == 0x040f:  # Body movement data
                 return None  # Skip body movement packets for now
             elif func_tag == 0x0410:  # Device ID
                 self._parse_device_id(data, addr)
+                self._send_registration_response(client_socket, data)
                 return None
             else:
                 timestamp = int(time.time())
@@ -327,9 +471,9 @@ class SocketServer:
             body_move_energy, 
             body_move_range, 
             1 if in_bed else 0, 
-            device_id
+            device_id.upper()
         )
-            
+
 
     def send_get_radar_id_request(
         self, 

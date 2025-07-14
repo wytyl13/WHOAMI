@@ -1504,9 +1504,9 @@ def test_rag():
     
     
     # 启动支持 HTTPS 的服务器
-    print(f"以 HTTPS 模式启动服务器在 https://0.0.0.0:8888")
+    print(f"以 HTTPS 模式启动服务器在 https://0.0.0.0:8889")
     uvicorn.run(
         app, 
         host='0.0.0.0', 
-        port=8888,
+        port=8889,
     )

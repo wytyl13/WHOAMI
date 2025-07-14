@@ -33,6 +33,9 @@ from whoami.tool.real_time_vital_analyze.peak_state import RealTimeStateMonitor
 from whoami.tool.real_time_vital_analyze.sleep_data_state_storage import SleepDataStateStorage
 from whoami.provider.sql_provider import SqlProvider
 from whoami.tool.real_time_vital_analyze.sleep_data_state import SleepDataState
+from whoami.tool.real_time_vital_analyze.real_time_vital_data import RealTimeVitalData
+
+
 
 model_params = {
     'seq_len': 20,
@@ -51,17 +54,22 @@ engine = LSTMEngine(
 engine.setup(model_path='/work/ai/WHOAMI/whoami/neural_network/checkpoint_epoch_32_2dimensions_20000_no_normalized.pth', scaler_path='/work/ai/WHOAMI/whoami/neural_network/rnn/training_scaler.pkl')
 
 monitor = RealTimeStateMonitor(
-    off_bed_threshold=0.1,          # 离床阈值
-    apnea_threshold=0.5,            # 呼吸暂停阈值
+    off_bed_threshold=0.4,          # 离床阈值
+    apnea_threshold=2.0,            # 呼吸暂停阈值
     activation_threshold=1.0,       # 峰值检测激活阈值
-    rise_factor=1.5,
-    peak_factor=2.0,
-    min_peak_duration=1.0,
-    min_peak_height=5.0
+    # rise_factor=1.5,
+    # peak_factor=2.0,
+    # min_peak_duration=1.0,
+    # min_peak_height=5.0
 )
 
 sql_provider = SqlProvider(
     model=SleepDataState, 
+    sql_config_path="/work/ai/WHOAMI/whoami/scripts/health_report/sql_config.yaml",
+)
+
+real_time_sql_provider = SqlProvider(
+    model=RealTimeVitalData, 
     sql_config_path="/work/ai/WHOAMI/whoami/scripts/health_report/sql_config.yaml",
 )
 
@@ -95,6 +103,10 @@ class SocketServerManager(ProducerConsumerManager):
     fill_value: Optional[Any] = 0
     submit_time_lock: Optional[threading.Lock] = None
     injected_data: Optional[List] = None
+    store_real_time_vital_data: Optional[int] = 0
+    device_sn: Optional[str] = None
+    monitor_dict: Dict[str, RealTimeStateMonitor] = {}
+    storage_dict: Dict[str, SleepDataStateStorage] = {}
     
     def __init__(
         self, 
@@ -106,7 +118,9 @@ class SocketServerManager(ProducerConsumerManager):
         space_rate: Optional[float] = None,
         sliding_window_size: int = 20, 
         fill_value: Any = (0, 0),
-        injected_data: Optional[List] = None
+        injected_data: Optional[List] = None,
+        store_real_time_vital_data: Optional[int] = 0,
+        device_sn: Optional[str] = None
     ):
         super().__init__(
             max_producers=max_producers,
@@ -126,7 +140,7 @@ class SocketServerManager(ProducerConsumerManager):
         self.classified_queues = FixedSizeAtomicDict(
             queue_capacity=sliding_window_size,
         )
-        
+        self.store_real_time_vital_data = store_real_time_vital_data if store_real_time_vital_data is not None else self.store_real_time_vital_data
         # 时间戳管理（原子操作）
         self.last_submit_times = {}  # device_id -> AtomicLong
         self.submit_time_lock = threading.Lock()  # 用于时间戳字典的线程安全
@@ -138,10 +152,35 @@ class SocketServerManager(ProducerConsumerManager):
             'total_devices': 0
         }
         
+        device_sn_list = [
+            "13D7F349200080712111150807",
+            "13F51B9D10004071111715D807",
+            "132C1C9D100040711117959C07"
+        ]
+        for item in device_sn_list:
+            self.monitor_dict[item] = RealTimeStateMonitor(
+                off_bed_threshold=0.4,          # 离床阈值
+                apnea_threshold=2.0,            # 呼吸暂停阈值
+                activation_threshold=1.0,       # 峰值检测激活阈值
+                # rise_factor=1.5,
+                # peak_factor=2.0,
+                # min_peak_duration=1.0,
+                # min_peak_height=5.0
+            )
+
+            self.storage_dict[item] = SleepDataStateStorage(
+                single_insert_db=sql_provider.add_record,
+                batch_insert_db=sql_provider.bulk_insert_with_update,
+                buffer_duration=60.0,
+                min_interval=10.0,
+                max_interval=30.0
+            )
         
-        self.injected_data = injected_data
+        # self.injected_data = injected_data
+        self.injected_data = None
         
         self.logger.info("SocketServerManager initialized")
+        self.device_sn = device_sn
     
     
     def get_or_create_queue(self, device_id: str) -> queue.Queue:
@@ -165,6 +204,27 @@ class SocketServerManager(ProducerConsumerManager):
         return device_queue
     
     
+    def add_device_sn_post_class(self, device_id):
+        if device_id not in self.monitor_dict:
+            self.monitor_dict[device_id] = RealTimeStateMonitor(
+                    off_bed_threshold=0.4,          # 离床阈值
+                    apnea_threshold=2.0,            # 呼吸暂停阈值
+                    activation_threshold=1.0,       # 峰值检测激活阈值
+                    # rise_factor=1.5,
+                    # peak_factor=2.0,
+                    # min_peak_duration=1.0,
+                    # min_peak_height=5.0
+                )
+
+            self.storage_dict[device_id] = SleepDataStateStorage(
+                single_insert_db=sql_provider.add_record,
+                batch_insert_db=sql_provider.bulk_insert_with_update,
+                buffer_duration=60.0,
+                min_interval=10.0,
+                max_interval=30.0
+            )
+    
+    
     def _classify_and_store_data(self, parse_data):
         """
         数据分类存储到固定大小滑动队列
@@ -172,7 +232,24 @@ class SocketServerManager(ProducerConsumerManager):
         Args:
             parse_data: 解析后的数据，最后一个元素是device_id
         """
+        if self.store_real_time_vital_data:
+            data_dict = {
+                "timestamp": parse_data[0],
+                "breath_bpm": parse_data[1], 
+                "breath_line": parse_data[2],       # breath_curve -> breath_line
+                "heart_bpm": parse_data[3],
+                "heart_line": parse_data[4],        # heart_curve -> heart_line
+                "target_distance": parse_data[5],
+                "signal_strength": parse_data[6],
+                "valid_bit_id": parse_data[7],
+                "body_move_energy": parse_data[8],
+                "body_move_range": parse_data[9],
+                "in_bed": parse_data[10],           # 1 if in_bed else 0
+                "device_sn": parse_data[11]         # device_id -> device_sn
+            }
+            real_time_sql_provider.add_record(data_dict)
         device_id = parse_data[-1]
+        self.logger.info(f"device_id, {device_id}")
         try:
             # 获取或创建设备队列
             target_queue = self.get_or_create_queue(device_id)
@@ -186,7 +263,7 @@ class SocketServerManager(ProducerConsumerManager):
             )
             # 更新最新数据缓存
             self.latest_real_time_data[device_id] = parse_data
-            self.performance_stats['total_enqueue'] += 1
+            # self.performance_stats['total_enqueue'] += 1
             
             self.logger.debug(f"数据已入队到设备 {device_id} 滑动窗口: {parse_data}")
             
@@ -207,8 +284,10 @@ class SocketServerManager(ProducerConsumerManager):
         socket_server = SocketServer(
             port=port,
             data_callback=self._classify_and_store_data,
+            device_sn_call_back=self.add_device_sn_post_class,
             backlog=backlog,
-            injected_data=self.injected_data
+            injected_data=self.injected_data,
+            device_sn = self.device_sn
         )
         
         socket_server.start()
@@ -316,8 +395,8 @@ class SocketServerManager(ProducerConsumerManager):
                 except Exception as e:
                     self.logger.error(f"设备 {device_id} 消费检查时出错: {e}")
             
-            if not consumed_any:
-                time.sleep(0.1)  # 短暂等待
+            # if not consumed_any:
+            #     time.sleep(0.01)  # 短暂等待
     
     
     def _process_sliding_window_data(self, device_id: str, device_queue: FixedSizeSlidingQueue):
@@ -332,7 +411,7 @@ class SocketServerManager(ProducerConsumerManager):
         try:
             # 1. 查看队列中所有数据（60个元素的完整窗口）
             all_window_data = device_queue.peek_all()
-            print(f"original data: {all_window_data[-1]}")
+            # print(f"original data: {all_window_data[-1]}")
             
             timestamp, breath_bpm, breath_line, heart_bpm, heart_line, target_distance, signal_strength, _, body_move_energy, body_move_range, in_bed, device_id = all_window_data[-1]
             
@@ -346,13 +425,14 @@ class SocketServerManager(ProducerConsumerManager):
             add_data = [self.fill_value] * add_size
             add_data.extend(all_window_data)
             add_data = np.array(add_data)
-            print(f"lstm input data: {add_data[-1]}")
+            # print(f"lstm input data: {add_data[-1]}")
             # 2. 获取数据分布统计
             # data_stats = device_queue.get_data_distribution()
             result, error = engine.predict(data=add_data, return_details=True)
-            state = monitor.update(value=error, body_move_energy=body_move_energy, timestamp=timestamp, breath_line_heart_line=breath_line_heart_line)
+            state = self.monitor_dict[device_id].update(value=error, body_move_energy=body_move_energy, timestamp=timestamp, breath_line_heart_line=breath_line_heart_line)
+            # self.logger.info(f"monitor.dynamic_threshold ------------ {monitor.dynamic_threshold}")
             state_str = state[0]
-            print(result, error, state[0], timestamp)
+            print(device_id, result, error, state[0], timestamp)
             
             self.latest_real_time_label[device_id] = (result, error, state_str)
             
@@ -368,7 +448,7 @@ class SocketServerManager(ProducerConsumerManager):
                 "state": state_str
             }
             
-            storage.add_data_point(**storage_dict)
+            self.storage_dict[device_id].add_data_point(**storage_dict)
             
         except Exception as e:
             self.logger.error(f"设备 {device_id} 滑动窗口数据处理失败: {e}")
@@ -398,7 +478,7 @@ class SocketServerManager(ProducerConsumerManager):
                 self.logger.warning(f"设备 {device_id} 队列在处理过程中变空")
                 return
             
-            self.performance_stats['total_dequeue'] += 1
+            # self.performance_stats['total_dequeue'] += 1
             
             # 3. 记录处理信息
             self.logger.info(f"设备 {device_id} 处理上下文:")
@@ -583,14 +663,10 @@ if __name__ == '__main__':
         model=SxDeviceWavveVitalSignLog, 
         sql_config_path="/work/ai/WHOAMI/whoami/scripts/health_report/sql_config.yaml",
     )
-    result = sql_provider_test.get_record_by_condition(
-        condition={"device_sn": "13D2F34920008071211195A907"},
-        fields=["create_time", "breath_bpm", "breath_line", "heart_bpm", "heart_line", "distance", "signal_intensity", "state", "body_move_data", "device_sn"],
-        date_range={"date_field": "create_time", "start_date": "2025-6-29 19:00:00", "end_date": "2025-6-30 07:00:00"}
-    )
-    print(result[0])
+    
     
     from datetime import datetime, timezone, timedelta
+    
     def preprocess_query_results_safe(records: List[Dict[str, Any]], 
                                 source_timezone: str = 'Asia/Shanghai') -> List[Dict[str, Any]]:
         """更安全的版本 - 明确指定源时区"""
@@ -629,7 +705,7 @@ if __name__ == '__main__':
         
         return processed_records
 
-    
+
     def check_none_values(records: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         检查数据中的None值情况
@@ -695,46 +771,88 @@ if __name__ == '__main__':
         }
         
         return result
-    
 
-    result = preprocess_query_results_safe(result)
-    injected_data = []
-    for item in result:
-        tuple_data = (
-            item.get('create_time', 0),           # 位置0: timestamp
-            item.get('breath_bpm', 0),            # 位置1: breath_bpm
-            item.get('breath_line', 0),           # 位置2: breath_line
-            item.get('heart_bpm', 0),             # 位置3: heart_bpm
-            item.get('heart_line', 0),            # 位置4: heart_line
-            item.get('distance', 0),              # 位置5: target_distance
-            item.get('signal_intensity', 0),      # 位置6: signal_strength
-            item.get('state', 0),                 # 位置7: state
-            item.get('body_move_data', 0),        # 位置8: body_move_energy (缺失字段)
-            0,                                    # 位置9: body_move_range (缺失字段)
-            0,                                    # 位置10: in_bed 
-            item.get('device_sn', '00000001')     # 位置11: device_id
+
+    device_list = [
+        # "13D2F34920008071211195A907", 
+        # "13D2F349200080712111957107", 
+        # "13D0F349200080712111953407",
+        # "13D8F349200080712111952507",
+        # "13D4F349200080712111955807",
+        # "13D7F349200080712111956D07",
+        # "13D0F34920008071211195E107",
+        # "13D4F349200080712111155907",
+        # "13D4F349200080712111959C07",
+        # "13D8F349200080712111958807",
+        # "13F71B9D10004071111795B407",
+        # "132E1C9D100040711117950507",
+        # "13F61B9D10004071111715D507",
+        # "132A1C9D100040711117953007",
+        # "13251C9D100040711117954907",
+        # "13331C9D100040711117152507",
+        # "13F61B9D100040711117956107",
+        # "132D1C9D10004071111795D507",
+        # "132D1C9D100040711117959807",
+        # "13F71B9D100040711117150007",
+        # "132C1C9D100040711117152807",
+        # "132C1C9D100040711117152807",
+        # "13321C9D100040711117959D07",
+        # "13311C9D10004071111715DD07",
+        # "13F71B9D100040711117157907",
+        # "13F61B9D100040711117954107",
+        # "13301C9D100040711117955007",
+        # "13291C9D100040711117957107",
+        "13F51B9D10004071111715D807"
+    ]
+    
+    all_injected_data = []
+    
+    for device_sn in device_list:
+        result = sql_provider_test.get_record_by_condition(
+            condition={"device_sn": device_sn},  # 每次查一个设备
+            fields=["create_time", "breath_bpm", "breath_line", "heart_bpm", "heart_line", "distance", "signal_intensity", "state", "body_move_data", "device_sn"],
+            date_range={"date_field": "create_time", "start_date": "2025-7-8 21:00:00", "end_date": "2025-7-9 07:00:00"}
         )
-        injected_data.append(tuple_data)
-    
-    print(injected_data[0])
-    
-    # socket_server_manager = SocketServerManager(
-    #     max_producers=10,      # 最大生产者数量
-    #     max_consumers=15,      # 最大消费者数量
-    #     production_queue_size=500,  # 生产队列大小
-    #     consumer_tool_pool=consumer_tool_pool,
-    #     injected_data=injected_data
-    # )
-
-    # socket_server_manager.start_socket_server(port=8888, backlog=5)
-    
-    # try:
-    #     # 让服务器运行一段时间
-    #     import time
-    #     time.sleep(3600)  # 运行1小时
-    # finally:
-    #     # 停止特定端口的服务器
-    #     socket_server_manager.stop_socket_server(port=8888)
         
-    #     # 或者关闭整个管理器及其所有服务器
-    #     socket_server_manager.shutdown()
+        # 转换数据格式
+        result = preprocess_query_results_safe(result)
+        for item in result:
+            tuple_data = (
+                item.get('create_time', 0),
+                item.get('breath_bpm', 0),
+                item.get('breath_line', 0),
+                item.get('heart_bpm', 0),
+                item.get('heart_line', 0),
+                item.get('distance', 0),
+                item.get('signal_intensity', 0),
+                item.get('state', 0),
+                item.get('body_move_data', 0),
+                0,
+                0,
+                device_sn  # 注意这里用device_sn
+            )
+            all_injected_data.append(tuple_data)
+    print(f"总共读取了 {len(all_injected_data)} 条数据")
+    
+    
+    
+    socket_server_manager = SocketServerManager(
+        max_producers=10,      # 最大生产者数量
+        max_consumers=15,      # 最大消费者数量
+        production_queue_size=500,  # 生产队列大小
+        consumer_tool_pool=consumer_tool_pool,
+        injected_data=all_injected_data 
+    )
+
+    socket_server_manager.start_socket_server(port=8888, backlog=5)
+    
+    try:
+        # 让服务器运行一段时间
+        import time
+        time.sleep(3600)  # 运行1小时
+    finally:
+        # 停止特定端口的服务器
+        socket_server_manager.stop_socket_server(port=8888)
+        
+        # 或者关闭整个管理器及其所有服务器
+        socket_server_manager.shutdown()

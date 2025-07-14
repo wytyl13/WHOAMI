@@ -385,7 +385,7 @@ def plot_combined_lines(data, figsize=(15, 6), save_path=None,
 
 if __name__ == '__main__':
     
-    data = pd.read_csv("/work/ai/WHOAMI/device_info_13D2F34920008071211195A907_20250625_classifier.csv")
+    data = pd.read_csv("/work/ai/WHOAMI/device_info_13CFF349200080712111955C07_20250623.csv")
     np_data = np.array(data)
     sample_data = np_data[:, :-2]
     print(sample_data)

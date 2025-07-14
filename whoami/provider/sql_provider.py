@@ -222,6 +222,84 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 raise ValueError(error_info) from e
 
 
+    def update_record_enhanced(self, record_id: int, data: Dict[str, Any], return_updated: bool = True) -> Optional[Dict[str, Any]]:
+        """
+        增强版更新记录函数
+        
+        Args:
+            record_id (int): 要更新的记录ID
+            data (Dict[str, Any]): 包含要更新字段的字典
+            return_updated (bool): 是否返回更新后的记录，默认为True
+            
+        Returns:
+            Optional[Dict[str, Any]]: 如果return_updated为True，返回更新后的记录字典；否则返回None
+            
+        Raises:
+            ValueError: 当记录不存在、数据为空或更新失败时抛出
+        """
+        with self.get_db_session() as session:
+            try:
+                if not data:
+                    raise ValueError("更新数据不能为空")
+                
+                # 查询要更新的记录
+                record = session.query(self.model).filter(
+                    self.model.id == record_id,
+                    self.model.deleted == False
+                ).first()
+                
+                if not record:
+                    raise ValueError(f"ID为 {record_id} 的记录不存在或已被删除")
+                
+                # 过滤掉不存在的字段
+                valid_data = {}
+                invalid_fields = []
+                
+                for key, value in data.items():
+                    if hasattr(self.model, key):
+                        # 跳过主键字段
+                        if key != 'id':
+                            valid_data[key] = value
+                    else:
+                        invalid_fields.append(key)
+                
+                if invalid_fields:
+                    self.logger.warning(f"以下字段在模型中不存在，将被忽略: {invalid_fields}")
+                
+                if not valid_data:
+                    raise ValueError("没有有效的字段需要更新")
+                
+                # 执行更新操作
+                result = session.query(self.model).filter(
+                    self.model.id == record_id,
+                    self.model.deleted == False
+                ).update(valid_data)
+                
+                if result == 0:
+                    raise ValueError(f"更新失败，记录ID {record_id} 不存在")
+                
+                # 如果需要返回更新后的记录
+                if return_updated:
+                    session.commit()
+                    updated_record = session.query(self.model).filter(
+                        self.model.id == record_id
+                    ).first()
+                    
+                    if updated_record:
+                        return {
+                            key: value for key, value in updated_record.__dict__.items() 
+                            if key != '_sa_instance_state'
+                        }
+                
+                return None
+                
+            except Exception as e:
+                session.rollback()
+                error_info = f"更新记录失败 ID: {record_id}, 数据: {data}, 错误: {str(e)}"
+                self.logger.error(error_info)
+                raise ValueError(error_info) from e
+
+
     def upsert_record_by_unique_field(
         self, 
         unique_field: Union[str, List[str]] = None, 

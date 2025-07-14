@@ -172,7 +172,7 @@ def get_shared_socket_manager():
     result = sql_provider_test.get_record_by_condition(
         condition={"device_sn": "13D2F34920008071211195A907"},
         fields=["create_time", "breath_bpm", "breath_line", "heart_bpm", "heart_line", "distance", "signal_intensity", "state", "body_move_data", "device_sn"],
-        date_range={"date_field": "create_time", "start_date": "2025-6-27 00:00:00", "end_date": "2025-6-27 07:00:00"}
+        date_range={"date_field": "create_time", "start_date": "2025-6-29 21:00:00", "end_date": "2025-6-30 07:00:00"}
     )
     print(result[0])
     
@@ -270,7 +270,7 @@ def get_shared_socket_manager():
         production_queue_size=500,  # 生产队列大小
         consumer_tool_pool=consumer_tool_pool,
         sliding_window_size=20,
-        # injected_data=injected_data
+        injected_data=injected_data
     )
     
     # 尝试启动服务器，如果端口被占用就跳过（说明已经有实例在运行）

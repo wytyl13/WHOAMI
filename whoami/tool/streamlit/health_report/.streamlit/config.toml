@@ -1,0 +1,36 @@
+import streamlit as st
+
+st.set_page_config(
+    page_title="生理监控系统",
+    page_icon="💓",
+    layout="wide"
+)
+
+st.title("💓 生理监控系统")
+st.markdown("---")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("### 📊 实时监控")
+    st.markdown("查看设备实时生理数据")
+    if st.button("进入实时监控", use_container_width=True):
+        st.switch_page("pages/real_time_vital.py")
+
+with col2:
+    st.markdown("### 📈 健康报告")
+    st.markdown("查看历史数据报告")
+    if st.button("进入健康报告", use_container_width=True):
+        st.switch_page("pages/report.py")
+
+with col3:
+    st.markdown("### 📈 登录")
+    st.markdown("登录界面")
+    if st.button("登录界面", use_container_width=True):
+        st.switch_page("pages/login.py")
+
+with col3:
+    st.markdown("### 📈 设备信息")
+    st.markdown("设备信息")
+    if st.button("设备信息", use_container_width=True):
+        st.switch_page("pages/device_data.py")

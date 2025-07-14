@@ -15,6 +15,7 @@ from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import sys
 import os
+import re
 from typing import List, Dict, Any, Optional
 
 
@@ -762,11 +763,11 @@ def create_breath_line_chart(detail_data: List[Dict]) -> go.Figure:
         ))
     
     fig.update_layout(
-        title={
-            'text': "呼吸波形图",
-            'x': 0.5,
-            'font': {'size': 18, 'color': '#1f77b4', 'family': "Arial"}
-        },
+        # title={
+        #     'text': "呼吸波形图",
+        #     'x': 0.5,
+        #     'font': {'size': 18, 'color': '#1f77b4', 'family': "Arial"}
+        # },
         xaxis={
             'title': {'text': "时间", 'font': {'size': 12}},
             'tickfont': {'size': 10},
@@ -848,11 +849,11 @@ def create_heart_line_chart(detail_data: List[Dict]) -> go.Figure:
     ))
     
     fig.update_layout(
-        title={
-            'text': "心率波形图",
-            'x': 0.5,
-            'font': {'size': 18, 'color': '#1f77b4', 'family': "Arial"}
-        },
+        # title={
+        #     'text': "心率波形图",
+        #     'x': 0.5,
+        #     'font': {'size': 18, 'color': '#1f77b4', 'family': "Arial"}
+        # },
         xaxis={
             'title': {'text': "时间", 'font': {'size': 12}},
             'tickfont': {'size': 10},
@@ -874,9 +875,12 @@ def create_heart_line_chart(detail_data: List[Dict]) -> go.Figure:
     
     return fig
 
-# 创建状态分区图 - 使用详细数据库 (使用shapes确保颜色正确显示)
-def create_state_chart(detail_data: List[Dict]) -> go.Figure:
-    """创建睡眠状态分区图"""
+
+
+
+# 与监控系统完全一致的睡眠状态图表函数
+def create_state_chart_unified(detail_data: List[Dict]) -> go.Figure:
+    """创建与监控系统颜色统一的睡眠状态图表"""
     if not detail_data:
         fig = go.Figure()
         fig.add_annotation(
@@ -893,32 +897,60 @@ def create_state_chart(detail_data: List[Dict]) -> go.Figure:
         )
         return fig
     
-    # 状态颜色映射
-    state_colors = {
-        'deep_sleep': '#2E8B57',      # 深绿色
-        'light_sleep': '#4682B4',     # 钢蓝色
-        'awake': '#FF8C00',           # 橙色
-        'out_bed': '#DC143C',         # 深红色
-        'unknown': '#808080'          # 灰色
+    # 🎨 与监控系统完全一致的状态颜色映射
+    STATUS_COLORS = {
+        '在床正常': '#4CAF50',  # 绿色
+        '离床': '#FF9800',      # 橙色
+        '呼吸急促': '#F44336',  # 红色
+        '体动': '#2196F3',      # 蓝色
+        '呼吸暂停': '#9C27B0',  # 紫色
+        '清醒': '#FFC107',      # 黄色
+        '浅睡眠': '#00BCD4',    # 青色
+        '深睡眠': '#3F51B5',    # 深蓝色
+        
+        # 兼容其他可能的状态值
+        '深睡眠': '#3F51B5',
+        '浅睡眠': '#00BCD4',
+        'deep_sleep': '#3F51B5',
+        'light_sleep': '#00BCD4',
+        'awake': '#FFC107',
+        'out_bed': '#FF9800',
+        'unknown': '#808080',    # 灰色 - 未知状态
+    }
+
+    # 🎯 与监控系统一致的状态图标
+    STATUS_ICONS = {
+        '在床正常': '🟢',
+        '离床': '🟠',
+        '呼吸急促': '🔴',
+        '体动': '🔵',
+        '呼吸暂停': '🟣',
+        '清醒': '😊',
+        '浅睡眠': '😴',
+        '深睡眠': '😴',
+        # 兼容
+        'deep_sleep': '😴',
+        'light_sleep': '😴',
+        'awake': '😊',
+        'out_bed': '🟠',
+        'unknown': '❓',
     }
     
-    # 状态名称映射
-    state_names = {
-        'deep_sleep': '深睡眠',
-        'light_sleep': '浅睡眠', 
-        'awake': '清醒',
-        'out_bed': '离床',
-        'unknown': '未知'
-    }
+    # 显示名称映射（带图标）
+    state_display_names = {}
+    for state in STATUS_COLORS.keys():
+        icon = STATUS_ICONS.get(state, '⚪')
+        state_display_names[state] = f"{icon} {state}"
     
     # 处理状态数据，将连续的相同状态合并为段
     segments = []
     if detail_data:
-        current_state = detail_data[0]["state"]
-        start_time = detail_data[0]["datetime"]
+        detail_data_sorted = sorted(detail_data, key=lambda x: x["datetime"])
+        current_state = detail_data_sorted[0]["state"]
+        start_time = detail_data_sorted[0]["datetime"]
         
-        for i, record in enumerate(detail_data[1:], 1):
-            if record["state"] != current_state or i == len(detail_data) - 1:
+        for i, record in enumerate(detail_data_sorted[1:], 1):
+            if record["state"] != current_state or i == len(detail_data_sorted) - 1:
                 # 状态改变或到达最后一条记录
                 end_time = record["datetime"] if record["state"] != current_state else record["datetime"]
                 segments.append({
@@ -931,76 +963,72 @@ def create_state_chart(detail_data: List[Dict]) -> go.Figure:
                 start_time = record["datetime"]
     
     if not segments:
-        return create_state_chart([])  # 递归调用返回空图
+        fig = go.Figure()
+        fig.add_annotation(text="无有效状态数据", x=0.5, y=0.5, showarrow=False)
+        return fig
     
     fig = go.Figure()
     
-    # 记录已添加的状态，避免重复图例
-    added_states = set()
-    shapes = []
-    
-    # 为每个状态段创建矩形 shapes
-    for i, segment in enumerate(segments):
-        state = segment['state']
-        color = state_colors.get(state, '#808080')
-        name = state_names.get(state, state)
-        
-        # 添加矩形形状
-        shapes.append(dict(
-            type="rect",
-            x0=segment['start'],
-            y0=0,
-            x1=segment['end'],
-            y1=1,
-            fillcolor=color,
-            opacity=0.8,
-            line=dict(color=color, width=1),
-        ))
-        
-        # 只为第一次出现的状态添加图例
-        if state not in added_states:
-            added_states.add(state)
-            # 添加一个不可见的scatter点用于图例
-            fig.add_trace(go.Scatter(
-                x=[segment['start']],
-                y=[0.5],
-                mode='markers',
-                marker=dict(
-                    color=color,
-                    size=10,
-                    symbol='square'
-                ),
-                name=name,
-                showlegend=True,
-                visible=True,  # 图例可见
-                hoverinfo='skip'  # 不显示hover信息
-            ))
-    
-    # 添加一个透明的scatter trace用于hover信息
+    # 按状态分组
+    state_segments = {}
     for segment in segments:
         state = segment['state']
-        name = state_names.get(state, state)
-        
-        fig.add_trace(go.Scatter(
-            x=[segment['start'], segment['end']],
-            y=[0.5, 0.5],
-            mode='lines',
-            line=dict(color='rgba(0,0,0,0)', width=20),  # 透明但宽的线，用于hover
-            showlegend=False,
-            hovertemplate=f'<b>{name}</b><br>' +
-                         f'开始: {segment["start"].strftime("%H:%M:%S")}<br>' +
-                         f'结束: {segment["end"].strftime("%H:%M:%S")}<br>' +
-                         f'时长: {segment["duration"]:.1f}分钟<br>' +
-                         '<extra></extra>',
-        ))
+        if state not in state_segments:
+            state_segments[state] = []
+        state_segments[state].append(segment)
     
-    # 更新布局并添加shapes
+    # 为每个状态创建trace
+    for state, state_segs in state_segments.items():
+        # 🎨 使用统一的颜色映射
+        color = STATUS_COLORS.get(state, '#808080')  # 默认灰色
+        display_name = state_display_names.get(state, f"⚪ {state}")
+        
+        # 创建填充区域的坐标
+        x_coords = []
+        y_coords = []
+        
+        for segment in state_segs:
+            x_coords.extend([
+                segment['start'], segment['end'], segment['end'], 
+                segment['start'], segment['start'], None
+            ])
+            y_coords.extend([0, 0, 1, 1, 0, None])
+        
+        # 添加填充trace
+        fig.add_trace(go.Scatter(
+            x=x_coords,
+            y=y_coords,
+            mode='lines',
+            line=dict(color=color, width=0),
+            fill='toself',
+            fillcolor=color,
+            opacity=0.8,
+            name=display_name,
+            showlegend=True,
+            hoverinfo='skip'
+        ))
+        
+        # 添加hover信息trace
+        for segment in state_segs:
+            fig.add_trace(go.Scatter(
+                x=[segment['start'], segment['end']],
+                y=[0.5, 0.5],
+                mode='lines',
+                line=dict(color='rgba(0,0,0,0)', width=20),
+                showlegend=False,
+                hovertemplate=f'<b>{display_name}</b><br>' +
+                             f'开始: {segment["start"].strftime("%H:%M:%S")}<br>' +
+                             f'结束: {segment["end"].strftime("%H:%M:%S")}<br>' +
+                             f'时长: {segment["duration"]:.1f}分钟<br>' +
+                             '<extra></extra>',
+            ))
+    
     fig.update_layout(
-        title={
-            'text': "睡眠状态时间线",
-            'x': 0.5,
-            'font': {'size': 18, 'color': '#1f77b4', 'family': "Arial"}
-        },
+        # title={
+        #     'text': "睡眠状态时间线",
+        #     'x': 0.5,
+        #     'font': {'size': 18, 'color': '#1f77b4', 'family': "Arial"}
+        # },
         xaxis={
             'title': {'text': "时间", 'font': {'size': 12}},
             'tickfont': {'size': 10},
@@ -1009,7 +1037,6 @@ def create_state_chart(detail_data: List[Dict]) -> go.Figure:
         },
         yaxis={
             'title': {'text': "状态", 'font': {'size': 12}},
-            'tickfont': {'size': 10},
             'showticklabels': False,
             'range': [-0.1, 1.1]
         },
@@ -1021,13 +1048,223 @@ def create_state_chart(detail_data: List[Dict]) -> go.Figure:
             orientation="h",
             yanchor="bottom",
             y=1.02,
-            xanchor="right",
-            x=1
-        ),
-        shapes=shapes  # 添加所有矩形shapes
+            xanchor="center",
+            x=0.5,
+            font=dict(size=10)
+        )
     )
     
     return fig
+
+
+
+def create_state_chart(detail_data: List[Dict]) -> go.Figure:
+    """创建JSON安全的睡眠状态图表"""
+    if not detail_data:
+        fig = go.Figure()
+        fig.add_annotation(
+            text="暂无状态数据",
+            x=0.5, y=0.5,
+            font=dict(size=20, color="gray"),
+            showarrow=False
+        )
+        fig.update_layout(
+            title="睡眠状态",
+            xaxis=dict(visible=False),
+            yaxis=dict(visible=False),
+            height=300
+        )
+        return fig
+    
+    # 使用简单的ASCII字符，避免Unicode问题
+    STATUS_COLORS = {
+        '在床正常': '#4CAF50',
+        '离床': '#FF9800',
+        '呼吸急促': '#F44336',
+        '体动': '#2196F3',
+        '呼吸暂停': '#9C27B0',
+        '清醒': '#FFC107',
+        '浅睡眠': '#00BCD4',
+        '深睡眠': '#3F51B5',
+        'deep_sleep': '#3F51B5',
+        'light_sleep': '#00BCD4',
+        'awake': '#FFC107',
+        'out_bed': '#FF9800',
+        'unknown': '#808080',
+    }
+    
+    # 使用简单的文本标记，避免emoji导致的编码问题
+    # STATUS_ICONS = {
+    #     '在床正常': '[正常]',
+    #     '离床': '[离床]',
+    #     '呼吸急促': '[急促]',
+    #     '体动': '[体动]',
+    #     '呼吸暂停': '[暂停]',
+    #     '清醒': '[清醒]',
+    #     '浅睡眠': '[浅睡]',
+    #     '深睡眠': '[深睡]',
+    #     'deep_sleep': '[深睡]',
+    #     'light_sleep': '[浅睡]',
+    #     'awake': '[清醒]',
+    #     'out_bed': '[离床]',
+    #     'unknown': '[未知]',
+    # }
+    
+    
+    STATUS_ICONS = {
+        '在床正常': '正常',
+        '离床': '离床',
+        '呼吸急促': '急促',
+        '体动': '体动',
+        '呼吸暂停': '暂停',
+        '清醒': '清醒',
+        '浅睡眠': '浅睡',
+        '深睡眠': '深睡',
+        'deep_sleep': '深睡',
+        'light_sleep': '浅睡',
+        'awake': '清醒',
+        'out_bed': '离床',
+        'unknown': '未知',
+    }
+    
+    def safe_string(text):
+        """确保字符串对JSON安全"""
+        if text is None:
+            return ""
+        # 移除或替换可能导致JSON问题的字符
+        text = str(text)
+        # 替换反斜杠
+        text = text.replace('\\', '/')
+        # 移除控制字符
+        text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', text)
+        return text
+    
+    # 处理状态数据，将连续的相同状态合并为段
+    segments = []
+    if detail_data:
+        detail_data_sorted = sorted(detail_data, key=lambda x: x["datetime"])
+        current_state = safe_string(detail_data_sorted[0]["state"])
+        start_time = detail_data_sorted[0]["datetime"]
+        
+        for i, record in enumerate(detail_data_sorted[1:], 1):
+            record_state = safe_string(record["state"])
+            if record_state != current_state or i == len(detail_data_sorted) - 1:
+                end_time = record["datetime"] if record_state != current_state else record["datetime"]
+                segments.append({
+                    'state': current_state,
+                    'start': start_time,
+                    'end': end_time,
+                    'duration': (end_time - start_time).total_seconds() / 60
+                })
+                current_state = record_state
+                start_time = record["datetime"]
+    
+    if not segments:
+        fig = go.Figure()
+        fig.add_annotation(text="无有效状态数据", x=0.5, y=0.5, showarrow=False)
+        return fig
+    
+    fig = go.Figure()
+    
+    # 按状态分组
+    state_segments = {}
+    for segment in segments:
+        state = segment['state']
+        if state not in state_segments:
+            state_segments[state] = []
+        state_segments[state].append(segment)
+    
+    # 为每个状态创建trace
+    for state, state_segs in state_segments.items():
+        color = STATUS_COLORS.get(state, '#808080')
+        icon = STATUS_ICONS.get(state, '[?]')
+        # display_name = f"{icon} {safe_string(state)}"
+        display_name = safe_string(state)
+        
+        # 创建填充区域的坐标
+        x_coords = []
+        y_coords = []
+        
+        for segment in state_segs:
+            x_coords.extend([
+                segment['start'], segment['end'], segment['end'], 
+                segment['start'], segment['start'], None
+            ])
+            y_coords.extend([0, 0, 1, 1, 0, None])
+        
+        # 添加填充trace
+        fig.add_trace(go.Scatter(
+            x=x_coords,
+            y=y_coords,
+            mode='lines',
+            line=dict(color=color, width=0),
+            fill='toself',
+            fillcolor=color,
+            opacity=0.8,
+            name=display_name,
+            showlegend=True,
+            hoverinfo='skip'
+        ))
+        
+        # 添加hover信息trace - 使用安全的字符串格式
+        for segment in state_segs:
+            # 创建安全的hover文本
+            hover_text = (
+                f"<b>{safe_string(display_name)}</b><br>"
+                f"开始: {segment['start'].strftime('%H:%M:%S')}<br>"
+                f"结束: {segment['end'].strftime('%H:%M:%S')}<br>"
+                f"时长: {segment['duration']:.1f}分钟<br>"
+                "<extra></extra>"
+            )
+            
+            fig.add_trace(go.Scatter(
+                x=[segment['start'], segment['end']],
+                y=[0.5, 0.5],
+                mode='lines',
+                line=dict(color='rgba(0,0,0,0)', width=20),
+                showlegend=False,
+                hovertemplate=hover_text,
+            ))
+    
+    fig.update_layout(
+        # title={
+        #     'text': "睡眠状态时间线",
+        #     'x': 0.5,
+        #     'font': {'size': 18, 'color': '#1f77b4', 'family': "Arial"}
+        # },
+        xaxis={
+            'title': {'text': "时间", 'font': {'size': 12}},
+            'tickfont': {'size': 10},
+            'showgrid': True,
+            'gridcolor': 'lightgray'
+        },
+        yaxis={
+            'title': {'text': "状态", 'font': {'size': 12}},
+            'showticklabels': False,
+            'range': [-0.1, 1.1]
+        },
+        height=300,
+        margin=dict(t=50, b=50, l=80, r=50),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="center",
+            x=0.5,
+            font=dict(size=10)
+        )
+    )
+    
+    return fig
+
+
+
+
+
+
+
 
 def main():
     # 初始化数据库连接

@@ -84,27 +84,27 @@ class StateSmoother:
         
         # 打印输入信息
         time_str = time.strftime('%H:%M:%S', time.localtime(timestamp))
-        print(f"\n📥 输入: 原始状态='{raw_state}', 时间={time_str}")
+        # print(f"\n📥 输入: 原始状态='{raw_state}', 时间={time_str}")
         
         # 1. 预处理：将"在床正常"改为"清醒"
         processed_state = self._preprocess_state(raw_state)
         
-        print(f"    当前确认正常状态='{self.current_confirmed_normal_state}', 候选正常状态='{self.candidate_normal_state}'")
-        print(f"    当前输出状态='{self.current_output_state}'")
+        # print(f"    当前确认正常状态='{self.current_confirmed_normal_state}', 候选正常状态='{self.candidate_normal_state}'")
+        # print(f"    当前输出状态='{self.current_output_state}'")
         
         # 2. 异常状态立即响应（不影响正常状态平滑逻辑）
         if processed_state in self.anomaly_states:
-            print(f"    🚨 判断: 这是异常状态，立即响应且不影响正常状态平滑")
+            # print(f"    🚨 判断: 这是异常状态，立即响应且不影响正常状态平滑")
             self.current_output_state = processed_state
-            print(f"📤 输出: 平滑后状态='{processed_state}' (异常立即响应)")
+            # print(f"📤 输出: 平滑后状态='{processed_state}' (异常立即响应)")
             return processed_state
         
         # 3. 检查是否是支持的正常状态
         if processed_state not in self.normal_states:
-            print(f"    ⚠️  警告: 未知状态'{processed_state}'，保持当前正常状态")
+            # print(f"    ⚠️  警告: 未知状态'{processed_state}'，保持当前正常状态")
             output_state = self.current_confirmed_normal_state or processed_state
             self.current_output_state = output_state
-            print(f"📤 输出: 平滑后状态='{output_state}' (未知状态)")
+            # print(f"📤 输出: 平滑后状态='{output_state}' (未知状态)")
             return output_state
         
         # 4. 处理正常状态（添加到正常状态历史）
@@ -112,53 +112,53 @@ class StateSmoother:
         
         # 5. 首次正常状态
         if self.current_confirmed_normal_state is None:
-            print(f"    ✅ 判断: 这是首次正常状态，直接确认")
+            # print(f"    ✅ 判断: 这是首次正常状态，直接确认")
             self._confirm_normal_state(processed_state, timestamp)
             self.current_output_state = processed_state
-            print(f"📤 输出: 平滑后状态='{processed_state}' (首次正常状态)")
+            # print(f"📤 输出: 平滑后状态='{processed_state}' (首次正常状态)")
             return processed_state
         
         # 6. 正常状态没有变化
         if processed_state == self.current_confirmed_normal_state:
-            print(f"    ✅ 判断: 正常状态与当前确认状态相同，保持不变")
+            # print(f"    ✅ 判断: 正常状态与当前确认状态相同，保持不变")
             # 重置候选状态，因为又回到了当前确认状态
             if self.candidate_normal_state != processed_state:
-                print(f"    🔄 重置候选正常状态 (从'{self.candidate_normal_state}'重置为None)")
+                # print(f"    🔄 重置候选正常状态 (从'{self.candidate_normal_state}'重置为None)")
                 self.candidate_normal_state = None
                 self.candidate_normal_start_time = None
             self.current_output_state = processed_state
-            print(f"📤 输出: 平滑后状态='{processed_state}' (正常状态未变)")
+            # print(f"📤 输出: 平滑后状态='{processed_state}' (正常状态未变)")
             return processed_state
         
         # 7. 检测到新的正常状态变化，进行平滑处理
         if processed_state != self.current_confirmed_normal_state:
-            print(f"    🔄 判断: 检测到新的正常状态，开始平滑处理")
+            # print(f"    🔄 判断: 检测到新的正常状态，开始平滑处理")
             result = self._handle_normal_state_change(processed_state, timestamp)
             self.current_output_state = result
-            print(f"📤 输出: 平滑后状态='{result}' (经过正常状态平滑处理)")
+            # print(f"📤 输出: 平滑后状态='{result}' (经过正常状态平滑处理)")
             return result
         
         # 默认保持当前确认的正常状态
         self.current_output_state = self.current_confirmed_normal_state
-        print(f"📤 输出: 平滑后状态='{self.current_confirmed_normal_state}' (默认保持)")
+        # print(f"📤 输出: 平滑后状态='{self.current_confirmed_normal_state}' (默认保持)")
         return self.current_confirmed_normal_state
     
     def _handle_normal_state_change(self, new_normal_state: str, timestamp: float) -> str:
         """处理正常状态变化（需要平滑）"""
         
-        print(f"      🔍 开始正常状态平滑分析: '{self.current_confirmed_normal_state}' -> '{new_normal_state}'")
+        # print(f"      🔍 开始正常状态平滑分析: '{self.current_confirmed_normal_state}' -> '{new_normal_state}'")
         
         # 方法1: 滑动窗口投票（只使用正常状态历史）
         smoothed_by_voting = self._smooth_by_voting()
-        print(f"      📊 投票法结果: '{smoothed_by_voting}'")
+        # print(f"      📊 投票法结果: '{smoothed_by_voting}'")
         
         # 方法2: 持续时间验证
         smoothed_by_duration = self._smooth_by_duration(new_normal_state, timestamp)
-        print(f"      ⏱️  持续时间验证结果: '{smoothed_by_duration}'")
+        # print(f"      ⏱️  持续时间验证结果: '{smoothed_by_duration}'")
         
         # 综合决策：如果两种方法都支持新状态，则切换
         if smoothed_by_voting == new_normal_state and smoothed_by_duration == new_normal_state:
-            print(f"      ✅ 综合决策: 投票通过 + 持续时间达标 -> 确认切换")
+            # print(f"      ✅ 综合决策: 投票通过 + 持续时间达标 -> 确认切换")
             self._confirm_normal_state(new_normal_state, timestamp)
             return new_normal_state
         
@@ -166,23 +166,23 @@ class StateSmoother:
         if self.candidate_normal_state == new_normal_state and self.candidate_normal_start_time:
             duration = timestamp - self.candidate_normal_start_time
             progress = duration / self.min_state_duration * 100
-            print(f"      ⏳ 候选正常状态进度: '{new_normal_state}' 已持续 {duration:.1f}s / {self.min_state_duration}s ({progress:.1f}%)")
+            # print(f"      ⏳ 候选正常状态进度: '{new_normal_state}' 已持续 {duration:.1f}s / {self.min_state_duration}s ({progress:.1f}%)")
         
-        print(f"      ❌ 综合决策: 条件未满足 -> 保持当前正常状态 '{self.current_confirmed_normal_state}'")
+        # print(f"      ❌ 综合决策: 条件未满足 -> 保持当前正常状态 '{self.current_confirmed_normal_state}'")
         return self.current_confirmed_normal_state
     
     def _smooth_by_voting(self) -> str:
         """滑动窗口投票法（只对正常状态进行投票）"""
         if len(self.normal_state_history) < 2:
-            print(f"        📊 投票法: 正常状态历史数据不足({len(self.normal_state_history)}个) -> 保持当前状态")
+            # print(f"        📊 投票法: 正常状态历史数据不足({len(self.normal_state_history)}个) -> 保持当前状态")
             return self.current_confirmed_normal_state
         
         # 统计正常状态的出现次数
         recent_normal_states = [state for state, _ in self.normal_state_history]
         state_counts = Counter(recent_normal_states)
         
-        print(f"        📊 投票法: 最近{len(recent_normal_states)}个正常状态 = {recent_normal_states}")
-        print(f"        📊 投票统计: {dict(state_counts)}")
+        # print(f"        📊 投票法: 最近{len(recent_normal_states)}个正常状态 = {recent_normal_states}")
+        # print(f"        📊 投票统计: {dict(state_counts)}")
         
         # 获取出现最多的正常状态
         most_common_state = state_counts.most_common(1)[0][0]
@@ -192,13 +192,13 @@ class StateSmoother:
         most_common_count = state_counts[most_common_state]
         percentage = most_common_count / total_count * 100
         
-        print(f"        📊 最多状态: '{most_common_state}' 出现{most_common_count}/{total_count}次 ({percentage:.1f}%)")
+        # print(f"        📊 最多状态: '{most_common_state}' 出现{most_common_count}/{total_count}次 ({percentage:.1f}%)")
         
         if most_common_count / total_count >= 0.7:
-            print(f"        📊 投票结果: 达到70%阈值 -> 支持'{most_common_state}'")
+            # print(f"        📊 投票结果: 达到70%阈值 -> 支持'{most_common_state}'")
             return most_common_state
         
-        print(f"        📊 投票结果: 未达到70%阈值 -> 保持'{self.current_confirmed_normal_state}'")
+        # print(f"        📊 投票结果: 未达到70%阈值 -> 保持'{self.current_confirmed_normal_state}'")
         return self.current_confirmed_normal_state
     
     def _smooth_by_duration(self, new_normal_state: str, timestamp: float) -> str:
@@ -208,26 +208,27 @@ class StateSmoother:
         if new_normal_state != self.candidate_normal_state:
             if self.candidate_normal_state is not None:
                 old_duration = timestamp - self.candidate_normal_start_time if self.candidate_normal_start_time else 0
-                print(f"        ⏱️  持续时间: 候选正常状态变更 '{self.candidate_normal_state}'({old_duration:.1f}s) -> '{new_normal_state}'(重新计时)")
+                # print(f"        ⏱️  持续时间: 候选正常状态变更 '{self.candidate_normal_state}'({old_duration:.1f}s) -> '{new_normal_state}'(重新计时)")
             else:
-                print(f"        ⏱️  持续时间: 设置新候选正常状态 '{new_normal_state}' 开始计时")
+                # print(f"        ⏱️  持续时间: 设置新候选正常状态 '{new_normal_state}' 开始计时")
+                pass
             
             self.candidate_normal_state = new_normal_state
             self.candidate_normal_start_time = timestamp
-            print(f"        ⏱️  验证结果: 重新计时 -> 保持'{self.current_confirmed_normal_state}'")
+            # print(f"        ⏱️  验证结果: 重新计时 -> 保持'{self.current_confirmed_normal_state}'")
             return self.current_confirmed_normal_state
         
         # 检查候选正常状态是否持续足够长时间
         if self.candidate_normal_start_time is not None:
             duration = timestamp - self.candidate_normal_start_time
-            print(f"        ⏱️  持续时间: 候选正常状态'{new_normal_state}' 已持续 {duration:.1f}s / {self.min_state_duration}s")
+            # print(f"        ⏱️  持续时间: 候选正常状态'{new_normal_state}' 已持续 {duration:.1f}s / {self.min_state_duration}s")
             
             if duration >= self.min_state_duration:
-                print(f"        ⏱️  验证结果: 持续时间达标 -> 支持'{new_normal_state}'")
+                # print(f"        ⏱️  验证结果: 持续时间达标 -> 支持'{new_normal_state}'")
                 return new_normal_state
             else:
-                print(f"        ⏱️  验证结果: 持续时间不足 -> 保持'{self.current_confirmed_normal_state}'")
-        
+                # print(f"        ⏱️  验证结果: 持续时间不足 -> 保持'{self.current_confirmed_normal_state}'")
+                pass
         return self.current_confirmed_normal_state
     
     def _confirm_normal_state(self, normal_state: str, timestamp: float):
@@ -242,7 +243,7 @@ class StateSmoother:
         
         if old_normal_state != normal_state:
             time_str = time.strftime('%H:%M:%S', time.localtime(timestamp))
-            print(f"      ✅ [正常状态切换] {old_normal_state} -> {normal_state} ({time_str})")
+            # print(f"      ✅ [正常状态切换] {old_normal_state} -> {normal_state} ({time_str})")
     
     def get_state_info(self) -> Dict:
         """获取当前状态信息"""
@@ -300,7 +301,8 @@ def add_data_point_with_smoothing(self,
     smoothed_state = self.state_smoother.smooth_state(state, timestamp)
     
     if state != smoothed_state:
-        print(f"🔄 状态平滑: {state} -> {smoothed_state}")
+        # print(f"🔄 状态平滑: {state} -> {smoothed_state}")
+        pass
     
     # 创建数据点（使用平滑后的状态）
     data_point = SleepDataState(

@@ -6,7 +6,7 @@
 @File    : sleep_statistics_model.py
 """
 
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, BigInteger, ForeignKey, BINARY, Float, LargeBinary
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, BigInteger, ForeignKey, BINARY, Float, LargeBinary, Text
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
@@ -42,6 +42,15 @@ class SleepStatistics(Base):
     deep_sleep_duration = Column(String(32), nullable=True, comment='深睡眠时长(小时字符串格式)')
     light_sleep_duration = Column(String(32), nullable=True, comment='浅睡眠时长(小时字符串格式)')
     awake_duration = Column(String(32), nullable=True, comment='清醒时长(小时字符串格式)')
+    
+    # 关键时间点
+    bed_time = Column(DateTime, nullable=True, comment='上床时间')
+    sleep_time = Column(DateTime, nullable=True, comment='入睡时间')
+    wake_time = Column(DateTime, nullable=True, comment='醒来时间')
+    leave_bed_time = Column(DateTime, nullable=True, comment='离床时间')
+    
+    # 健康报告
+    health_report = Column(Text, nullable=True, comment='健康报告详情')
     
     # 系统字段
     creator = Column(String(64), nullable=True, comment='创建者')

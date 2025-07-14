@@ -1,0 +1,26 @@
+/home/weiyutao/miniconda3/envs/whoami/lib/python3.10/site-packages/pydantic/_internal/_generate_schema.py:502: UserWarning: <built-in function allocate_lock> is not a Python type (it may be an instance of an object), Pydantic will allow any object with no validation since we cannot even enforce that the input is an instance of the given type. To get rid of this error wrap the type with `pydantic.SkipValidation`.
+  warn(
+[32m[2025-07-04 17:15:48] [INFO    ] [ConsumerToolPool] - Creating default pool for default/fire/smoke/warning with size 8[0m
+/work/ai/WHOAMI/whoami/neural_network/rnn/model.py:141: UserWarning: dropout option adds dropout after all but last recurrent layer, so non-zero dropout expects num_layers greater than 1, but got dropout=0.2 and num_layers=1
+  warnings.warn("dropout option adds dropout after all but last "
+[32m[2025-07-04 17:15:48] [INFO    ] [ConsumerToolPool] - Creating default pool for default/fallen/falling/warning with size 6[0m
+[32m[2025-07-04 17:15:48] [INFO    ] [ConsumerToolPool] - Creating default pool for default/mouse/warning with size 6[0m
+[32m[2025-07-04 17:15:48] [INFO    ] [ConsumerToolPool] - Creating default pool for default/violence/warning with size 6[0m
+[32m[2025-07-04 17:15:48] [INFO    ] [ConsumerToolPool] - Creating regular pool for BE6992706/fire/smoke/warning with size 4[0m
+[32m[2025-07-04 17:15:48] [INFO    ] [ConsumerToolPool] - Creating regular pool for BE6992706/fallen/falling/warning with size 0[0m
+[32m[2025-07-04 17:15:48] [INFO    ] [ConsumerToolPool] - Creating regular pool for BE6992706/mouse/warning with size 0[0m
+[32m[2025-07-04 17:15:48] [INFO    ] [ConsumerToolPool] - Creating regular pool for BE6992706/violence/warning with size 0[0m
+[32m[2025-07-04 17:15:48] [INFO    ] [ConsumerToolPool] - Creating regular pool for BD3202818/fire/smoke/warning with size 0[0m
+[32m[2025-07-04 17:15:48] [INFO    ] [ConsumerToolPool] - Creating regular pool for BD3202818/fallen/falling/warning with size 0[0m
+[32m[2025-07-04 17:15:48] [INFO    ] [ConsumerToolPool] - Creating regular pool for BD3202818/mouse/warning with size 0[0m
+[32m[2025-07-04 17:15:48] [INFO    ] [ConsumerToolPool] - Creating regular pool for BD3202818/violence/warning with size 0[0m
+[32m[2025-07-04 17:15:48] [INFO    ] [ConsumerToolPool] - 线程池总实例数: 30[0m
+[32m[2025-07-04 17:15:48] [INFO    ] [ConsumerToolPool] - 默认实例数: 26 (目标比例: 88%)[0m
+[32m[2025-07-04 17:15:48] [INFO    ] [ConsumerToolPool] - 个性化实例数: 4 (目标比例: 12%)[0m
+[32m[2025-07-04 17:15:48] [INFO    ] [ConsumerToolPool] - 主题实例数详情: {'default/fire/smoke/warning': 8, 'default/fallen/falling/warning': 6, 'default/mouse/warning': 6, 'default/violence/warning': 6, 'BE6992706/fire/smoke/warning': 4, 'BE6992706/fallen/falling/warning': 0, 'BE6992706/mouse/warning': 0, 'BE6992706/violence/warning': 0, 'BD3202818/fire/smoke/warning': 0, 'BD3202818/fallen/falling/warning': 0, 'BD3202818/mouse/warning': 0, 'BD3202818/violence/warning': 0}[0m
+[32m[2025-07-04 17:15:49] [INFO    ] [SocketServerManager] - SocketServerManager initialized[0m
+[32m[2025-07-04 17:15:49] [INFO    ] [SocketServer] - Socket server initialized on port 8888[0m
+[31m[2025-07-04 17:15:49] [ERROR   ] [SocketServer] - Error handling injected data: 'float' object is not subscriptable[0m
+[32m[2025-07-04 17:15:49] [INFO    ] [SocketServer] - Server started (injected data mode)[0m
+[32m[2025-07-04 17:15:49] [INFO    ] [SocketServerManager] - Started socket server on port 8888 with production ID socket_server_8888[0m
+[32m[2025-07-04 17:15:49] [INFO    ] [SocketServer] - Finished processing all injected data[0m

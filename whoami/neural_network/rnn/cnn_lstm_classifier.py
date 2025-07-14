@@ -494,66 +494,70 @@ def _perform_feature_engineering(raw_data):
 # 使用示例 - 适配你的数据
 if __name__ == "__main__":
     # 你的CSV文件路径
-    # csv_file = "/work/ai/WHOAMI/device_info_13D2F34920008071211195A907_20250623_classifier_LABEL.csv"
+    csv_file = "/work/ai/WHOAMI/device_info_13D2F34920008071211195A907_20250623_classifier_LABEL.csv"
     
-    # print("🚀 开始训练3类睡眠分期模型...")
-    # print("="*50)
+    print("🚀 开始训练3类睡眠分期模型...")
+    print("="*50)
     
     # # 快速测试选项 - 如果数据太大，可以先用小样本测试
-    # USE_QUICK_TEST = False  # 改为False使用全部数据，True使用部分数据测试
-    # max_samples = 50000 if USE_QUICK_TEST else None  # 快速测试使用5万行数据
+    USE_QUICK_TEST = False  # 改为False使用全部数据，True使用部分数据测试
+    max_samples = 50000 if USE_QUICK_TEST else None  # 快速测试使用5万行数据
     
-    # if USE_QUICK_TEST:
-    #     print("⚡ 快速测试模式 - 使用部分数据")
-    # else:
-    #     print("🐌 完整训练模式 - 使用全部数据")
+    if USE_QUICK_TEST:
+        print("⚡ 快速测试模式 - 使用部分数据")
+    else:
+        print("🐌 完整训练模式 - 使用全部数据")
     
-    # try:
-    #     # 训练模型
-    #     model = train_simple_model(csv_file, epochs=150, max_samples=max_samples)
-    #     print("✅ 训练完成！")
+    try:
+        # 训练模型
+        model = train_simple_model(csv_file, epochs=150, max_samples=max_samples)
+        print("✅ 训练完成！")
         
-    #     print("\n🔮 开始实时预测...")
-    #     print("="*50)
+        print("\n🔮 开始实时预测...")
+        print("="*50)
         
-    #     # 预测选项
-    #     print("选择预测模式:")
-    #     print("1. 每秒预测 - 预测100秒")
-    #     print("2. 每10秒预测 - 预测1000秒") 
-    #     print("3. 快速预测 - 预测所有可能的样本")
+        # 预测选项
+        print("选择预测模式:")
+        print("1. 每秒预测 - 预测100秒")
+        print("2. 每10秒预测 - 预测1000秒") 
+        print("3. 快速预测 - 预测所有可能的样本")
         
-    #     # 不同预测模式
-    #     # 模式1: 每秒显示，预测100秒
-    #     print("\n📊 模式1: 每秒预测结果")
-    #     predictions_1s = predict_realtime('simple_sleep_model.pth', csv_file, 
-    #                                     max_predict_samples=100, print_interval=1)
+        # 不同预测模式
+        # 模式1: 每秒显示，预测100秒
+        print("\n📊 模式1: 每秒预测结果")
+        predictions_1s = predict_realtime('simple_sleep_model.pth', csv_file, 
+                                        max_predict_samples=100, print_interval=1)
         
-    #     print("\n📊 模式2: 每10秒预测结果")  
-    #     predictions_10s = predict_realtime('simple_sleep_model.pth', csv_file,
-    #                                      max_predict_samples=1000, print_interval=10)
+        print("\n📊 模式2: 每10秒预测结果")  
+        predictions_10s = predict_realtime('simple_sleep_model.pth', csv_file,
+                                         max_predict_samples=1000, print_interval=10)
         
-    #     print(f"✅ 预测完成")
+        print(f"✅ 预测完成")
         
-    #     # 保存预测结果
-    #     with open('sleep_predictions_1s.json', 'w', encoding='utf-8') as f:
-    #         json.dump(predictions_1s, f, ensure_ascii=False, indent=2)
+        # 保存预测结果
+        with open('sleep_predictions_1s.json', 'w', encoding='utf-8') as f:
+            json.dump(predictions_1s, f, ensure_ascii=False, indent=2)
         
-    #     with open('sleep_predictions_10s.json', 'w', encoding='utf-8') as f:
-    #         json.dump(predictions_10s, f, ensure_ascii=False, indent=2)
+        with open('sleep_predictions_10s.json', 'w', encoding='utf-8') as f:
+            json.dump(predictions_10s, f, ensure_ascii=False, indent=2)
             
-    #     print("📄 预测结果已保存到: sleep_predictions_1s.json 和 sleep_predictions_10s.json")
+        print("📄 预测结果已保存到: sleep_predictions_1s.json 和 sleep_predictions_10s.json")
         
-    # except FileNotFoundError:
-    #     print("❌ 找不到CSV文件，请检查文件路径！")
-    #     print("当前查找文件:", csv_file)
-    #     print("请将你的CSV文件放在脚本同目录下，或修改csv_file变量")
+    except FileNotFoundError:
+        print("❌ 找不到CSV文件，请检查文件路径！")
+        print("当前查找文件:", csv_file)
+        print("请将你的CSV文件放在脚本同目录下，或修改csv_file变量")
 
-    # except Exception as e:
-    #     print(f"❌ 出错了: {e}")
-    #     import traceback
-    #     traceback.print_exc()
-    #     print("请检查数据格式是否正确")
-    #     print("确保CSV包含列: create_time, breath_line, heart_line, distance, signal_intensity, label")
+    except Exception as e:
+        print(f"❌ 出错了: {e}")
+        import traceback
+        traceback.print_exc()
+        print("请检查数据格式是否正确")
+        print("确保CSV包含列: create_time, breath_line, heart_line, distance, signal_intensity, label")
+        
+        
+    """
+    # predict
     import numpy as np
 
     # 生成30秒 × 3个特征的模拟传感器数据
@@ -577,3 +581,4 @@ if __name__ == "__main__":
     print(sample_data)
     result, confidence = inference_single_sample_(sample_data=sample_data, model=model, scaler=scaler, use_raw_features=True)
     print(result, confidence)
+    """
