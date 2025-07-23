@@ -14,7 +14,7 @@ from sqlalchemy.sql import func
 Base = declarative_base()
 
 class SxDeviceWavveVitalSignLog(Base):
-    __tablename__ = 'sx_device_wavve_vital_sign_log'
+    __tablename__ = 'sx_device_wavve_vital_sign_log_20250716'
 
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment='主键id')
     device_sn = Column(String(64), nullable=False, index=True, comment='设备SN码')

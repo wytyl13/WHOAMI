@@ -10,6 +10,11 @@ project_root = "/work/ai/WHOAMI"
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+
+role = ["admin", "user"]
+community = ["舜熙科技智慧养老社区"]
+
+
 # 导入数据库相关模块
 from whoami.tool.streamlit.health_report.table.user_data import UserData
 from whoami.provider.sql_provider import SqlProvider
@@ -91,7 +96,7 @@ def check_phone_exists(phone):
         st.error(f"检查手机号失败: {str(e)}")
         return True  # 出错时返回True，避免重复注册
 
-def register_user(username, password, name=None, gender=None, age=None, email=None, phone=None, address=None):
+def register_user(username, password, name=None, gender=None, age=None, email=None, phone=None, address=None, user_role=None, user_community=None):
     """注册用户"""
     try:
         # 检查用户名是否已存在
@@ -118,7 +123,9 @@ def register_user(username, password, name=None, gender=None, age=None, email=No
             "address": address or "",
             "status": "active",
             "creator": "system",
-            "tenant_id": 0
+            "tenant_id": 0,
+            "role": user_role or "user",  # 添加角色字段
+            "community": user_community or "",  # 添加社区字段
         }
         
         # 插入用户数据到数据库
@@ -148,6 +155,24 @@ def check_database_connection():
 # CSS样式 - 和登录页面保持一致
 st.markdown("""
 <style>
+
+/* 隐藏侧边栏 */
+section[data-testid="stSidebar"] {
+    display: none !important;
+}
+
+.css-1d391kg, .css-17lntkn, .css-1rs6os, .css-10trblm,
+.css-12oz5g7, .css-1outpf7, .css-1y4p8pa, .css-1lcbmhc,
+.css-1v0mbdj, .css-1cypcdb, .css-17eq0hr, .css-zt5igj {
+    display: none !important;
+}
+
+button[kind="header"] {
+    display: none !important;
+}
+/* 隐藏侧边栏 */
+
+
 /* 隐藏Streamlit默认元素 */
 .stApp > header {display: none;}
 .main .block-container {
@@ -437,6 +462,15 @@ def main():
             confirm_pwd = st.text_input("🔒 确认密码 *", type="password", placeholder="请再次输入密码")
             st.markdown('<div class="hint-text">请确保两次密码一致</div>', unsafe_allow_html=True)
             
+            # 角色和社区选择
+            col_role, col_community = st.columns(2)
+            with col_role:
+                user_role = st.selectbox("👑 角色 *", role)
+                st.markdown('<div class="hint-text">选择用户角色</div>', unsafe_allow_html=True)
+            with col_community:
+                user_community = st.selectbox("🏘️ 社区 *", community)
+                st.markdown('<div class="hint-text">选择所属社区</div>', unsafe_allow_html=True)
+            
             # 可选信息
             st.markdown('<p style="color: white; font-size: 16px; font-weight: bold; margin: 20px 0 10px 0;">可选信息（可跳过）</p>', unsafe_allow_html=True)
             
@@ -496,7 +530,9 @@ def main():
                         age=int(age) if age and age.isdigit() else None,
                         email=email if email else None,
                         phone=phone if phone else None,
-                        address=address if address else None
+                        address=address if address else None,
+                        user_role=user_role,  # 添加角色
+                        user_community=user_community  # 添加社区
                     )
                     if success:
                         show_success(message + "！正在跳转到登录页面...")

@@ -35,3 +35,5 @@ class UserData(Base):
     update_time = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False, comment='更新时间')
     deleted = Column(BINARY(1), default=b'0', nullable=True, comment='是否删除')
     tenant_id = Column(BigInteger, default=0, nullable=False, comment='租户编号')
+    role = Column(String(32), nullable=True, comment='角色')
+    community = Column(String(128), nullable=True, comment='机构社区')

@@ -138,7 +138,57 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 raise ValueError(error_info) from e
     
     
+    
     def bulk_insert_with_update(self, data_list: List[Dict[str, Any]]) -> int:
+        """批量插入，遇到重复数据时覆盖旧数据"""
+        if not data_list:
+            return 0
+        
+        try:
+            from sqlalchemy import text
+            
+            table_name = self.model.__tablename__
+            sample_data = data_list[0]
+            columns = [col for col in sample_data.keys() if col != 'id']
+            columns_str = ', '.join(columns)
+            
+            success_count = 0
+            
+            with self.get_db_session() as session:
+                for data in data_list:
+                    try:
+                        clean_data = {k: v for k, v in data.items() if k != 'id'}
+                        
+                        # 构建单条插入SQL（使用新语法）
+                        placeholders = ', '.join([f':{col}' for col in columns])
+                        updates = ', '.join([f'{col} = VALUES({col})' for col in columns])
+                        
+                        # 兼容不同MySQL版本的写法
+                        sql = f"""
+                        INSERT INTO {table_name} ({columns_str})
+                        VALUES ({placeholders})
+                        ON DUPLICATE KEY UPDATE {updates}
+                        """
+                        
+                        session.execute(text(sql), clean_data)
+                        success_count += 1
+                        
+                    except Exception as e:
+                        self.logger.error(f"插入失败: {e}, 数据: {clean_data}")
+                        continue
+                
+                session.commit()
+            
+            self.logger.info(f"批量插入/更新完成: {success_count}/{len(data_list)} 条成功")
+            return success_count
+            
+        except Exception as e:
+            self.logger.error(f"批量插入/更新失败: {e}")
+            return 0
+    
+    
+    
+    def bulk_insert_with_update_bake(self, data_list: List[Dict[str, Any]]) -> int:
         """批量插入，遇到重复数据时覆盖旧数据"""
         if not data_list:
             return 0
@@ -560,7 +610,7 @@ class SqlProvider(BaseProvider, Generic[ModelType]):
                 query = session.query(*[getattr(self.model, field) for field in query_fields])
                 
                 # 添加未删除条件
-                query = query.filter(self.model.deleted == False)
+                # query = query.filter(self.model.deleted == False)
 
                 # 应用基础查询条件
                 if condition:

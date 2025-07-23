@@ -1,0 +1,19 @@
+/* 隐藏底部 footer 和技术支持链接 */
+footer,
+[data-testid="footer"],
+.MuiBox-root:has([href*="chainlit"]),
+.chainlit-footer,
+[class*="footer"],
+[class*="Footer"] {
+    display: none !important;
+}
+
+/* 隐藏包含 "技术支持" 或 "Chainlit" 的元素 */
+a[href*="chainlit.io"],
+a[href*="github.com/Chainlit"],
+*:contains("技术支持"),
+*:contains("Chainlit"),
+*:contains("Made with"),
+*:contains("Powered by") {
+    display: none !important;
+}

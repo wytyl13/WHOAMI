@@ -47,8 +47,8 @@ class RealTimeStateMonitor:
     
     def __init__(self,
         # 基础状态阈值
-        off_bed_threshold: float = 0.4,        # 离床阈值
-        apnea_threshold: float = 2,          # 呼吸暂停上限阈值
+        off_bed_threshold: float = 0.05,        # 离床阈值
+        apnea_threshold: float = 0.1,          # 呼吸暂停上限阈值
         
         # 状态持续时间要求
         off_bed_duration: float = 20.0,        # 离床状态需要持续20秒

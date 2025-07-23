@@ -13,6 +13,7 @@ from typing import (
     List,
     Dict
 )
+import json
 import os
 import asyncio
 import jieba
@@ -75,7 +76,8 @@ class Retrieval:
     node_parser: Optional[Any] = None
     static_index: Optional[VectorStoreIndex] = None
     static_bm25_retriever: Optional[BM25Retriever] = None
-    
+    line_based_chunk: Optional[bool] = None
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if 'data_dir' in kwargs:
@@ -94,15 +96,17 @@ class Retrieval:
             self.static_index = kwargs.pop('static_index')
         if 'static_bm25_retriever' in kwargs:
             self.static_bm25_retriever = kwargs.pop('static_bm25_retriever')
+        # 添加这一行
+        if 'line_based_chunk' in kwargs:
+            self.line_based_chunk = kwargs.pop('line_based_chunk')
         
-            
         # 初始化一些东西
         self.chunk_size = 512 if self.chunk_size is None else self.chunk_size
         self.chunk_overlap = 20 if self.chunk_overlap is None else self.chunk_overlap  
         self.data_dir = "/work/ai/WHOAMI/retrieval_data" if self.data_dir is None else self.data_dir
         self.index_dir = "/work/ai/WHOAMI/retrieval_storage" if self.index_dir is None else self.index_dir
         self.embed_model = HuggingFaceEmbedding(model_name='/work/ai/WHOAMI/whoami/models/embedding/bge-large-zh-v1.5')
-    
+        self.line_based_chunk = False if not hasattr(self, 'line_based_chunk') else self.line_based_chunk
 
         # 使用setting创建服务上下文
         Settings.embed_model = self.embed_model
@@ -116,12 +120,184 @@ class Retrieval:
             chunk_overlap=50      # 自定义重叠大小
         ) if self.node_parser is None else self.node_parser
         
-        
         try:
             self.initialize_static_index()
             self._initialize_bm25_index()
         except Exception as e:
             self.logger.error(f"初始化静态索引失败: {str(e)}")
+
+
+    def line_based_chunking(self, text):
+        """按行分块并保留上下文"""
+        lines = text.split('\n')
+        current_date = None
+        chunks = []
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # 提取日期
+            if line.startswith('##'):
+                current_date = line.replace('##', '').strip()
+                continue
+                
+            # 为每行添加日期上下文
+            if current_date and line.startswith(('1.', '2.', '3.', '4.', '5.')):
+                enhanced_line = f"{current_date} {line}"
+                chunks.append(enhanced_line)
+            elif line.startswith(('**', '1.', '2.', '3.', '4.', '5.')):
+                # 如果没有日期上下文，直接添加
+                chunks.append(line)
+        
+        return chunks
+
+
+    def show_nodes(self):
+        """简单查看所有持久化节点"""
+        print("所有持久化节点:")
+        print("-" * 40)
+        
+        try:
+            if not self.static_index or not hasattr(self.static_index, 'docstore'):
+                print("无法访问索引")
+                return
+            
+            all_docs = self.static_index.docstore.docs
+            
+            if not all_docs:
+                print("没有找到任何节点")
+                return
+            
+            print(f"总节点数: {len(all_docs)}")
+            print()
+            
+            for i, (doc_id, doc) in enumerate(all_docs.items(), 1):
+                metadata = getattr(doc, 'metadata', {})
+                text = getattr(doc, 'text', '')
+                doc_type = metadata.get('type', 'unknown')
+                text_id = metadata.get('text_id', 'N/A')
+                
+                print(f"{i}. ID: {doc_id}")
+                print(f"   类型: {doc_type}")
+                print(f"   text_id: {text_id}")
+                print(f"   文本: {text[:50]}...")
+                print()
+                
+        except Exception as e:
+            print(f"查看失败: {str(e)}")
+
+
+    def add_text(self, text: str, text_id: str, force_update: bool = False):
+        """添加文本（无内存映射版本）"""
+        existing_nodes = self._find_existing_text_id(text_id)
+        
+        if existing_nodes and not force_update:
+            print(f"⚠️  text_id '{text_id}' 已存在！使用 force_update=True 来更新")
+            return False
+        
+        if existing_nodes and force_update:
+            self._delete_nodes_by_ids([doc_id for doc_id, _ in existing_nodes])
+        
+        # 创建和插入
+        document = Document(text=text, metadata={"text_id": text_id, "type": "dynamic"})
+        nodes = self.node_parser.get_nodes_from_documents([document])
+        for node in nodes:
+            node.metadata["text_id"] = text_id
+        
+        self.static_index.insert_nodes(nodes)
+        self.static_index.storage_context.persist(persist_dir=self.index_dir)
+        
+        print(f"✅ 成功添加 text_id '{text_id}'")
+        return True
+
+
+    def _find_existing_text_id(self, text_id: str):
+        """查找已存在的text_id节点"""
+        existing_nodes = []
+        
+        try:
+            if self.static_index and hasattr(self.static_index, 'docstore'):
+                all_docs = self.static_index.docstore.docs
+                for doc_id, doc in all_docs.items():
+                    metadata = getattr(doc, 'metadata', {})
+                    if metadata.get('text_id') == text_id:
+                        existing_nodes.append((doc_id, doc))
+        except Exception as e:
+            self.logger.error(f"查找已存在text_id失败: {str(e)}")
+        self.logger.info(f"existing_nodes: ----------------------------------- {existing_nodes}")
+        return existing_nodes
+
+
+    def _delete_nodes_by_ids(self, node_ids):
+        """高效删除节点的方法 - 使用LlamaIndex内置API"""
+        deleted_count = 0
+        
+        try:
+            # 使用LlamaIndex的内置删除方法
+            for node_id in node_ids:
+                try:
+                    # 方法1: 使用 delete 方法删除节点
+                    self.static_index.delete_nodes([node_id])
+                    deleted_count += 1
+                    self.logger.debug(f"删除节点: {node_id}")
+                except Exception as e:
+                    self.logger.warning(f"删除节点 {node_id} 失败: {str(e)}")
+                    # 方法2: 如果delete_nodes失败，尝试直接从docstore删除
+                    try:
+                        if node_id in self.static_index.docstore.docs:
+                            del self.static_index.docstore.docs[node_id]
+                            deleted_count += 1
+                            self.logger.debug(f"从docstore直接删除节点: {node_id}")
+                    except Exception as fallback_err:
+                        self.logger.error(f"备用删除方法也失败: {str(fallback_err)}")
+            
+            # 持久化更改
+            if deleted_count > 0:
+                self.static_index.storage_context.persist(persist_dir=self.index_dir)
+                
+                # 只重新初始化BM25索引（轻量级操作）
+                # self._reinitialize_bm25_only()
+                
+                self.logger.info(f"删除了 {deleted_count} 个节点")
+            
+            return deleted_count
+            
+        except Exception as e:
+            self.logger.error(f"删除节点时发生错误: {str(e)}")
+            return 0
+
+
+    def update_text(self, text: str, text_id: str):
+        """更新已存在的text_id（相当于 add_text 的 force_update=True）"""
+        return self.add_text(text, text_id, force_update=True)
+
+
+    def check_text_id_exists(self, text_id: str):
+        """检查text_id是否已存在"""
+        existing_nodes = self._find_existing_text_id(text_id)
+        return len(existing_nodes) > 0, existing_nodes
+
+
+    def delete_text(self, text_id: str):
+        """删除文本的改进版本"""
+        existing_nodes = self._find_existing_text_id(text_id)
+        if not existing_nodes:
+            print(f"text_id '{text_id}' 不存在")
+            return False
+        
+        self.logger.info(f"即将删除的节点id: {[doc_id for doc_id, _ in existing_nodes]}")
+        
+        # 使用改进的删除方法
+        deleted_count = self._delete_nodes_by_ids([doc_id for doc_id, _ in existing_nodes])
+        
+        if deleted_count > 0:
+            print(f"✅ 成功删除 text_id '{text_id}'")
+            return True
+        else:
+            print(f"❌ 删除 text_id '{text_id}' 失败")
+            return False
 
 
     def initialize_static_index(self):
@@ -173,6 +349,25 @@ class Retrieval:
                 static_documents = reader.load_data()
                 self.logger.info(f"成功加载 {len(static_documents)} 个文档")
                 
+                ################################# 如果启用按行分块，对文档进行预处理
+                if self.line_based_chunk:
+                    processed_documents = []
+                    for doc in static_documents:
+                        chunks = self.line_based_chunking(doc.text)
+                        for i, chunk in enumerate(chunks):
+                            new_doc = Document(
+                                text=chunk,
+                                metadata={**doc.metadata, "chunk_id": i, "type": "static"}
+                            )
+                            processed_documents.append(new_doc)
+                    static_documents = processed_documents
+                    self.logger.info(f"按行分块后得到 {len(static_documents)} 个文档块")
+                else:
+                    # 为文档添加类型元数据
+                    for doc in static_documents:
+                        doc.metadata["type"] = "static"
+                
+                
                 # 如果未找到文档，创建一个空文档
                 if len(static_documents) == 0:
                     static_documents = [Document(text="初始化文档", metadata={"source": "init", "type": "static"})]
@@ -183,8 +378,8 @@ class Retrieval:
                 static_documents = [Document(text="初始化文档", metadata={"source": "init", "type": "static"})]
         
         # 为文档添加类型元数据
-        for doc in static_documents:
-            doc.metadata["type"] = "static"
+        # for doc in static_documents:
+        #     doc.metadata["type"] = "static"
         
         try:
             # 解析文档为节点
@@ -201,8 +396,8 @@ class Retrieval:
         except Exception as create_err:
             self.logger.error(f"创建静态索引失败: {str(create_err)}")
             self.static_index = None
-    
-    
+
+
     def _initialize_bm25_index(self):
         """初始化BM25索引"""
         try:
@@ -232,8 +427,8 @@ class Retrieval:
             import traceback
             self.logger.error(traceback.format_exc())
             self.static_bm25_index = None
-    
-    
+
+
     def store_index(self, text_list: List[Dict[str, str]]):
         try:
             documents = []
@@ -251,8 +446,8 @@ class Retrieval:
             self.logger.error(f"Fail to exec store index function, {str(e)}")
             return None
         return index
-    
-    
+
+
     def store_bm25_index(self, text_list: List[Dict[str, str]]):
         # 处理动态文本
         pass
@@ -511,8 +706,8 @@ class Retrieval:
         # 返回前top_k个结果
         # return results[:top_k]
         return results
-    
-    
+
+
     def reciprocal_rank_fusion(self, vector_results, bm25_results, k=60, top_k=3):
         """
         实现RRF (Reciprocal Rank Fusion)
@@ -559,8 +754,8 @@ class Retrieval:
         final_results.sort(key=lambda x: x.score, reverse=True)
         
         return final_results[:top_k]
-    
-    
+
+
     def rerank(
         self, 
         query: str = None, 
@@ -601,8 +796,8 @@ class Retrieval:
                 return candidates[:top_k] if len(candidates) > top_k else candidates
             except Exception as e:
                 raise ValueError(f"Fail to exec rerank function! {str(e)}") from e
-    
-    
+
+
     def safe_extract_text(self, result_list):
         text_list = []
         for item in result_list:
@@ -615,8 +810,8 @@ class Retrieval:
             except:
                 continue
         return text_list
-    
-    
+
+
     async def execute(
         self, 
         text_list: List[Dict[str, str]], 
@@ -640,24 +835,31 @@ class Retrieval:
             top_k=top_k,
             rank_type=rank_type
         )
-        
-        
-
 
 
 if __name__ == '__main__':
-    text_list = [
-        {"123": "我是卫宇涛，我28，我来自山西运城"}, 
-        {"456": "我们公司地址在山西省运城市万荣县科创城"}, 
-        {"789": "我是卫jin涛，30岁，来自山西运城"},
-        {"1011": "我是卫jin涛，30岁，来自山西运城"},
-        {"1012": "我是卫jin涛，30岁，来自山西运城"},
-        {"1013": "我是卫jin涛，30岁，来自山西运城"},
-        {"1014": "我是卫jin涛，30岁，来自山西运城"},
-    ]
-    retrieval = Retrieval()
-    async def main():
-        nodes = await retrieval.execute(text_list=text_list, retrieval_word='母乳的成分变化', top_k=5)
-        print(nodes)
-    asyncio.run(main())
-    
+    # text_list = [
+    #     {"123": "我是卫宇涛，我28，我来自山西运城"}, 
+    #     {"456": "我们公司地址在山西省运城市万荣县科创城"}, 
+    #     {"789": "我是卫jin涛，30岁，来自山西运城"},
+    #     {"1011": "我是卫jin涛，30岁，来自山西运城"},
+    #     {"1012": "我是卫jin涛，30岁，来自山西运城"},
+    #     {"1013": "我是卫jin涛，30岁，来自山西运城"},
+    #     {"1014": "我是卫jin涛，30岁，来自山西运城"},
+    # ]
+    text_list = []
+    retrieval = Retrieval(data_dir="/work/ai/WHOAMI/loess/temp/data", index_dir="/work/ai/WHOAMI/loess/temp/index", chunk_size=256, chunk_overlap=20, line_based_chunk=False)
+    # async def main():
+        # nodes = await retrieval.execute(text_list=text_list, retrieval_word='2025年9月1日时讯消息', top_k=3)
+
+        # print([node.text for node in nodes])
+    # asyncio.run(main())
+    retrieval.add_text(
+        text="2025年7月20日 早上7点 物业门口早餐菜品有：豆腐脑、咸菜",
+        text_id="2"
+    )
+    retrieval.show_nodes()
+    retrieval.delete_text(
+        text_id="1"
+    )
+    retrieval.show_nodes()

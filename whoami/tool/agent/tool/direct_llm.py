@@ -37,8 +37,8 @@ class DirectLLM:
         if 'enhance_llm' in kwargs:
             self.enhance_llm = kwargs.pop('enhance_llm')
     
-    async def execute(self, question: str, message_history: List[Dict[str, Any]] = None) -> str:
-        response = ""
+    async def execute(self, question: str, message_history: List[Dict[str, Any]] = None, username: Optional[str] = None):
+        # response = ""
         if self.enhance_llm:
             async for chunk in self.enhance_llm.execute(
                 text_list=[],
@@ -47,5 +47,6 @@ class DirectLLM:
                 retrieval_flag=1,
                 stream_flag=1
             ):
-                response += chunk
-        return response
+                # response += chunk
+                yield chunk
+        # return response

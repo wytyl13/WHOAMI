@@ -73,8 +73,8 @@ class SocketServer:
         self.devices = {}  
         self.data_callback = data_callback  
         self.device_sn_call_back = device_sn_call_back
-        self.injected_data = injected_data 
         self.device_sn = device_sn   
+        self.injected_data = injected_data 
 
 
     def preprocess_data(self, data):
@@ -138,7 +138,7 @@ class SocketServer:
         if self.is_running:
             self.logger.warning(f"Socket server on port {self.port} is already running!")
             return
-        
+        self.logger.info("--------------------------------------whoami--------------------------------")
         self.is_running = True
         self.logger.info(self.injected_data)
         if self.injected_data is None:
@@ -154,6 +154,7 @@ class SocketServer:
             self.logger.info(f"Socket server started on port {self.port}")
         else:
             # 注入模式：启动数据处理线程
+            self.logger.info("--------------------------------------whoami--------------------------------")
             self.inject_thread = threading.Thread(target=self._handle_injected_data)
             # self.inject_thread = threading.Thread(target=self.start_with_injected_data)
             self.inject_thread.daemon = True
@@ -289,7 +290,6 @@ class SocketServer:
     def _handle_injected_data(self):
         """处理注入的数据列表，模拟_handle_client的行为"""
         mock_addr = ('127.0.0.1', 0)
-        
         try:
             for data in self.injected_data:
                 if not self.is_running:

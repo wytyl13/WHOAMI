@@ -119,7 +119,7 @@ def send_chat_message(prompt: str, user_id: str, conversation_id: str) -> str:
         error_message = f"发生错误: {str(e)}"
         print(traceback.format_exc())
         return error_message
-    
+
 
 def text_to_speech(text: str) -> bytes:
     """
@@ -177,8 +177,6 @@ def text_to_speech(text: str) -> bytes:
         print(traceback.format_exc())
         return None
     
-
-
 
 def generate_tts_fei(text: str) -> None:
     """
@@ -511,8 +509,6 @@ def generate_tts_fei(text: str) -> None:
         st.error(traceback.format_exc())
 
 
-
-
 def generate_tts(text: str) -> Optional[str]:
     """
     生成文本的语音合成，将所有音频片段拼接起来后一次性播放。
@@ -801,8 +797,6 @@ def generate_tts(text: str) -> Optional[str]:
         return None
 
 
-
-
 def play_audio_chunks(audio_chunks, audio_placeholder, debug_placeholder):
     """
     播放收集到的音频块。
@@ -901,10 +895,6 @@ def play_audio_chunks(audio_chunks, audio_placeholder, debug_placeholder):
         import traceback
         st.error(traceback.format_exc())
         return None
-
-
-
-
 
 
 
@@ -1048,8 +1038,6 @@ def generate_tts_stream_bake(text: str) -> Optional[str]:
         import traceback
         st.error(traceback.format_exc())
         return None
-
-
 
 
 

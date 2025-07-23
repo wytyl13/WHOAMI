@@ -46,14 +46,14 @@ class TLMo(nn.Module):
         self.config = transformer_config
         
         if self.config.alibi and self.config.flash_attention:
-            raise TLMoCOnfigurationError("ALiBi is currently not supported with FlashAttention")
+            raise TLMoConfigurationError("ALiBi is currently not supported with FlashAttention")
 
         if self.config.alibi and self.config.rope:
-            raise TLMoCOnfigurationError("ALiBi and RoPE are mutually exclusive")
+            raise TLMoConfigurationError("ALiBi and RoPE are mutually exclusive")
 
         if self.config.embedding_size is not None and self.config.embedding_size != self.config.vocab_size:
             if self.config.embedding_size < self.config.vocab_size:
-                raise TLMoCOnfigurationError("embedding size should be at least as big as vocab size.")
+                raise TLMoConfigurationError("embedding size should be at least as big as vocab size.")
             elif self.config.embedding_size % 128 != 0:
                 import warnings
                 warnings.warn(
@@ -70,7 +70,7 @@ class TLMo(nn.Module):
             0 < self.config.block_group_size <= self.config.n_layers
             and self.config.n_layers % self.config.block_group_size == 0
         ):
-            raise TLMoCOnfigurationError('n_layers must be divisible by block group size!')
+            raise TLMoConfigurationError('n_layers must be divisible by block group size!')
         
         # Flash attention, it is a memory-efficient attention computation algorithm that
         # significantly reduces the memory footprint and improves the computational speed of

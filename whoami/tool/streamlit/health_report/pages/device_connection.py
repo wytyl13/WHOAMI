@@ -127,15 +127,25 @@ class DeviceConnectionManager:
                 st.error("❌ 设备编号不能为空")
                 return False
             
-            # 获取用户信息
-            user_data = st.session_state.get("user_data", {})
-            user_id = user_data.get("id") if user_data else None
-            username = st.session_state.get("username", "")
-            
+            # 获取用户信息 - 优先使用设备信息中选择的用户名
+            selected_username = device_info.get("username", "")
             if debug_mode:
-                st.write("**步骤3：** 当前用户信息")
-                st.write(f"- 用户名: `{username}`")
-                st.write(f"- 用户ID: `{user_id}`")
+                st.write(f"**步骤2.1：** 从设备信息中获取的用户名 = `{selected_username}`")
+
+            if selected_username and selected_username.strip():
+                # 使用选中的用户名
+                username = selected_username.strip()
+                user_id = None  # 这里可以根据需要查询对应的user_id
+                if debug_mode:
+                    st.write(f"**步骤2.2：** 使用选择的用户名: `{username}`")
+                    st.success(f"🎯 确认：设备将关联到用户 {username}")
+            else:
+                # 回退到会话中的用户信息
+                user_data = st.session_state.get("user_data", {})
+                user_id = user_data.get("id") if user_data else None
+                username = st.session_state.get("username", "")
+                if debug_mode:
+                    st.write(f"**步骤2.3：** 使用会话用户名: `{username}`")
             
             # 检查现有设备
             try:
@@ -768,6 +778,13 @@ def get_complete_bluetooth_html():
                                 placeholder="睡眠监测" value="睡眠监测">
                             <small style="color: #666; font-size: 0.9rem;">输入设备应用场景，如：睡眠监测、健康监测、老人看护等</small>
                         </div>
+                        <div class="form-group">
+                            <label class="form-label">👤 选择用户</label>
+                            <select id="username-select" class="form-input">
+                                <option value="">加载中...</option>
+                            </select>
+                            <small style="color: #666; font-size: 0.9rem;">选择要关联的用户账户</small>
+                        </div>
                     </div>
 
                     <div style="text-align: center; margin: 20px 0;">
@@ -875,7 +892,44 @@ def get_complete_bluetooth_html():
                 init() {
                     this.setupEventListeners();
                     this.checkBrowserSupport();
+                    this.loadUserData(); // 添加这行
                     console.log('🚀 AeroSense配网管理器初始化完成');
+                }
+
+
+                async loadUserData() {
+                    try {
+                        const response = await fetch('https://1.71.15.121:8889/api/list_all_user_data');
+                        const result = await response.json();
+                        
+                        if (result.success && result.data) {
+                            this.populateUserSelect(result.data);
+                        } else {
+                            console.error('加载用户数据失败:', result.message);
+                            this.setUserSelectError('加载用户数据失败');
+                        }
+                    } catch (error) {
+                        console.error('获取用户数据异常:', error);
+                        this.setUserSelectError('无法连接服务器');
+                    }
+                }
+
+                populateUserSelect(userData) {
+                    const select = document.getElementById('username-select');
+                    select.innerHTML = '<option value="">请选择用户</option>';
+                    
+                    userData.forEach(user => {
+                        const option = document.createElement('option');
+                        option.textContent = user.username;
+                        // option.textContent = user.full_name || user.username;
+                        option.dataset.address = user.address || '';
+                        select.appendChild(option);
+                    });
+                }
+
+                setUserSelectError(message) {
+                    const select = document.getElementById('username-select');
+                    select.innerHTML = `<option value="">${message}</option>`;
                 }
 
                 setupEventListeners() {
@@ -1704,6 +1758,16 @@ def get_complete_bluetooth_html():
                 finishConfiguration() {
                     console.log('🚀 finishConfiguration 开始执行');
                     
+                    // === 添加这段调试代码 ===
+                    const selectElement = document.getElementById('username-select');
+                    console.log('🔍 select元素:', selectElement);
+                    console.log('🔍 select所有选项:', selectElement.options);
+                    console.log('🔍 select当前索引:', selectElement.selectedIndex);
+                    console.log('🔍 select当前值:', selectElement.value);
+                    console.log('🔍 选中选项的文本:', selectElement.selectedOptions[0]?.text);
+                    // === 调试代码结束 ===
+                    
+                    
                     const deviceInfo = {
                         device_code: this.deviceInfo.radar_id,
                         wifi_name: document.getElementById('wifi-ssid').value.trim(),
@@ -1712,16 +1776,22 @@ def get_complete_bluetooth_html():
                         scene: document.getElementById('scene').value.trim() || '睡眠监测'
                     };
 
-                    // 从window.currentUser获取用户信息
-                    if (window.currentUser) {
-                        deviceInfo.username = window.currentUser.username;
-                        deviceInfo.user_id = window.currentUser.user_id;
+                    // 获取选中的用户名并设置为主要用户名
+                    const selectedUsername = document.getElementById('username-select').value;
+                    console.log('🔍 选中的用户名:', selectedUsername); // 添加调试日志
+
+                    if (selectedUsername && selectedUsername !== '') {
+                        deviceInfo.username = selectedUsername;  // 直接设置为username字段
+                        console.log('✅ 设置设备用户名为:', selectedUsername);
                     } else {
-                        // 备用方案：从URL参数获取
-                        const urlParams = new URLSearchParams(window.location.search);
-                        deviceInfo.username = urlParams.get('username') || '';
-                        deviceInfo.user_id = parseInt(urlParams.get('user_id') || '0');
+                        console.log('⚠️ 未选择用户名，使用默认用户');
+                        // 使用当前用户作为备选
+                        if (window.currentUser) {
+                            deviceInfo.username = window.currentUser.username;
+                            deviceInfo.user_id = window.currentUser.user_id;
+                        }
                     }
+
 
                     if (!deviceInfo.device_code) {
                         this.showMessage('❌ 无法获取设备编号，请重新连接设备', 'error');

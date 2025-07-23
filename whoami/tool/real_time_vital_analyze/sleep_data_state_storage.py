@@ -20,11 +20,16 @@ from typing import (
 
 from whoami.tool.real_time_vital_analyze.sleep_data_state import SleepDataState
 from whoami.provider.sql_provider import SqlProvider
-from whoami.tool.real_time_vital_analyze.state_smooth import StateSmoother
+from whoami.tool.real_time_vital_analyze.state_smooth import EnhancedStateSmoother
 
 
 
-smoother = StateSmoother(window_size=10, min_state_duration=60.0)
+smoother = EnhancedStateSmoother(
+    window_size=12,              # 增大窗口
+    min_state_duration=60.0,     # 基础60秒
+    confidence_threshold=0.75,   # 提高置信度
+    hysteresis_margin=20.0       # 20秒滞后
+)
 
 sql_provider = SqlProvider(
     model=SleepDataState, 
@@ -78,9 +83,6 @@ class RealTimeDataPoint:
             'creator': creator,
             'tenant_id': tenant_id
         }
-
-
-
 
 
 class SleepDataStateStorage:

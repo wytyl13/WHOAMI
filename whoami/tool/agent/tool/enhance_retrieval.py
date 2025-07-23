@@ -37,6 +37,9 @@ class EnhanceRetrieval:
     retrieval: Optional[Retrieval] = None
     args_schema: Type[BaseModel] = EnhanceRetrievalSchema
     llm: Optional[OllamaLLM] = None
+    retrieval_flag: Optional[bool] = True
+    data_dir: Optional[str] = None
+    index_dir: Optional[str] = None
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -44,8 +47,14 @@ class EnhanceRetrieval:
             self.retrieval = kwargs.pop('retrieval')
         if 'llm' in kwargs:
             self.llm = kwargs.pop('llm')
+        if 'retrieval_flag' in kwargs:
+            self.retrieval_flag = kwargs.pop('retrieval_flag')
+        if 'data_dir' in kwargs:
+            self.data_dir = kwargs.pop('data_dir')
+        if 'index_dir' in kwargs:
+            self.index_dir = kwargs.pop('index_dir')
     
-        self.retrieval = Retrieval() if self.retrieval is None else self.retrieval
+        self.retrieval = Retrieval(data_dir=self.data_dir, index_dir=self.index_dir) if self.retrieval is None else self.retrieval
         self.llm = OllamaLLM(config=LLMConfig.from_file(Path('/work/ai/WHOAMI/whoami/scripts/test/ollama_config_qwen.yaml')))
     
     
@@ -59,12 +68,14 @@ class EnhanceRetrieval:
         prompt: Optional[str] = None,
         retrieval_flag: Optional[bool] = True,
         database_retrieval_data: List[Dict[str, str]] = None,
-        stream_flag: Optional[bool] = False
+        stream_flag: Optional[bool] = False,
+        username: Optional[str] = None
     ):
         if question is None or question == "":
             raise ValueError("Question must not be null!")
         prompt = prompt if prompt is not None else self.system_prompt
-        if retrieval_flag:
+        self.retrieval_flag = self.retrieval_flag if retrieval_flag is None else retrieval_flag
+        if self.retrieval_flag:
             nodes = await self.retrieval.execute(
                 text_list=text_list, 
                 top_k=top_k, 
@@ -93,7 +104,7 @@ class EnhanceRetrieval:
                 question=question
             )
         else:
-            message = prompt + f"位置：山西省运城市盐湖区复旦西街2155号 运城护理职业学院。\n\n上下文信息：\n{text_list}" + f"\n\n当前系统时间：\n{current_time}" + f"\n\n数据库检索内容/检索结果：\n{database_enhance_prompt}" + f"\n\n历史会话消息：\n{message_history}" + f"\n\n用户当前问题：\n{question}"
+            message = prompt + f"\n\n上下文信息：\n{text_list}" + f"\n\n当前系统时间：\n{current_time}" + f"\n\n数据库检索内容/检索结果：\n{database_enhance_prompt}" + f"\n\n历史会话消息：\n{message_history}" + f"\n\n用户当前问题：\n{question}"
 
         namespace_message_history = [{"role": "user", "content": message}]
         if stream_flag == 1:

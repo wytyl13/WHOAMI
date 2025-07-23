@@ -8,6 +8,7 @@ import sys
 import os
 from datetime import datetime
 import logging
+from fastapi.encoders import jsonable_encoder
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +22,10 @@ if project_root not in sys.path:
 # 导入相关模块
 from whoami.tool.streamlit.health_report.table.device_data import DeviceData
 from whoami.provider.sql_provider import SqlProvider
-
+from whoami.tool.streamlit.health_report.table.community_real_time_data import CommunityRealTimeData
+from whoami.tool.streamlit.health_report.table.user_data import UserData
+from whoami.tool.streamlit.health_report.table.device_data import DeviceData
+from whoami.tool.real_time_vital_analyze.sleep_statistics_model import SleepStatistics
 # 配置文件路径
 SQL_CONFIG_PATH = '/work/ai/WHOAMI/whoami/scripts/health_report/sql_config.yaml'
 
@@ -34,6 +38,18 @@ class DeviceInfo(BaseModel):
     scene: Optional[str] = "睡眠监测"
     username: Optional[str] = ""
     user_id: Optional[int] = None
+
+
+class CommunityRealTimeInfo(BaseModel):
+    type: str
+    content: str
+    username: Optional[str] = ""
+    
+class ListCommunityRealTimeInfo(BaseModel):
+    type: Optional[str] = None
+    username: Optional[str] = None
+class ListSleepStatistics(BaseModel):
+    username: Optional[str] = None
 
 app = FastAPI(title="AeroSense设备配网API", version="1.0.0")
 
@@ -52,6 +68,21 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=[
+#         "http://localhost:8000",
+#         "http://127.0.0.1:8000", 
+#         "http://1.71.15.121:8000",  # 添加你的外网IP
+#         "http://localhost:8889",  
+#         "http://127.0.0.1:8889",
+#         "http://1.71.15.121:8889",  # 添加你的外网IP
+#     ],
+#     allow_credentials=True,
+#     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+#     allow_headers=["*"],
+# )
 
 
 
@@ -158,6 +189,157 @@ async def save_device(device_info: DeviceInfo):
         logger.error(f"保存设备信息异常: {str(e)}")
         raise HTTPException(status_code=500, detail=f"保存设备信息失败: {str(e)}")
 
+
+
+
+@app.post("/api/save_community_real_time_data")
+async def save_community_real_time_data(community_real_time_info: CommunityRealTimeInfo):
+    try:
+        logger.info(f"收到数据保存请求: {community_real_time_info}")
+        
+        # 验证必要字段
+        if not community_real_time_info.type:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "请提供内容类型（时讯消息/通告）", "data": None, "timestamp": datetime.now().isoformat()}
+            )
+
+        if not community_real_time_info.content:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": f"收到发布{community_real_time_info.type}，请提供具体内容！", "data": None, "timestamp": datetime.now().isoformat()}
+            )
+
+        try:
+            sql_provider = SqlProvider(model=CommunityRealTimeData, sql_config_path=SQL_CONFIG_PATH)
+            # 准备新设备数据
+            insert_data = {
+                "type": community_real_time_info.type,
+                "content": community_real_time_info.content,
+                "creator": community_real_time_info.username,
+                "updater": community_real_time_info.username,
+                "create_time": datetime.now(),
+                "update_time": datetime.now()
+            }
+            logger.info(f"准备插入数据: {insert_data}")
+            # 执行数据库插入
+            result = sql_provider.add_record(insert_data)
+        except Exception as e:
+            return JSONResponse(
+                status_code=500,
+                content={"success": True, "message": f"数据库操作失败！{str(e)}", "data": None, "timestamp": datetime.now().isoformat()}
+            )
+            
+        if result:
+            logger.info(f"数据保存成功: {community_real_time_info}")
+            return JSONResponse(
+                status_code=200,
+                content={"success": True, "message": "成功！", "data": str(result), "timestamp": datetime.now().isoformat()}
+            )
+        else:
+            logger.error(f"数据库添加记录失败: {community_real_time_info}")
+            return JSONResponse(
+                status_code=500,
+                content={"success": True, "message": f"数据库添加记录失败: {community_real_time_info}", "data": None, "timestamp": datetime.now().isoformat()}
+            )
+    except Exception as e:
+        logger.error(f"数据库添加记录失败: {community_real_time_info}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": True, "message": f"数据库添加记录失败: {community_real_time_info}", "data": None, "timestamp": datetime.now().isoformat()}
+        )
+
+
+@app.post("/api/list_community_real_time_data")
+async def save_community_real_time_data(list_community_real_time_info: ListCommunityRealTimeInfo):
+    if list_community_real_time_info.username is None or list_community_real_time_info.username == "":
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "message": "用户名不能为空！", "data": None, "timestamp": datetime.now().isoformat()}
+        )
+    
+    try:
+        sql_provider = SqlProvider(model=CommunityRealTimeData, sql_config_path=SQL_CONFIG_PATH)
+        logger.info(list_community_real_time_info)
+        result = sql_provider.get_record_by_condition(
+            condition={"creator": list_community_real_time_info.username} if list_community_real_time_info.type is None or list_community_real_time_info.type == "" else {"creator": list_community_real_time_info.username, "type": list_community_real_time_info.type},
+            fields=["id", "type", "content", "create_time"]
+        )
+        json_compatible_result = jsonable_encoder(result)
+        logger.info(json_compatible_result)
+        return JSONResponse(
+            status_code=200,
+            content={"success": True, "message": "成功！", "data": json_compatible_result, "timestamp": datetime.now().isoformat()}
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"数据库操作失败！{str(e)}", "data": None, "timestamp": datetime.now().isoformat()}
+        )
+
+
+@app.get("/api/list_all_user_data")
+async def list_all_user_data():
+    try:
+        sql_provider = SqlProvider(model=UserData, sql_config_path=SQL_CONFIG_PATH)
+        result = sql_provider.get_record_by_condition(
+            fields=["username", "full_name", "address"]
+        )
+        json_compatible_result = jsonable_encoder(result)
+        logger.info(json_compatible_result)
+        return JSONResponse(
+            status_code=200,
+            content={"success": True, "message": "成功！", "data": json_compatible_result, "timestamp": datetime.now().isoformat()}
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"数据库操作失败！{str(e)}", "data": None, "timestamp": datetime.now().isoformat()}
+        )
+    
+    
+@app.post("/api/list_sleep_statistics")
+async def list_sleep_statistics(list_sleep_statistics_: ListSleepStatistics):
+    if list_sleep_statistics_.username is None or list_sleep_statistics_.username == "":
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "message": "用户名不能为空！", "data": None, "timestamp": datetime.now().isoformat()}
+        )
+    try:
+        sql_provider_device_data = SqlProvider(model=DeviceData, sql_config_path=SQL_CONFIG_PATH)
+        device_data_result = sql_provider_device_data.get_record_by_condition(
+            condition={"username": list_sleep_statistics_.username},
+            fields=["device_code"]
+        )
+        if not device_data_result:
+            return JSONResponse(
+                status_code=200,
+                content={"success": True, "message": "成功", "data": [], "timestamp": datetime.now().isoformat()}
+            )
+        
+        sql_provider_sleep_statistics = SqlProvider(model=SleepStatistics, sql_config_path=SQL_CONFIG_PATH)
+        result = sql_provider_sleep_statistics.get_record_by_condition(
+            condition={"device_sn": device_data_result[0]["device_code"]},
+            fields=[
+                "sleep_start_time", "sleep_end_time", "health_report"
+            ]
+        )
+        json_compatible_result = jsonable_encoder(result)
+        logger.info(json_compatible_result)
+        return JSONResponse(
+            status_code=200,
+            content={"success": True, "message": "成功！", "data": json_compatible_result, "timestamp": datetime.now().isoformat()}
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"数据库操作失败！{str(e)}", "data": None, "timestamp": datetime.now().isoformat()}
+        )
+    
+    
+    
+    
+
 # 添加健康检查和测试端点
 @app.get("/api/test")
 async def test_endpoint():
@@ -172,6 +354,7 @@ async def test_endpoint():
         }
     }
 
+
 @app.post("/api/test_save")
 async def test_save():
     """测试保存端点"""
@@ -184,10 +367,11 @@ async def test_save():
     
     return await save_device(test_device)
 
+
 if __name__ == "__main__":
     print("🚀 启动AeroSense设备配网API服务...")
-    print("📡 服务地址: https://localhost:8889")
-    print("📋 API文档: https://localhost:8889/docs")
+    print("📡 服务地址: http://localhost:8889")
+    print("📋 API文档: http://localhost:8889/docs")
     
     uvicorn.run(
         app, 

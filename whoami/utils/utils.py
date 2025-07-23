@@ -18,6 +18,10 @@ import jieba
 import numpy as np
 
 from whoami.utils.log import Logger
+from rich.console import Console
+from rich.table import Table
+from io import StringIO
+
 logger = Logger('Utils')
 
 class StrEnum(str, Enum):
@@ -238,6 +242,72 @@ class Utils:
         return windows
 
 
+    def format_notices_data_markdown(self, type, data_list):
+        if not data_list:
+            return f"暂无{type}信息"
+        
+        type_icon = {
+            "通告": "📢",
+            "时讯消息": "📋"
+        }
+        # 创建Markdown表格
+        markdown_table = f"### {type_icon[type]} {type}\n\n"
+        markdown_table += "| ID | 类型 | 内容 | 发布时间 |\n"
+        markdown_table += "|----|----|----|---------|\n"
+        
+        for i, item in enumerate(data_list, 1):
+            item_id = str(item.get('id', i))
+            
+            # 格式化时间
+            create_time = item.get('create_time', '未知时间')
+            if 'T' in create_time:
+                date_part, time_part = create_time.split('T')
+                time_part = time_part.split('.')[0] if '.' in time_part else time_part
+                formatted_time = f"{date_part} {time_part}"
+            else:
+                formatted_time = create_time
+            
+            content = item.get('content', '无内容')
+            item_type = item.get('type', '未知')
+            
+            # 处理内容中的特殊字符，避免破坏表格格式
+            content = content.replace('|', '\\|').replace('\n', ' ')
+            
+            markdown_table += f"| {item_id} | {item_type} | {content} | {formatted_time} |\n"
+        
+        return markdown_table
 
+
+
+    def format_notices_data_rich(self, type, data_list):
+        if not data_list:
+            return f"暂无{type}信息"
     
-    
+        # 创建表格
+        table = Table(title=f"📋 {type}信息", show_header=True, header_style="bold magenta")
+        table.add_column("ID", style="cyan", no_wrap=True)
+        table.add_column("类型", style="green")
+        table.add_column("内容", style="yellow")
+        table.add_column("发布时间", style="blue")
+        
+        for i, item in enumerate(data_list, 1):
+            item_id = str(item.get('id', i))
+            
+            # 格式化时间
+            create_time = item.get('create_time', '未知时间')
+            if 'T' in create_time:
+                date_part, time_part = create_time.split('T')
+                time_part = time_part.split('.')[0] if '.' in time_part else time_part
+                formatted_time = f"{date_part} {time_part}"
+            else:
+                formatted_time = create_time
+            
+            content = item.get('content', '无内容')
+            item_type = item.get('type', '未知')
+            
+            table.add_row(item_id, item_type, content, formatted_time)
+        
+        # 渲染为字符串
+        console = Console(file=StringIO(), width=80)
+        console.print(table)
+        return console.file.getvalue()

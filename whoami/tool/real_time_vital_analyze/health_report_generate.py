@@ -436,15 +436,21 @@ class HealthReportGenerate:
 
 if __name__ == '__main__':
     # health_reprot_generate = HealthReportGenerate(
-    #     start_date="2025-7-3 21:00:00", 
-    #     end_date="2025-7-4 07:00:00", 
-    #     device_sn="13D2F34920008071211195A907"
+    #     start_date="2025-7-16 12:20:00", 
+    #     end_date="2025-7-16 14:00:00", 
+    #     device_sn="13D7F349200080712111150807"
     # )
     health_reprot_generate = HealthReportGenerate(
-        start_date="2025-7-11 21:00:00", 
-        end_date="2025-7-12 07:00:00", 
-        device_sn="132A1C9D100040711117953007"
+        start_date="2025-7-15 21:00:00", 
+        end_date="2025-7-16 07:00:00", 
+        device_sn="13311C9D100040711117956907"
     )
+    
+    # health_reprot_generate = HealthReportGenerate(
+    #     start_date="2025-7-15 21:00:00", 
+    #     end_date="2025-7-16 07:00:00", 
+    #     device_sn="13331C9D100040711117950407"
+    # )
     
     # 生成简化报告
     report = health_reprot_generate.generate_comprehensive_report()

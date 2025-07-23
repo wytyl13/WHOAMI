@@ -104,6 +104,22 @@ if st.session_state.get('from_device_data', False):
 st.markdown("""
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
+
+    /* 隐藏侧边栏 */
+    section[data-testid="stSidebar"] {
+        display: none !important;
+    }
+
+    .css-1d391kg, .css-17lntkn, .css-1rs6os, .css-10trblm,
+    .css-12oz5g7, .css-1outpf7, .css-1y4p8pa, .css-1lcbmhc,
+    .css-1v0mbdj, .css-1cypcdb, .css-17eq0hr, .css-zt5igj {
+        display: none !important;
+    }
+
+    button[kind="header"] {
+        display: none !important;
+    }
+    /* 隐藏侧边栏 */
     .block-container {
         padding-top: 1rem !important;
         padding-bottom: 1rem !important;

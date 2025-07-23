@@ -78,7 +78,7 @@ class GoogleSearch:
         if self.retrieval is None:
             self.logger.error("retrieval 未设置，可能会影响功能")
 
-    async def execute(self, google_query: str) -> float:
+    async def execute(self, google_query: str, username: Optional[str] = None, location: Optional[str] = None, role: Optional[str] = None) -> float:
         """执行谷歌搜索查询"""
 
         # 验证组件

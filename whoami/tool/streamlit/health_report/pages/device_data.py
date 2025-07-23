@@ -20,7 +20,7 @@ from whoami.provider.sql_provider import SqlProvider
 
 # 页面配置
 st.set_page_config(
-    page_title="设备数据 - 睡眠健康管理系统",
+    page_title="社区智能体管理系统",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -139,6 +139,23 @@ def check_login():
 # CSS样式
 st.markdown("""
 <style>
+/* 隐藏侧边栏 */
+section[data-testid="stSidebar"] {
+    display: none !important;
+}
+
+.css-1d391kg, .css-17lntkn, .css-1rs6os, .css-10trblm,
+.css-12oz5g7, .css-1outpf7, .css-1y4p8pa, .css-1lcbmhc,
+.css-1v0mbdj, .css-1cypcdb, .css-17eq0hr, .css-zt5igj {
+    display: none !important;
+}
+
+button[kind="header"] {
+    display: none !important;
+}
+/* 隐藏侧边栏 */
+
+
 /* 全局样式 */
 .stApp {
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
@@ -241,6 +258,7 @@ st.markdown("""
     margin: 20px 0;
     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -455,10 +473,20 @@ def main():
     #     </a>
     # </div>
     # """, unsafe_allow_html=True)
-    col1, col2 = st.columns([3, 1])
+    col1, col2, col3 = st.columns([1, 2, 1])  # 三列布局：左按钮，中间留空，右按钮
+    with col1:
+        if st.button("🏠 返回首页", use_container_width=True):
+            # 确保session_state中有正确的用户信息
+            username = st.session_state.get('username')
+            if username:
+                # 设置URL参数
+                st.query_params.user_name = username
+            st.switch_page("pages/user_dashboard.py")
     with col2:
+        st.empty()  # 中间留空
+    with col3:
         if st.button("📊 实时监控", use_container_width=True):
-        # 保存当前设备信息到 session_state
+            # 保存当前设备信息到 session_state
             st.session_state.from_device_data = True
             st.session_state.return_device_info = device_info
             st.session_state.current_device_sn = device_sn  # 保存设备编号
@@ -490,7 +518,7 @@ def main():
         show_health_report(sleep_df, sleep_df_average)
     elif selected_menu == "🔧 设备管理":
         show_device_manage(device_info)
-
+        
 def show_overview(sleep_df, sleep_df_average):
     """显示数据概览"""
     st.header("📊 数据概览")

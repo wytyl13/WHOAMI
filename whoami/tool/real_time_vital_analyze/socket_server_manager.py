@@ -54,8 +54,8 @@ engine = LSTMEngine(
 engine.setup(model_path='/work/ai/WHOAMI/whoami/neural_network/checkpoint_epoch_32_2dimensions_20000_no_normalized.pth', scaler_path='/work/ai/WHOAMI/whoami/neural_network/rnn/training_scaler.pkl')
 
 monitor = RealTimeStateMonitor(
-    off_bed_threshold=0.4,          # 离床阈值
-    apnea_threshold=2.0,            # 呼吸暂停阈值
+    off_bed_threshold=0.05,          # 离床阈值
+    apnea_threshold=0.1,            # 呼吸暂停阈值
     activation_threshold=1.0,       # 峰值检测激活阈值
     # rise_factor=1.5,
     # peak_factor=2.0,
@@ -155,12 +155,14 @@ class SocketServerManager(ProducerConsumerManager):
         device_sn_list = [
             "13D7F349200080712111150807",
             "13F51B9D10004071111715D807",
-            "132C1C9D100040711117959C07"
+            "132C1C9D100040711117959C07",
+            "13331C9D100040711117950407",
+            "13311C9D100040711117956907"
         ]
         for item in device_sn_list:
             self.monitor_dict[item] = RealTimeStateMonitor(
-                off_bed_threshold=0.4,          # 离床阈值
-                apnea_threshold=2.0,            # 呼吸暂停阈值
+                off_bed_threshold=0.05,          # 离床阈值
+                apnea_threshold=0.1,            # 呼吸暂停阈值
                 activation_threshold=1.0,       # 峰值检测激活阈值
                 # rise_factor=1.5,
                 # peak_factor=2.0,
@@ -176,8 +178,8 @@ class SocketServerManager(ProducerConsumerManager):
                 max_interval=30.0
             )
         
-        # self.injected_data = injected_data
-        self.injected_data = None
+        self.injected_data = injected_data
+        # self.injected_data = None
         
         self.logger.info("SocketServerManager initialized")
         self.device_sn = device_sn
@@ -207,8 +209,8 @@ class SocketServerManager(ProducerConsumerManager):
     def add_device_sn_post_class(self, device_id):
         if device_id not in self.monitor_dict:
             self.monitor_dict[device_id] = RealTimeStateMonitor(
-                    off_bed_threshold=0.4,          # 离床阈值
-                    apnea_threshold=2.0,            # 呼吸暂停阈值
+                    off_bed_threshold=0.05,          # 离床阈值
+                    apnea_threshold=0.1,            # 呼吸暂停阈值
                     activation_threshold=1.0,       # 峰值检测激活阈值
                     # rise_factor=1.5,
                     # peak_factor=2.0,
@@ -802,7 +804,8 @@ if __name__ == '__main__':
         # "13F61B9D100040711117954107",
         # "13301C9D100040711117955007",
         # "13291C9D100040711117957107",
-        "13F51B9D10004071111715D807"
+        # "13331C9D100040711117950407",
+        "13311C9D100040711117956907"
     ]
     
     all_injected_data = []
@@ -811,7 +814,7 @@ if __name__ == '__main__':
         result = sql_provider_test.get_record_by_condition(
             condition={"device_sn": device_sn},  # 每次查一个设备
             fields=["create_time", "breath_bpm", "breath_line", "heart_bpm", "heart_line", "distance", "signal_intensity", "state", "body_move_data", "device_sn"],
-            date_range={"date_field": "create_time", "start_date": "2025-7-8 21:00:00", "end_date": "2025-7-9 07:00:00"}
+            date_range={"date_field": "create_time", "start_date": "2025-7-15 21:00:00", "end_date": "2025-7-16 07:00:00"}
         )
         
         # 转换数据格式
@@ -844,7 +847,7 @@ if __name__ == '__main__':
         injected_data=all_injected_data 
     )
 
-    socket_server_manager.start_socket_server(port=8888, backlog=5)
+    socket_server_manager.start_socket_server(port=5001, backlog=5)
     
     try:
         # 让服务器运行一段时间
@@ -852,7 +855,7 @@ if __name__ == '__main__':
         time.sleep(3600)  # 运行1小时
     finally:
         # 停止特定端口的服务器
-        socket_server_manager.stop_socket_server(port=8888)
+        socket_server_manager.stop_socket_server(port=5001)
         
         # 或者关闭整个管理器及其所有服务器
         socket_server_manager.shutdown()

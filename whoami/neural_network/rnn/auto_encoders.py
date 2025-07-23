@@ -181,8 +181,6 @@ def preprocess_inference_data(data, seq_len, n_features, scaler, slide_window_fl
     return tensor_data, scaler, original_shape
 
 
-
-
 def create_inference_dataloader(data, batch_size=32, shuffle=False):
     """
     创建推理用的DataLoader

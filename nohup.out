@@ -1,0 +1,89 @@
+2025-07-22 20:20:18 - Loaded .env file
+/home/weiyutao/miniconda3/envs/whoami/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name "ak" in "WeatherApi" shadows an attribute in parent "ApiTool"
+  warnings.warn(
+/home/weiyutao/miniconda3/envs/whoami/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name "url" in "WeatherApi" shadows an attribute in parent "ApiTool"
+  warnings.warn(
+/home/weiyutao/miniconda3/envs/whoami/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name "ak" in "ZhouBian" shadows an attribute in parent "ApiTool"
+  warnings.warn(
+/home/weiyutao/miniconda3/envs/whoami/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name "url" in "ZhouBian" shadows an attribute in parent "ApiTool"
+  warnings.warn(
+警告: asr相关模块无法导入！！！
+警告: tts相关模块无法导入！！！
+2025-07-22 20:20:24 - Load pretrained SentenceTransformer: /work/ai/WHOAMI/whoami/models/embedding/bge-large-zh-v1.5
+/home/weiyutao/miniconda3/envs/whoami/lib/python3.10/site-packages/torch/cuda/__init__.py:628: UserWarning: Can't initialize NVML
+  warnings.warn("Can't initialize NVML")
+2025-07-22 20:20:25 - 2 prompts are loaded, with the keys: ['query', 'text']
+[32m[2025-07-22 20:20:25] [INFO    ] [Retrieval] - 加载现有索引: /work/ai/WHOAMI/loess/temp/index[0m
+2025-07-22 20:20:25 - Loading all indices.
+[32m[2025-07-22 20:20:25] [INFO    ] [Retrieval] - 从向量索引获取了 10 个节点用于BM25索引[0m
+Building prefix dict from the default dictionary ...
+2025-07-22 20:20:25 - Building prefix dict from the default dictionary ...
+Loading model from cache /tmp/jieba.cache
+2025-07-22 20:20:25 - Loading model from cache /tmp/jieba.cache
+Loading model cost 0.583 seconds.
+2025-07-22 20:20:26 - Loading model cost 0.583 seconds.
+Prefix dict has been built successfully.
+2025-07-22 20:20:26 - Prefix dict has been built successfully.
+[32m[2025-07-22 20:20:26] [INFO    ] [Retrieval] - BM25索引创建成功[0m
+2025-07-22 20:20:26 - Load pretrained SentenceTransformer: /work/ai/WHOAMI/whoami/models/embedding/bge-large-zh-v1.5
+2025-07-22 20:20:26 - 2 prompts are loaded, with the keys: ['query', 'text']
+[32m[2025-07-22 20:20:26] [INFO    ] [Retrieval] - 加载现有索引: /work/ai/WHOAMI/loess/temp/index[0m
+2025-07-22 20:20:26 - Loading all indices.
+[32m[2025-07-22 20:20:26] [INFO    ] [Retrieval] - 从向量索引获取了 10 个节点用于BM25索引[0m
+[32m[2025-07-22 20:20:26] [INFO    ] [Retrieval] - BM25索引创建成功[0m
+2025-07-22 20:20:26 - Load pretrained SentenceTransformer: /work/ai/WHOAMI/whoami/models/embedding/bge-large-zh-v1.5
+2025-07-22 20:20:26 - 2 prompts are loaded, with the keys: ['query', 'text']
+[32m[2025-07-22 20:20:26] [INFO    ] [Retrieval] - 加载现有索引: /work/ai/WHOAMI/loess/temp/index[0m
+2025-07-22 20:20:27 - Loading all indices.
+[32m[2025-07-22 20:20:27] [INFO    ] [Retrieval] - 从向量索引获取了 10 个节点用于BM25索引[0m
+[32m[2025-07-22 20:20:27] [INFO    ] [Retrieval] - BM25索引创建成功[0m
+[32m[2025-07-22 20:20:27] [INFO    ] [GoogleSearch] - 初始化GoogleSearch！[0m
+[32m[2025-07-22 20:20:27] [INFO    ] [GoogleSearch] - 创建新的 GoogleSearchProvider 实例[0m
+2025-07-22 20:20:27 - Your app is available at http://localhost:8000
+ERROR:    [Errno 98] error while attempting to bind on address ('127.0.0.1', 8000): address already in use
+2025-07-22 20:21:03 - Loaded .env file
+/home/weiyutao/miniconda3/envs/whoami/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name "ak" in "WeatherApi" shadows an attribute in parent "ApiTool"
+  warnings.warn(
+/home/weiyutao/miniconda3/envs/whoami/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name "url" in "WeatherApi" shadows an attribute in parent "ApiTool"
+  warnings.warn(
+/home/weiyutao/miniconda3/envs/whoami/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name "ak" in "ZhouBian" shadows an attribute in parent "ApiTool"
+  warnings.warn(
+/home/weiyutao/miniconda3/envs/whoami/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name "url" in "ZhouBian" shadows an attribute in parent "ApiTool"
+  warnings.warn(
+警告: asr相关模块无法导入！！！
+警告: tts相关模块无法导入！！！
+2025-07-22 20:21:10 - Load pretrained SentenceTransformer: /work/ai/WHOAMI/whoami/models/embedding/bge-large-zh-v1.5
+/home/weiyutao/miniconda3/envs/whoami/lib/python3.10/site-packages/torch/cuda/__init__.py:628: UserWarning: Can't initialize NVML
+  warnings.warn("Can't initialize NVML")
+2025-07-22 20:21:10 - 2 prompts are loaded, with the keys: ['query', 'text']
+[32m[2025-07-22 20:21:11] [INFO    ] [Retrieval] - 加载现有索引: /work/ai/WHOAMI/loess/temp/index[0m
+2025-07-22 20:21:11 - Loading all indices.
+[32m[2025-07-22 20:21:11] [INFO    ] [Retrieval] - 从向量索引获取了 10 个节点用于BM25索引[0m
+Building prefix dict from the default dictionary ...
+2025-07-22 20:21:11 - Building prefix dict from the default dictionary ...
+Loading model from cache /tmp/jieba.cache
+2025-07-22 20:21:11 - Loading model from cache /tmp/jieba.cache
+Loading model cost 0.564 seconds.
+2025-07-22 20:21:11 - Loading model cost 0.564 seconds.
+Prefix dict has been built successfully.
+2025-07-22 20:21:11 - Prefix dict has been built successfully.
+[32m[2025-07-22 20:21:11] [INFO    ] [Retrieval] - BM25索引创建成功[0m
+2025-07-22 20:21:11 - Load pretrained SentenceTransformer: /work/ai/WHOAMI/whoami/models/embedding/bge-large-zh-v1.5
+2025-07-22 20:21:12 - 2 prompts are loaded, with the keys: ['query', 'text']
+[32m[2025-07-22 20:21:12] [INFO    ] [Retrieval] - 加载现有索引: /work/ai/WHOAMI/loess/temp/index[0m
+2025-07-22 20:21:12 - Loading all indices.
+[32m[2025-07-22 20:21:12] [INFO    ] [Retrieval] - 从向量索引获取了 10 个节点用于BM25索引[0m
+[32m[2025-07-22 20:21:12] [INFO    ] [Retrieval] - BM25索引创建成功[0m
+2025-07-22 20:21:12 - Load pretrained SentenceTransformer: /work/ai/WHOAMI/whoami/models/embedding/bge-large-zh-v1.5
+2025-07-22 20:21:12 - 2 prompts are loaded, with the keys: ['query', 'text']
+[32m[2025-07-22 20:21:12] [INFO    ] [Retrieval] - 加载现有索引: /work/ai/WHOAMI/loess/temp/index[0m
+2025-07-22 20:21:12 - Loading all indices.
+[32m[2025-07-22 20:21:12] [INFO    ] [Retrieval] - 从向量索引获取了 10 个节点用于BM25索引[0m
+[32m[2025-07-22 20:21:12] [INFO    ] [Retrieval] - BM25索引创建成功[0m
+[32m[2025-07-22 20:21:12] [INFO    ] [GoogleSearch] - 初始化GoogleSearch！[0m
+[32m[2025-07-22 20:21:12] [INFO    ] [GoogleSearch] - 创建新的 GoogleSearchProvider 实例[0m
+2025-07-22 20:21:12 - Your app is available at http://0.0.0.0:5001
+2025-07-22 20:21:18 - SQLAlchemyDataLayer storage client is not initialized and elements will not be persisted!
+2025-07-22 20:21:18 - package: mysql.connector.plugins
+2025-07-22 20:21:18 - plugin_name: mysql_native_password
+2025-07-22 20:21:18 - AUTHENTICATION_PLUGIN_CLASS: MySQLNativePasswordAuthPlugin

@@ -15,7 +15,7 @@ from whoami.provider.sql_provider import SqlProvider
 
 # 页面配置
 st.set_page_config(
-    page_title="登录 - 睡眠健康管理系统",
+    page_title="登录 - 社区智能体",
     page_icon="🌙",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -89,6 +89,24 @@ def check_database_connection():
 # CSS样式（保持原有样式不变）
 st.markdown("""
 <style>
+
+/* 隐藏侧边栏 */
+section[data-testid="stSidebar"] {
+    display: none !important;
+}
+
+.css-1d391kg, .css-17lntkn, .css-1rs6os, .css-10trblm,
+.css-12oz5g7, .css-1outpf7, .css-1y4p8pa, .css-1lcbmhc,
+.css-1v0mbdj, .css-1cypcdb, .css-17eq0hr, .css-zt5igj {
+    display: none !important;
+}
+
+button[kind="header"] {
+    display: none !important;
+}
+/* 隐藏侧边栏 */
+
+
 /* 隐藏Streamlit默认元素 */
 .stApp > header {display: none;}
 .main .block-container {
@@ -334,8 +352,8 @@ def main():
     # 主标题
     st.markdown("""
     <div class="main-title">
-        <h1>🌙 睡眠健康管理系统</h1>
-        <p>专业的睡眠监测与健康管理平台</p>
+        <h1>🤖 社区智能体</h1>
+        <p>专业的社区实时交互解决方案</p>
     </div>
     """, unsafe_allow_html=True)
     
