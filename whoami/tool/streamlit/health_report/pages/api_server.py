@@ -26,6 +26,18 @@ from whoami.tool.streamlit.health_report.table.community_real_time_data import C
 from whoami.tool.streamlit.health_report.table.user_data import UserData
 from whoami.tool.streamlit.health_report.table.device_data import DeviceData
 from whoami.tool.real_time_vital_analyze.sleep_statistics_model import SleepStatistics
+from whoami.llm_api.ollama_llm import OllamaLLM
+from whoami.configs.llm_config import LLMConfig
+from whoami.tool.agent.tool.enhance_retrieval import EnhanceRetrieval
+from pathlib import Path
+from whoami.tool.agent.tool.direct_llm_community_ai_user import DirectLLMCommunityAiUser
+
+llm_qwen = OllamaLLM(config=LLMConfig.from_file(Path('/work/ai/WHOAMI/whoami/scripts/test/ollama_config_qwen.yaml')))
+
+enhance_qwen_user = EnhanceRetrieval(llm=llm_qwen, data_dir="/work/ai/WHOAMI/retrieval_data", index_dir="/work/ai/WHOAMI/retrieval_storage")
+direct_llm_tool = DirectLLMCommunityAiUser(enhance_llm=enhance_qwen_user)
+
+
 # 配置文件路径
 SQL_CONFIG_PATH = '/work/ai/WHOAMI/whoami/scripts/health_report/sql_config.yaml'
 
@@ -44,6 +56,8 @@ class CommunityRealTimeInfo(BaseModel):
     type: str
     content: str
     username: Optional[str] = ""
+class ChatInfo(BaseModel):
+    question: Optional[str] = None
     
 class ListCommunityRealTimeInfo(BaseModel):
     type: Optional[str] = None
@@ -60,9 +74,15 @@ app.add_middleware(
         "https://localhost:8000",
         "https://127.0.0.1:8000", 
         "https://1.71.15.121:8000",  # 添加你的外网IP
+        "https://ai.shunxikj.com:8000",  # 添加你的外网IP
         "https://localhost:8889",  
+        "https://localhost:8890",  
         "https://127.0.0.1:8889",
+        "https://127.0.0.1:8890",
         "https://1.71.15.121:8889",  # 添加你的外网IP
+        "https://1.71.15.121:8890",  # 添加你的外网IP
+        "https://ai.shunxikj.com:8889",  # 添加你的外网IP
+        "https://ai.shunxikj.com:8890",  # 添加你的外网IP
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -265,6 +285,7 @@ async def save_community_real_time_data(list_community_real_time_info: ListCommu
             condition={"creator": list_community_real_time_info.username} if list_community_real_time_info.type is None or list_community_real_time_info.type == "" else {"creator": list_community_real_time_info.username, "type": list_community_real_time_info.type},
             fields=["id", "type", "content", "create_time"]
         )
+        result = result[-5:] if len(result) > 5 else result
         json_compatible_result = jsonable_encoder(result)
         logger.info(json_compatible_result)
         return JSONResponse(
@@ -296,8 +317,8 @@ async def list_all_user_data():
             status_code=500,
             content={"success": False, "message": f"数据库操作失败！{str(e)}", "data": None, "timestamp": datetime.now().isoformat()}
         )
-    
-    
+
+
 @app.post("/api/list_sleep_statistics")
 async def list_sleep_statistics(list_sleep_statistics_: ListSleepStatistics):
     if list_sleep_statistics_.username is None or list_sleep_statistics_.username == "":
@@ -366,6 +387,49 @@ async def test_save():
     )
     
     return await save_device(test_device)
+
+
+
+@app.post("/api/chat")
+async def save_community_real_time_data(chat_info: ChatInfo):
+    try:
+        logger.info(f"收到数据保存请求: {chat_info}")
+        
+        # 验证必要字段
+        if not chat_info.question:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "请提供具体问题！", "data": None, "timestamp": datetime.now().isoformat()}
+            )
+
+        try:
+            params = {
+                "question": chat_info.question,
+                "message_history": None,
+                "username": "temp",
+                "location": "none",
+                "role": "none"
+            }
+            response = ""
+            async for chunk in direct_llm_tool.execute(
+                **params
+            ):
+                response += chunk
+            return JSONResponse(
+                status_code=200,
+                content={"success": True, "message": f"操作成功！", "data": response, "timestamp": datetime.now().isoformat()}
+            )
+        except Exception as e:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": f"操作失败！{str(e)}", "data": None, "timestamp": datetime.now().isoformat()}
+            )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"操作失败！{str(e)}", "data": None, "timestamp": datetime.now().isoformat()}
+        )
+            
 
 
 if __name__ == "__main__":

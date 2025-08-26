@@ -63,7 +63,6 @@ edit_message = true
 [UI]
 # Name of the assistant.
 name = "Assistant"
-
 # default_theme = "dark"
 
 # layout = "wide"

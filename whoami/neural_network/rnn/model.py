@@ -664,6 +664,4 @@ class LSTM(RNNBase):
             c_n = c_n.squeeze(1)
         return output, (h_n, c_n)
             
-            
-            
-            
+

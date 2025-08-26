@@ -157,19 +157,47 @@ class SocketServerManager(ProducerConsumerManager):
             "13F51B9D10004071111715D807",
             "132C1C9D100040711117959C07",
             "13331C9D100040711117950407",
-            "13311C9D100040711117956907"
+            "13311C9D100040711117956907",
+            "13301C9D100040711117953507"
         ]
         for item in device_sn_list:
-            self.monitor_dict[item] = RealTimeStateMonitor(
-                off_bed_threshold=0.05,          # 离床阈值
-                apnea_threshold=0.1,            # 呼吸暂停阈值
-                activation_threshold=1.0,       # 峰值检测激活阈值
-                # rise_factor=1.5,
-                # peak_factor=2.0,
-                # min_peak_duration=1.0,
-                # min_peak_height=5.0
-            )
-
+            
+            if item not in ["13D7F349200080712111150807", "13301C9D100040711117953507"]:
+                self.monitor_dict[item] = RealTimeStateMonitor(
+                    off_bed_threshold=0.05,          # 离床阈值
+                    apnea_threshold=0.1,            # 呼吸暂停阈值
+                    activation_threshold=1.0,       # 峰值检测激活阈值
+                    device_sn=item
+                    # peak_factor=2.0,
+                    # min_peak_duration=1.0,
+                    # min_peak_height=5.0
+                )
+            else:
+                # self.monitor_dict[item] = RealTimeStateMonitor(
+                #     off_bed_threshold=0.05,          # 离床阈值
+                #     apnea_threshold=0.1,            # 呼吸暂停阈值
+                #     activation_threshold=1.0,       # 峰值检测激活阈值
+                #     rise_factor=1.5,
+                #     peak_factor=2.0,
+                #     min_peak_duration=1.0,
+                #     min_peak_height=5.0
+                # )
+                self.monitor_dict[item] = RealTimeStateMonitor(
+                    normal_duration=5,
+                    off_bed_threshold=0.05,          # 离床阈值
+                    apnea_threshold=0.1,            # 呼吸暂停阈值
+                    rise_factor=1.3,
+                    peak_factor=1.8,
+                    fall_factor=1.2,
+                    baseline_alpha=0.02,
+                    variance_beta=0.1,
+                    activation_threshold=0.5,
+                    deactivation_threshold=0.3,
+                    min_peak_duration=1.0,
+                    min_peak_height=5.0,
+                    use_fixed_baseline=True,
+                    device_sn=item
+                )
             self.storage_dict[item] = SleepDataStateStorage(
                 single_insert_db=sql_provider.add_record,
                 batch_insert_db=sql_provider.bulk_insert_with_update,

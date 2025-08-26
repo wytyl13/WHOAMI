@@ -754,7 +754,7 @@ def show_welcome_header(username):
     st.markdown(f"""
     <div class="welcome-header">
         <div class="header-left">
-            <a href="https://1.71.15.121:8000/login" class="return-btn" target="_self">
+            <a href="https://ai.shunxikj.com:8000/login" class="return-btn" target="_self">
                 🔙 返回登录
             </a>
         </div>
@@ -1116,7 +1116,7 @@ def show_ai_chat_button_bake():
             </div>
             <iframe 
                 class="chat-iframe" 
-                src="https://1.71.15.121:5001/login"
+                src="https://ai.shunxikj.com:5001/login"
                 frameborder="0"
                 allow="microphone">
             </iframe>
@@ -1160,7 +1160,7 @@ def show_ai_chat_button_bake():
                 
                 // 打开新窗口
                 chatWindow = window.open(
-                    'https://1.71.15.121:5001/login',  // 你的聊天页面URL
+                    'https://ai.shunxikj.com:5001/login',  // 你的聊天页面URL
                     'aiChatWindow',
                     windowFeatures
                 );
@@ -1216,7 +1216,7 @@ def show_ai_chat_button_bake():
 
 
 
-def show_ai_chat_button():
+def show_ai_chat_button_bb():
     """显示AI聊天按钮 - 使用Streamlit原生组件，支持可调整大小的对话框"""
     import streamlit.components.v1 as components
     
@@ -1315,7 +1315,7 @@ def show_ai_chat_button():
                 
                 // 打开新窗口
                 chatWindow = window.open(
-                    'https://1.71.15.121:5001/login',  // 你的聊天页面URL
+                    'https://ai.shunxikj.com:5001/login',  // 你的聊天页面URL
                     'aiChatWindow',
                     windowFeatures
                 );
@@ -1571,6 +1571,324 @@ def show_ai_chat_button():
     # 使用全屏高度确保元素可以覆盖整个页面
     components.html(ai_button_html, height=70, scrolling=False)
 
+
+
+def show_ai_chat_button():
+    """显示AI聊天按钮 - 修复微信浏览器兼容性问题"""
+    import streamlit.components.v1 as components
+    
+    # 获取当前用户名
+    username = st.session_state.get('username', 'testuser')
+    
+    # 兼容微信浏览器的AI按钮HTML
+    ai_button_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <style>
+            /* 重置微信浏览器的默认样式 */
+            * {{
+                -webkit-tap-highlight-color: transparent;
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                -khtml-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+            }}
+            
+            /* 针对微信浏览器的特殊处理 */
+            body {{
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: visible !important;
+            }}
+            
+            .ai-chat-toggle {{
+                /* 使用绝对定位替代固定定位，提高微信兼容性 */
+                position: absolute !important;
+                top: 10px !important;
+                right: 10px !important;
+                width: 50px !important;
+                height: 50px !important;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+                border-radius: 50% !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4) !important;
+                cursor: pointer !important;
+                /* 降低z-index值，避免微信浏览器限制 */
+                z-index: 99999 !important;
+                transition: all 0.3s ease !important;
+                color: white !important;
+                font-size: 16px !important;
+                border: 4px solid rgba(255, 255, 255, 0.2) !important;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+                /* 确保在微信中可见 */
+                opacity: 1 !important;
+                visibility: visible !important;
+                pointer-events: auto !important;
+                /* 微信浏览器兼容性 */
+                -webkit-transform: translateZ(0) !important;
+                transform: translateZ(0) !important;
+                backface-visibility: hidden !important;
+                -webkit-backface-visibility: hidden !important;
+            }}
+            
+            .ai-chat-toggle:hover {{
+                transform: translateY(-8px) scale(1.15) translateZ(0) !important;
+                -webkit-transform: translateY(-8px) scale(1.15) translateZ(0) !important;
+                box-shadow: 0 20px 40px rgba(102, 126, 234, 0.6) !important;
+            }}
+            
+            .ai-chat-toggle.active {{
+                background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
+            }}
+            
+            /* 针对微信浏览器的媒体查询 */
+            @media screen and (max-width: 768px) {{
+                .ai-chat-toggle {{
+                    width: 45px !important;
+                    height: 45px !important;
+                    font-size: 14px !important;
+                    top: 15px !important;
+                    right: 15px !important;
+                }}
+            }}
+            
+            /* 微信浏览器特殊样式 */
+            .wechat-browser .ai-chat-toggle {{
+                position: absolute !important;
+                z-index: 999 !important;
+                transform: translate3d(0, 0, 0) !important;
+                -webkit-transform: translate3d(0, 0, 0) !important;
+            }}
+        </style>
+    </head>
+    <body>
+        <!-- AI聊天按钮 -->
+        <div class="ai-chat-toggle" id="aiChatToggle" onclick="toggleAIChat()">
+            🤖
+        </div>
+        
+        <script>
+            let isFullscreen = false;
+            let originalSize = {{ width: 800, height: 800 }};
+            let isDragging = false;
+            let isResizing = false;
+            let dragOffset = {{ x: 0, y: 0 }};
+            let chatWindow = null;
+            let isWechatBrowser = false;
+            
+            // 检测微信浏览器
+            function detectWechatBrowser() {{
+                const ua = navigator.userAgent.toLowerCase();
+                isWechatBrowser = ua.indexOf('micromessenger') !== -1;
+                
+                if (isWechatBrowser) {{
+                    document.body.classList.add('wechat-browser');
+                    console.log('微信浏览器环境检测到');
+                    
+                    // 微信浏览器特殊处理
+                    const toggle = document.getElementById('aiChatToggle');
+                    if (toggle) {{
+                        // 强制显示
+                        toggle.style.display = 'flex';
+                        toggle.style.visibility = 'visible';
+                        toggle.style.opacity = '1';
+                        toggle.style.zIndex = '999';
+                        toggle.style.position = 'absolute';
+                        
+                        // 添加微信特殊样式
+                        toggle.style.webkitTransform = 'translate3d(0, 0, 0)';
+                        toggle.style.transform = 'translate3d(0, 0, 0)';
+                        
+                        console.log('微信浏览器按钮样式已应用');
+                    }}
+                }}
+                
+                return isWechatBrowser;
+            }}
+            
+            function toggleAIChat() {{
+                console.log('AI聊天按钮被点击');
+                const toggle = document.getElementById('aiChatToggle');
+
+                if (chatWindow && !chatWindow.closed) {{
+                    // 如果窗口已存在且未关闭，则关闭它
+                    chatWindow.close();
+                    toggle.classList.remove('active');
+                    toggle.innerHTML = '🤖';
+                }} else {{
+                    // 打开新的聊天窗口
+                    openAIChat();
+                }}
+            }}
+            
+            function openAIChat() {{
+                const toggle = document.getElementById('aiChatToggle');
+                
+                try {{
+                    // 微信浏览器中的特殊处理
+                    if (isWechatBrowser) {{
+                        // 在微信中，直接跳转而不是打开新窗口
+                        const chatUrl = 'https://ai.shunxikj.com:5001/login';
+                        window.location.href = chatUrl;
+                        return;
+                    }}
+
+                    // 非微信浏览器的原有逻辑
+                    const windowWidth = 1000;
+                    const windowHeight = 800;
+                    const windowFeatures = [
+                        'width=' + windowWidth,
+                        'height=' + windowHeight,
+                        'left=' + ((screen.width - windowWidth) / 2),
+                        'top=' + ((screen.height - windowHeight) / 2),
+                        'resizable=yes',
+                        'scrollbars=yes',
+                        'status=no',
+                        'menubar=no',
+                        'toolbar=no',
+                        'location=no',
+                        'directories=no'
+                    ].join(',');
+                    
+                    // 打开新窗口
+                    chatWindow = window.open(
+                        'https://ai.shunxikj.com:5001/login',
+                        'aiChatWindow',
+                        windowFeatures
+                    );
+                    
+                    // 监听窗口关闭事件
+                    const checkClosed = setInterval(() => {{
+                        if (chatWindow.closed) {{
+                            toggle.classList.remove('active');
+                            toggle.innerHTML = '🤖';
+                            chatWindow = null;
+                            clearInterval(checkClosed);
+                        }}
+                    }}, 1000);
+                    
+                    // 更新按钮状态
+                    toggle.classList.add('active');
+                    toggle.innerHTML = '✕';
+                    
+                    // 聚焦到新窗口
+                    if (chatWindow) {{
+                        chatWindow.focus();
+                    }}
+                }} catch (error) {{
+                    console.error('打开聊天窗口失败:', error);
+                    // 降级处理：直接跳转
+                    window.location.href = 'https://ai.shunxikj.com:5001/login';
+                }}
+            }}
+            
+            function closeAIChat() {{
+                if (chatWindow && !chatWindow.closed) {{
+                    chatWindow.close();
+                }}
+            }}
+            
+            // 确保按钮在微信中可见的函数
+            function ensureButtonVisibility() {{
+                const toggle = document.getElementById('aiChatToggle');
+                if (toggle && isWechatBrowser) {{
+                    // 强制设置样式
+                    toggle.style.cssText = `
+                        position: absolute !important;
+                        top: 15px !important;
+                        right: 15px !important;
+                        width: 45px !important;
+                        height: 45px !important;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+                        border-radius: 50% !important;
+                        display: flex !important;
+                        align-items: center !important;
+                        justify-content: center !important;
+                        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4) !important;
+                        cursor: pointer !important;
+                        z-index: 999 !important;
+                        color: white !important;
+                        font-size: 14px !important;
+                        border: 4px solid rgba(255, 255, 255, 0.2) !important;
+                        opacity: 1 !important;
+                        visibility: visible !important;
+                        pointer-events: auto !important;
+                        transform: translate3d(0, 0, 0) !important;
+                        -webkit-transform: translate3d(0, 0, 0) !important;
+                    `;
+                    console.log('强制应用微信浏览器样式');
+                }}
+            }}
+            
+            // ESC键关闭聊天
+            document.addEventListener('keydown', function(event) {{
+                if (event.key === 'Escape') {{
+                    closeAIChat();
+                }}
+            }});
+            
+            // 页面加载完成后初始化
+            window.addEventListener('load', function() {{
+                console.log('页面加载完成，开始初始化');
+                
+                // 检测浏览器环境
+                detectWechatBrowser();
+                
+                const toggle = document.getElementById('aiChatToggle');
+                if (toggle) {{
+                    toggle.style.display = 'flex';
+                    console.log('AI聊天按钮元素找到');
+                    
+                    // 如果是微信浏览器，应用特殊处理
+                    if (isWechatBrowser) {{
+                        ensureButtonVisibility();
+                        
+                        // 延迟再次确保可见性
+                        setTimeout(() => {{
+                            ensureButtonVisibility();
+                        }}, 500);
+                        
+                        setTimeout(() => {{
+                            ensureButtonVisibility();
+                        }}, 1000);
+                    }}
+                }} else {{
+                    console.error('AI聊天按钮元素未找到');
+                }}
+            }});
+            
+            // 页面完全加载后再次检查
+            window.addEventListener('DOMContentLoaded', function() {{
+                setTimeout(() => {{
+                    detectWechatBrowser();
+                    if (isWechatBrowser) {{
+                        ensureButtonVisibility();
+                    }}
+                }}, 100);
+            }});
+            
+            // 监听页面可见性变化
+            document.addEventListener('visibilitychange', function() {{
+                if (!document.hidden && isWechatBrowser) {{
+                    setTimeout(() => {{
+                        ensureButtonVisibility();
+                    }}, 200);
+                }}
+            }});
+        </script>
+    </body>
+    </html>
+    """
+
+    # 使用全屏高度确保元素可以覆盖整个页面
+    components.html(ai_button_html, height=70, scrolling=False)
 
 
 
@@ -1920,7 +2238,7 @@ def show_ai_chat_button_iframe():
             </div>
             <iframe 
                 class="chat-iframe" 
-                src="https://1.71.15.121:5001/login"
+                src="https://ai.shunxikj.com:5001/login"
                 frameborder="0"
                 allow="microphone">
             </iframe>

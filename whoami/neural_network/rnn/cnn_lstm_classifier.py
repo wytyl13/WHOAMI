@@ -177,6 +177,7 @@ class SimpleSleepNet(nn.Module):
         output = self.classifier(lstm_out[:, -1, :])
         return output
 
+
 def train_simple_model(csv_file, epochs=50, max_samples=None):
     """训练函数"""
     
@@ -490,6 +491,7 @@ def _perform_feature_engineering(raw_data):
     df[features] = df[features].ffill().fillna(0)
     
     return df[features].values
+
 
 # 使用示例 - 适配你的数据
 if __name__ == "__main__":

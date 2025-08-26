@@ -16,7 +16,7 @@ import statistics
 import json
 import pytz
 import asyncio
-
+import pandas as pd
 from whoami.provider.sql_provider import SqlProvider
 from whoami.tool.real_time_vital_analyze.sleep_data_state import SleepDataState
 from whoami.tool.real_time_vital_analyze.sleep_statistics_model import SleepStatistics
@@ -63,8 +63,38 @@ class HealthReportGenerate:
             )
         except Exception as e:
             print(f"   错误: {e}")
-    
-    
+            
+        if self.sql_data:
+            df = pd.DataFrame(self.sql_data)
+            
+            # 精确的时区转换
+            # 先转换为UTC时间，然后转换为中国时区
+            dt_utc = pd.to_datetime(df['timestamp'], unit='s', utc=True)
+            dt_local = dt_utc.dt.tz_convert('Asia/Shanghai')
+            
+            # 添加时间格式（去掉时区信息用于显示）
+            df['date'] = dt_local.dt.strftime('%Y-%m-%d')      
+            df['time'] = dt_local.dt.strftime('%H:%M:%S')      
+            df['datetime'] = dt_local.dt.strftime('%Y-%m-%d %H:%M:%S')  
+            
+            # 重新排列列的顺序
+            time_cols = ['timestamp', 'date', 'time', 'datetime']
+            other_cols = [col for col in df.columns if col not in time_cols]
+            df = df[time_cols + other_cols]
+            
+            # 生成文件名
+            timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"device_{self.device_sn}_{timestamp_str}.csv"
+            
+            # 保存为CSV文件
+            df.to_csv(filename, index=False, encoding='utf-8-sig')
+            print(f"   数据已保存到: {filename}")
+            print(f"   共保存 {len(df)} 条记录")
+            print(f"   时间已转换为中国时区（Asia/Shanghai）")
+        else:
+            print("   没有查询到数据")
+
+
     def _date_to_timestamp(self, date_str):
         """将日期字符串转换为Unix时间戳（上海时区）"""
         dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
@@ -74,13 +104,13 @@ class HealthReportGenerate:
         dt_with_tz = shanghai_tz.localize(dt)
         
         return int(dt_with_tz.timestamp())
-    
-    
+
+
     # def _date_to_timestamp(self, date_str):
     #     """将日期字符串转换为Unix时间戳"""
     #     dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
     #     return int(dt.timestamp())
-    
+
     def _seconds_to_time_format(self, seconds: float) -> str:
         """将秒数转换为 X小时Y分Z秒 格式"""
         total_seconds = int(seconds)
@@ -89,7 +119,8 @@ class HealthReportGenerate:
         remaining_seconds = total_seconds % 60
         
         return f"{hours}小时{minutes}分{remaining_seconds}秒"
-    
+
+
     def validate_data(self) -> bool:
         """验证数据完整性"""
         if not self.sql_data:
@@ -109,7 +140,8 @@ class HealthReportGenerate:
                 
         print("✅ 数据验证通过")
         return True
-    
+
+
     def calculate_basic_metrics(self) -> Dict:
         """计算基础生理指标"""
         breath_rates = [record['breath_bpm'] for record in self.sql_data]
@@ -125,8 +157,8 @@ class HealthReportGenerate:
             'avg_heart_bpm': round(statistics.mean(heart_rates)),    # 整数
             'heart_rate_variability': round(heart_rate_cv, 4)        # 保留4位小数的变异系数
         }
-    
-    
+
+
     def calculate_time_points(self) -> Dict:
         """计算关键时间点：上床时间、入睡时间、醒来时间、离床时间"""
         if not self.sql_data:
@@ -218,9 +250,8 @@ class HealthReportGenerate:
             'wake_time': wake_time,
             'leave_bed_time': leave_bed_time
         }
-    
-    
-    
+
+
     def calculate_state_statistics(self) -> Dict:
         """计算状态统计信息"""
         state_counts = {state: 0 for state in self.valid_states}
@@ -271,9 +302,9 @@ class HealthReportGenerate:
             'state_durations_seconds': state_durations_seconds,
             'state_changes': state_changes
         }
-    
-    
-    
+
+
+
     def calculate_time_metrics(self) -> Dict:
         """计算时间相关指标"""
         if len(self.sql_data) < 2:
@@ -298,15 +329,15 @@ class HealthReportGenerate:
             'light_sleep_duration_seconds': state_durations_seconds['浅睡眠'],
             'deep_sleep_duration_seconds': state_durations_seconds['深睡眠']
         }
-    
-    
+
+
     async def health_report_generate_tool(self, report):
             result = await health_report_tool.execute(
                 health_report_statistics=report
             )
             return result
-    
-    
+
+
     def generate_comprehensive_report(self) -> Dict:
         """生成简化的分析报告，只返回用户需要的指标"""
         if not self.validate_data():
@@ -355,8 +386,8 @@ class HealthReportGenerate:
         
         sql_provider_sleep_statistic.add_record(data=report)
         return report
-    
-    
+
+
     def generate_comprehensive_report_bake(self) -> Dict:
         """生成简化的分析报告，只返回用户需要的指标"""
         if not self.validate_data():
@@ -441,9 +472,9 @@ if __name__ == '__main__':
     #     device_sn="13D7F349200080712111150807"
     # )
     health_reprot_generate = HealthReportGenerate(
-        start_date="2025-7-15 21:00:00", 
-        end_date="2025-7-16 07:00:00", 
-        device_sn="13311C9D100040711117956907"
+        start_date="2025-8-22 12:45:20", 
+        end_date="2025-8-22 14:10:08", 
+        device_sn="13D7F349200080712111150807"
     )
     
     # health_reprot_generate = HealthReportGenerate(

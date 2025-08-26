@@ -251,7 +251,7 @@ class Utils:
             "时讯消息": "📋"
         }
         # 创建Markdown表格
-        markdown_table = f"### {type_icon[type]} {type}\n\n"
+        markdown_table = f"### {type_icon[type]} 最近的{type}\n\n"
         markdown_table += "| ID | 类型 | 内容 | 发布时间 |\n"
         markdown_table += "|----|----|----|---------|\n"
         

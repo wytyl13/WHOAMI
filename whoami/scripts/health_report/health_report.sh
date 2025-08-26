@@ -20,7 +20,7 @@ check_and_kill_port() {
     fi
 }
 
-check_and_kill_port 8000
+check_and_kill_port 8001
 
 # 激活虚拟环境
 CONDA_ENV='/home/weiyutao/miniconda3/bin/'

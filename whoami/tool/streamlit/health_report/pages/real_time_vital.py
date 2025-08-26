@@ -28,10 +28,12 @@ from typing import (
 )
 import threading
 import pytz
+import base64
 
 beijing_tz = pytz.timezone('Asia/Shanghai')
 # 直接指定项目根目录
 project_root = "/work/ai/WHOAMI"
+
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
@@ -80,6 +82,60 @@ def get_device_sn():
         return "未知设备"
 
 device_sn = get_device_sn()
+
+
+
+
+def play_alert_audio(alert_status):
+    """播放异常状态对应的音频"""
+    import base64
+    import os
+    
+    # 音频文件路径映射
+    audio_files = {
+        '呼吸急促': '/work/ai/WHOAMI/images/huxijicu.mp3',
+        '呼吸暂停': '/work/ai/WHOAMI/images/huxizanting.mp3',
+        '体动': '/work/ai/WHOAMI/images/tidong.mp3'
+    }
+    
+    if alert_status in audio_files:
+        try:
+            audio_path = audio_files[alert_status]
+            if os.path.exists(audio_path):
+                # 读取音频文件并转换为base64
+                with open(audio_path, "rb") as audio_file:
+                    audio_bytes = audio_file.read()
+                    audio_base64 = base64.b64encode(audio_bytes).decode()
+                
+                # 使用HTML audio标签自动播放
+                audio_html = f"""
+                <audio autoplay>
+                    <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+                </audio>
+                <script>
+                    // 尝试播放音频
+                    setTimeout(function(){{
+                        var audio = document.querySelector('audio[autoplay]');
+                        if(audio) {{
+                            audio.play().catch(function(error) {{
+                                console.log('音频播放失败:', error);
+                            }});
+                        }}
+                    }}, 100);
+                </script>
+                """
+                
+                # 插入HTML音频播放器
+                st.markdown(audio_html, unsafe_allow_html=True)
+                st.warning(f"🔊 检测到 {alert_status}！")
+                
+                print(f"🔊 音频自动播放: {alert_status}")
+            else:
+                print(f"⚠️ 音频文件不存在: {audio_path}")
+                st.error(f"音频文件不存在: {audio_path}")
+        except Exception as e:
+            print(f"❌ 播放音频失败: {e}")
+            st.error(f"音频播放失败: {e}")
 
 
 # 页面配置
@@ -321,6 +377,22 @@ if 'monitoring' not in st.session_state:
     st.session_state.report_available = False   # 是否有可用报告
 
     st.session_state.report_result = None       # 存储报告生成结果
+
+
+    # 新增：设备级别的异常状态弹窗缓存
+    st.session_state.device_alerts = {}  # 存储所有设备的弹窗状态
+
+
+# 确保当前设备有独立的弹窗状态
+if device_sn not in st.session_state.device_alerts:
+    st.session_state.device_alerts[device_sn] = {
+        'alert_active': False,           # 是否显示异常弹窗
+        'alert_status': None,            # 当前异常状态
+        'alert_start_time': None,        # 异常开始时间
+        'alert_duration': 0,             # 异常持续时间（秒）
+        'last_status': '在床正常'         # 上一次的状态
+    }
+
 
 @st.cache_resource
 def get_shared_socket_manager():
@@ -748,6 +820,67 @@ def generate_data():
     # 根据设置限制数据点数量
     if len(st.session_state.data) > st.session_state.max_points:
         st.session_state.data = st.session_state.data[-st.session_state.max_points:]
+    
+    
+    # 新增：设备级别的异常状态检测和弹窗逻辑
+    if st.session_state.data:
+        current_status = st.session_state.data[-1]['status']
+        current_device_sn = device_sn  # 使用当前页面的设备编号
+        
+        # 确保当前设备有弹窗状态缓存
+        if current_device_sn not in st.session_state.device_alerts:
+            st.session_state.device_alerts[current_device_sn] = {
+                'alert_active': False,
+                'alert_status': None,
+                'alert_start_time': None,
+                'alert_duration': 0,
+                'last_status': '在床正常'
+            }
+        
+        # 获取当前设备的弹窗状态
+        device_alert = st.session_state.device_alerts[current_device_sn]
+        
+        # 定义异常状态
+        abnormal_statuses = ['呼吸急促', '体动', '呼吸暂停']
+        # abnormal_statuses = ['离床', '呼吸急促', '体动', '呼吸暂停', '清醒', '浅睡眠', '深睡眠']
+        
+        # 检查状态变化
+        if current_status in abnormal_statuses:
+        # 当前是异常状态
+            if device_alert['last_status'] not in abnormal_statuses:
+                # 从正常状态变为异常状态 - 开始新的异常弹窗
+                device_alert['alert_active'] = True
+                device_alert['alert_status'] = current_status
+                device_alert['alert_start_time'] = current_time
+                device_alert['alert_duration'] = 1
+                # 播放对应的异常音频
+                play_alert_audio(current_status)
+            elif device_alert['last_status'] == current_status:
+                # 继续同一个异常状态 - 更新持续时间
+                if device_alert['alert_active'] and device_alert['alert_start_time']:
+                    device_alert['alert_duration'] = int(current_time - device_alert['alert_start_time']) + 1
+            elif device_alert['last_status'] in abnormal_statuses:
+                # 从一个异常状态变为另一个异常状态 - 重新开始
+                device_alert['alert_active'] = True
+                device_alert['alert_status'] = current_status
+                device_alert['alert_start_time'] = current_time
+                device_alert['alert_duration'] = 1
+                # 播放对应的异常音频
+                play_alert_audio(current_status)
+        else:
+            # 当前是正常状态 - 清空当前设备的弹窗
+            # 当前不是需要弹窗的异常状态 - 清空当前设备的弹窗
+            device_alert['alert_active'] = False
+            device_alert['alert_status'] = None
+            device_alert['alert_start_time'] = None
+            device_alert['alert_duration'] = 0
+        
+        # 更新当前设备的上一次状态
+        device_alert['last_status'] = current_status
+        
+        # 更新回session_state
+        st.session_state.device_alerts[current_device_sn] = device_alert
+    
     
     st.session_state.last_update = current_time
 
@@ -1200,7 +1333,17 @@ if is_mobile:
             st.session_state.report_status = None
             st.session_state.report_message = ""
             st.session_state.report_available = False
-    
+
+            # 新增：重置当前设备的异常弹窗状态
+            if device_sn in st.session_state.device_alerts:
+                st.session_state.device_alerts[device_sn] = {
+                    'alert_active': False,
+                    'alert_status': None,
+                    'alert_start_time': None,
+                    'alert_duration': 0,
+                    'last_status': '在床正常'
+                }
+            
     st.markdown('</div>', unsafe_allow_html=True)
     
     # 第二行按钮
@@ -1343,6 +1486,46 @@ else:
                 
             # 跳转到报告页面
             st.switch_page("pages/report.py")
+
+
+# 新增：设备级别的异常状态弹窗显示
+current_device_alert = st.session_state.device_alerts.get(device_sn, {})
+if current_device_alert.get('alert_active', False) and current_device_alert.get('alert_status'):
+    alert_status = current_device_alert['alert_status']
+    alert_duration = current_device_alert['alert_duration']
+    alert_color = STATUS_COLORS.get(alert_status, '#FF4B4B')
+    
+    st.markdown(f"""
+    <div style="
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background-color: {alert_color};
+        color: white;
+        padding: 15px 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        z-index: 9999;
+        font-weight: bold;
+        font-size: 1.1rem;
+        min-width: 200px;
+        text-align: center;
+        animation: alertPulse 2s infinite;
+        border: 2px solid rgba(255,255,255,0.3);
+    ">
+        🚨 <strong>{alert_status}</strong><br>
+        <small>设备: {device_sn}</small><br>
+        持续时间: {alert_duration} 秒
+    </div>
+    
+    <style>
+    @keyframes alertPulse {{
+        0%, 100% {{ transform: scale(1); opacity: 0.9; }}
+        50% {{ transform: scale(1.02); opacity: 1; }}
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+
 
 # 显示报告生成状态
 if st.session_state.report_status:

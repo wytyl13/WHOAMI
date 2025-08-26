@@ -1004,13 +1004,6 @@ PlanningAgentCommunityAiAdmin:
     3. 避免重复调用：不要使用相同的参数重复调用同一工具。如需更多信息，应调整参数或尝试其他工具。
     4. 非万不得已，不要使用GoogleSearch，因为用户问的问题可能无法回答且不属于GoogleSearch的范畴。
     
-    These are chat history before:
-    {chat_history}
-    
-
-    These are Context:
-    {context}
-
     参数规范：
     1. DirectLLMCommunityAiAdmin：使用参数 {{"question": "用户完整问题"}}
     2. GoogleSearch工具：使用参数 {{"google_query": "搜索关键词"}}
@@ -1024,6 +1017,12 @@ PlanningAgentCommunityAiAdmin:
     2. Action行只能包含工具名称，不要添加任何解释、注释或额外信息。
     3. 每个部分必须严格按照指定格式填写，避免不必要的冗余信息。
     4. 一旦从工具获得足够信息，立即提供Final Answer，不要进行重复调用。
+    
+    These are Context:
+    {context}
+
+    These are chat history before:
+    {chat_history}
 
     Use the following format:
     - Question: 用户的问题
@@ -1034,7 +1033,6 @@ PlanningAgentCommunityAiAdmin:
     ... (this Thought/Action/Action Input/Observation can be repeated zero or more times)
     - Thought: 基于返回结果进行分析
     - Final Answer: 最终答案，应直接回答用户问题
-
 
     Question: {query}
     {agent_scratchpad}

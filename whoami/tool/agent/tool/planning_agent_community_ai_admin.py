@@ -43,8 +43,6 @@ class PlanningAgentCommunityAiAdminSchema(BaseModel):
     )
     
 
-
-
 @tool
 class PlanningAgentCommunityAiAdmin:
     end_flag: int = 0
@@ -70,7 +68,6 @@ class PlanningAgentCommunityAiAdmin:
             self._init_descs_names()
 
 
-
     def _get_context(self):
         """获取当前执行上下文"""
         try:
@@ -91,8 +88,6 @@ class PlanningAgentCommunityAiAdmin:
         ctx = self._get_context()
         ctx["status"] = status
         ctx["error_message"] = error_message
-    
-    
 
 
     def _init_descs_names(self):
@@ -107,7 +102,7 @@ class PlanningAgentCommunityAiAdmin:
             self.tool_descs = '\n\n'.join(tool_descs)
             self.tool_names = ', '.join([tool.name for tool in self.tools])
         except Exception as e:
-            raise ValueError("Fail to init the tool_descs and tool_names!")
+            raise ValueError(f"Fail to init the tool_descs and tool_names!{str(e)}")
     
     
     async def agent_execute(

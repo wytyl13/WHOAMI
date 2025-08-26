@@ -1,19 +1,18 @@
-/* 隐藏底部 footer 和技术支持链接 */
-footer,
-[data-testid="footer"],
-.MuiBox-root:has([href*="chainlit"]),
-.chainlit-footer,
-[class*="footer"],
-[class*="Footer"] {
+
+
+.watermark,
+[class*="watermark"],
+a[href*="chainlit.io"],
+span:contains("技术支持"),
+div:contains("技术支持") {
     display: none !important;
 }
 
-/* 隐藏包含 "技术支持" 或 "Chainlit" 的元素 */
-a[href*="chainlit.io"],
-a[href*="github.com/Chainlit"],
-*:contains("技术支持"),
-*:contains("Chainlit"),
-*:contains("Made with"),
-*:contains("Powered by") {
+/* 如果有特定的类名，直接隐藏 */
+.cl-footer,
+.cl-powered-by {
     display: none !important;
+}
+.user-info::before {
+    content: "用户名: ";
 }

@@ -899,7 +899,7 @@ def get_complete_bluetooth_html():
 
                 async loadUserData() {
                     try {
-                        const response = await fetch('https://1.71.15.121:8889/api/list_all_user_data');
+                        const response = await fetch('https://ai.shunxikj.com:8889/api/list_all_user_data');
                         const result = await response.json();
                         
                         if (result.success && result.data) {
@@ -1811,7 +1811,7 @@ def get_complete_bluetooth_html():
                         const maxRetries = 3;
                         
                         try {
-                            const response = await fetch('https://1.71.15.121:8889/api/save_device', {  // 改为相对路径
+                            const response = await fetch('https://ai.shunxikj.com:8889/api/save_device', {  // 改为相对路径
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json',
@@ -2175,7 +2175,7 @@ def main():
         if st.button("🧪 测试API连接", use_container_width=True):
             try:
                 import requests
-                response = requests.get('https://1.71.15.121:8889/api/health', timeout=3)
+                response = requests.get('https://ai.shunxikj.com:8889/api/health', timeout=3)
                 if response.status_code == 200:
                     data = response.json()
                     st.success(f"✅ {data.get('message', 'API服务正常')}")

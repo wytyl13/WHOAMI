@@ -44,7 +44,7 @@ def test_threshold(
     model,
     device_sn
 ):
-    query_date = "2025-7-22"
+    query_date = "2025-8-26"
     
     realtime_sql_provider = SqlProvider(sql_config_path=sql_config_path, sql_config=sql_config, model=SxDeviceWavveVitalSignLogRealTime)
     device_sn_ = realtime_sql_provider.get_record_by_condition({}, fields=["device_sn"])
@@ -68,7 +68,7 @@ def test_threshold(
     
     def background_request(json_data):
         try:
-            response_ = requests.post("http://localhost:8000/sleep_indices", json=json_data)
+            response_ = requests.post("http://localhost:8001/sleep_indices", json=json_data)
             print("后台请求完成")
         except Exception as e:
             print(f"请求发生错误: {e}")

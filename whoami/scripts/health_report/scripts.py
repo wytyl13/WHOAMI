@@ -124,4 +124,4 @@ async def sleep_indices(request_data: RequestData, background_tasks: BackgroundT
     return R.success(f"To start process background. It will take approximately {waste_time} minutes.")
 
 if __name__ == '__main__':
-    uvicorn.run(app, host='0.0.0.0', port=8000)
+    uvicorn.run(app, host='0.0.0.0', port=8001)

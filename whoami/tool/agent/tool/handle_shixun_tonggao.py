@@ -116,13 +116,19 @@ class HandleTongzhiTonggao:
         }
         
         if operation == "":
-            response = f"收到{type}. 请告知您具体的操作类型: 【新增/修改/删除/查看】"
+            response = f":{self.name}TOOL收到{type}. 请告知您具体的操作类型: 【新增/修改/删除/查看】"
             for item in response:
                 yield item
             return
         
         if operation not in operation_url:
             response = f"不支持的操作类型: {operation}. 支持的操作: {list(operation_url.keys())}"
+            for item in response:
+                yield item
+            return
+        
+        if type is None or type == "":
+            response = f":{self.name}TOOL收到{type}，请提供内容类型（时讯消息/通告）"
             for item in response:
                 yield item
             return
@@ -135,6 +141,11 @@ class HandleTongzhiTonggao:
                 "username": username
             }
             method = "POST"
+            if content is None or content == "":
+                response = f":{self.name}TOOL收到{type}，请提供具体内容！"
+                for item in response:
+                    yield item
+                return
             
         elif operation == "LIST":
             request_data = {
@@ -149,6 +160,9 @@ class HandleTongzhiTonggao:
                 "username": username
             }
             method = "POST"
+        
+        
+        
         
         # 发送请求
         result = await self._make_request(url, method, request_data)

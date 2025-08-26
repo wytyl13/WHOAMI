@@ -15,7 +15,7 @@ from whoami.provider.sql_provider import SqlProvider
 
 # 页面配置
 st.set_page_config(
-    page_title="登录 - 社区智能体",
+    page_title="灵犀AI - 社区智能体 - 管家端",
     page_icon="🌙",
     layout="wide",
     initial_sidebar_state="collapsed"

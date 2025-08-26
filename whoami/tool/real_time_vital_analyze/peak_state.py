@@ -59,6 +59,11 @@ class RealTimeStateMonitor:
         activation_threshold: float = 1.0,     # 峰值检测激活阈值
         deactivation_threshold: float = 0.5,   # 峰值检测去激活阈值
         min_baseline: float = 0.1,             # 最小基线值
+        
+        # 添加这个参数
+        use_fixed_baseline: bool = False,      # 是否使用固定基线
+        fixed_baseline_value: float = 10.0,     # 固定基线值
+
         baseline_alpha: float = 0.1,           # 基线适应速度
         variance_beta: float = 0.2,            # 方差适应速度
         
@@ -83,7 +88,10 @@ class RealTimeStateMonitor:
         embedding_dim: int = 64,               # 嵌入维度
         dropout: float = 0.2,                   # dropout比例
         # scaler_path: str = "/work/ai/WHOAMI/whoami/neural_network/sleep_scaler_v1_12W.pkl"
-        scaler_path: str = "/work/ai/WHOAMI/whoami/neural_network/sleep_scaler_20W_2dimensions.pkl"
+        scaler_path: str = "/work/ai/WHOAMI/whoami/neural_network/sleep_scaler_20W_2dimensions.pkl",
+        
+        
+        device_sn: str = None
     ):             
         
         # 基础状态参数
@@ -99,6 +107,11 @@ class RealTimeStateMonitor:
         self.activation_threshold = activation_threshold
         self.deactivation_threshold = deactivation_threshold
         self.min_baseline = min_baseline
+        
+        # 添加这两行
+        self.use_fixed_baseline = use_fixed_baseline
+        self.fixed_baseline_value = fixed_baseline_value
+        
         self.baseline_alpha = baseline_alpha
         self.variance_beta = variance_beta
         self.rise_factor = rise_factor
@@ -180,14 +193,14 @@ class RealTimeStateMonitor:
         }
         self.scaler = load_sleep_scaler(self.scaler_path)
         from whoami.tool.real_time_vital_analyze.dual_memory_threshold import HighPeakBiasedThreshold
-        self.dynamic_threshold = 20.0
+        self.dynamic_threshold = 10.0
         self.threshold_calculator = HighPeakBiasedThreshold(
             high_peak_percentile=0.85,    # 更严格：只有前15%才算高峰值
             min_threshold_ratio=0.6,      # 更保守：最小阈值为高峰值均值的60%
             peak_height_bias=0.9,         # 更偏向：90%权重给高峰值
             downward_sensitivity=0.05,    # 更保守：对下降极其不敏感
         )
-
+        self.device_sn = device_sn
 
     def _initialize_model(self):
         """延迟初始化深度学习模型"""
@@ -300,6 +313,7 @@ class RealTimeStateMonitor:
         # 7. 更新缓存
         self.last_update_time = timestamp
         
+        print(f"当前动态阈值: ----------------------------------------------------------------------------- {self.dynamic_threshold:.2f}")
         return overall_state, peak_state.value, peak_event
     
     
@@ -708,12 +722,34 @@ class RealTimeStateMonitor:
     
     def _update_active_statistics(self, value: float):
         adjusted_value = max(value, self.min_baseline)
-        
-        if self.active_sample_count == 1:
-            self.active_baseline = adjusted_value
+        # 基线更新逻辑
+        if self.use_fixed_baseline:
+            # 使用固定基线，不更新
+            self.active_baseline = self.fixed_baseline_value
         else:
-            alpha = 0.3 if self.active_sample_count <= self.warmup_samples else self.baseline_alpha
-            self.active_baseline = alpha * adjusted_value + (1 - alpha) * self.active_baseline
+            if self.active_sample_count == 1:
+                self.active_baseline = adjusted_value
+            else:
+                alpha = 0.05 if self.active_sample_count <= self.warmup_samples else self.baseline_alpha
+                
+                """限制基线的更新幅度"""
+                if self.current_peak_state in [PeakState.RISING, PeakState.PEAK, PeakState.FALLING]:
+                    # 峰值状态下有幅度更新基线
+                    new_baseline = alpha * adjusted_value + (1 - alpha) * self.active_baseline
+                    
+                    # 🔑 关键：限制基线变化幅度
+                    max_increase = self.active_baseline * 0.01  # 单次最多增加5%
+                    max_decrease = self.active_baseline * 0.01  # 单次最多减少5%
+                    
+                    if new_baseline > self.active_baseline + max_increase:
+                        new_baseline = self.active_baseline + max_increase
+                    elif new_baseline < self.active_baseline - max_decrease:
+                        new_baseline = self.active_baseline - max_decrease
+                        
+                    self.active_baseline = new_baseline
+                else:
+                    """非峰值状态正常更新"""
+                    self.active_baseline = alpha * adjusted_value + (1 - alpha) * self.active_baseline
         
         error = adjusted_value - self.active_baseline
         if self.active_sample_count == 1:
@@ -812,7 +848,8 @@ class RealTimeStateMonitor:
                     )
                     
                     self.threshold_calculator.add_peak(self.current_peak_max)
-                    self.dynamic_threshold = self.threshold_calculator.calculate_threshold()
+                    if self.device_sn not in ["13D7F349200080712111150807", "13301C9D100040711117953507"]:
+                        self.dynamic_threshold = self.threshold_calculator.calculate_threshold()
                     
                     self.peak_history.append(event)
                 
@@ -855,7 +892,8 @@ class RealTimeStateMonitor:
             self.threshold_calculator.add_peak(self.current_peak_max)
         
             # 更新动态阈值
-            self.dynamic_threshold = self.threshold_calculator.calculate_threshold()
+            if self.device_sn not in ["13D7F349200080712111150807", "13301C9D100040711117953507"]:
+                self.dynamic_threshold = self.threshold_calculator.calculate_threshold()
             self.peak_history.append(event)
             self._reset_peak_info()
             return event

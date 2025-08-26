@@ -16,6 +16,8 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
     
 
+# from chainlit.config import config
+# config.ui.name = "灵犀AI"
 
 
 from whoami.tool.streamlit.health_report.table.user_data import UserData
@@ -50,13 +52,16 @@ handle_tongzhi_tonggao = HandleTongzhiTonggao(enhance_llm=enhance_qwen_admin)
 water_machine_api = WaterMachineApi()
 health_report_user = HealthReportSimple(enhance_llm=enhance_qwen_user)
 
+
+init_tools_admin = [handle_tongzhi_tonggao, direct_llm_tool, google_search_tool, weather_api, water_machine_api]
 planning_agent = PlanningAgentCommunityAiAdmin(
-    tools=[handle_tongzhi_tonggao, direct_llm_tool, google_search_tool, weather_api, water_machine_api], 
+    tools=init_tools_admin, 
     enhance_llm=enhance_qwen_admin
 )
 
+init_tools_user = [direct_llm_tool_user, handle_tongzhi_tonggao, weather_api, water_machine_api, health_report_user]
 planning_agent_user = PlanningAgentCommunityAiUser(
-    tools=[direct_llm_tool_user, handle_tongzhi_tonggao, weather_api, water_machine_api, health_report_user], 
+    tools=init_tools_user, 
     enhance_llm=enhance_qwen_admin
 )
 
@@ -66,6 +71,24 @@ planning_agent_user = PlanningAgentCommunityAiUser(
 audio_buffer = None
 
 SAVE_DIR = "/work/ai/WHOAMI/data"
+
+
+
+def extract_and_clean_tool_info(text):
+    """从 :{工具名}TOOL收到 格式中提取工具信息"""
+    import re
+    
+    # 匹配 : 和 TOOL 之间的内容
+    pattern = r':([^T]*?)TOOL'
+    
+    tool_match = re.search(pattern, text)
+    tool_name = tool_match.group(1) if tool_match else None
+    
+    # 移除标记部分（从 : 开始到 TOOL收到 结束）
+    clean_pattern = r':([^T]*?)TOOL收到'
+    clean_text = re.sub(clean_pattern, '', text)
+    
+    return clean_text, tool_name
 
 
 def get_sql_provider():
@@ -129,11 +152,6 @@ def auth_callback(username: str, password: str) -> Optional[cl.User]:
     except Exception as e:
         cl.ErrorMessage(f"数据库连接错误: {str(e)}")
         return None
-
-
-
-
-
 
 
 @cl.on_audio_chunk
@@ -232,17 +250,26 @@ async def main(message: cl.Message):
         chat_history = cl.chat_context.to_openai() if cl.chat_context.to_openai() else []
         print(f"chat_history: ------------------------------- {chat_history}")
         
+        tools = []
         if chat_history:
             if len(chat_history) <= 8:
                 chat_history = chat_history[1:-1]
             if len(chat_history) > 8:
                 chat_history = chat_history[-7:-1]
             
-            chat_history = [[chat_history[i]['content'], chat_history[i+1]['content']] 
+            chat_history = [[chat_history[i]['content'][:30], chat_history[i+1]['content'][:30]] 
                 for i in range(0, len(chat_history)-1, 2) 
                 if chat_history[i]['role'] == 'user' and chat_history[i+1]['role'] == 'assistant']
-        
+            print(chat_history)
+            if chat_history:
+                _, tool_name = extract_and_clean_tool_info(chat_history[-1][-1])
+                print(f"tool_name: ---- {tool_name}")
+                for tool in planning_agent.tools:
+                    if hasattr(tool, 'name') and tool.name == tool_name:
+                        tools.append(tool)
+                        break
         print(f"chat_history: ------------------------------- {chat_history}")
+        
         try:
             if role == "user":
                 async for chunk in planning_agent_user.execute(
@@ -251,7 +278,8 @@ async def main(message: cl.Message):
                     username=user.identifier, 
                     retrieval_flag=True,
                     location=community,
-                    role=role
+                    role=role,
+                    tools=tools if tools else init_tools_user
                 ):
                     await msg.stream_token(chunk)
             else:
@@ -261,7 +289,8 @@ async def main(message: cl.Message):
                     username=user.identifier, 
                     retrieval_flag=False,
                     location=community,
-                    role=role
+                    role=role,
+                    tools=tools if tools else init_tools_admin
                 ):
                     await msg.stream_token(chunk)
             await msg.send()

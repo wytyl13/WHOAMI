@@ -77,9 +77,7 @@ class Encoder(nn.Module):
         # print(f"encoder rnn2 - hidden_n ----------- {hidden_n.shape}") # hidden_n - (num_layers, batch_size, hidden_size) - (1, 1, self.embedding_dim)
         
         return hidden_n[-1] # 去最后一层隐藏层作为解码器的输入
-    
-    
-    
+
 class Decoder(nn.Module):
     """
     定义一个解码器的子类，继承父类 nn.Modul
@@ -198,7 +196,6 @@ def create_inference_dataloader(data, batch_size=32, shuffle=False):
     return dataloader
 
 
-
 def batch_inference(model, dataloader, device, return_errors=True):
     """
     批次推理
@@ -262,7 +259,6 @@ def create_data_loaders(train_data, val_data, batch_size=32):
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     
     return train_loader, val_loader
-
 
 
 def train_model(
@@ -383,8 +379,6 @@ def train_model(
     print(f"\n🎉 训练完成！最佳验证损失: {best_loss:.6f}")
     return model.eval(), history
 
-
-
 class RecurrentAutoencoder(nn.Module):
     """
     定义一个自动编码器的子类，继承父类 nn.Module
@@ -474,10 +468,13 @@ def normalize_data(train_data, val_data, method='standard'):
 
 if __name__ == '__main__':
     seq_len = 20
-    n_features = 2
+    n_features = 7
     batch_size = 128
     # =================== 1. 数据加载 ===================
-    train_data = pd.read_csv("/work/ai/WHOAMI/device_info_13D2F34920008071211195A907_20250623_train_v1_200000_2dimension.csv")
+    train_data = pd.read_csv(
+        "/work/ai/WHOAMI/train_data/vital_sleep_classifier/out.csv",
+        usecols=["breath_line", "heart_line", "breath_bpm", "heart_bpm", "distance", "signal_intensity", "state"]
+    )
     train_data = np.array(train_data)
     train_data = create_sequences(train_data, seq_len, n_features, slide_window_flag=1)
     print(train_data.shape)
@@ -487,7 +484,6 @@ if __name__ == '__main__':
     train_data, val_data = time_series_split(train_data)
     # =================== 2. 数据分割 ===================
 
-    """
     # =================== 3. 归一化 ⭐ ===================
     # 归一化数据
     train_data, val_data, scaler = normalize_data(
@@ -501,7 +497,6 @@ if __name__ == '__main__':
     joblib.dump(scaler, scaler_save_path)
     print(f"✅ 归一化器已保存到: {scaler_save_path}")
     # =================== 3. 归一化 ⭐ ===================
-    """
     
     
     # =================== 4. 转换为张量 ===================

@@ -63,11 +63,8 @@ edit_message = true
 
 [UI]
 # Name of the assistant.
-name = "Assistant"
-custom_css = "/public/custom.css"
-cot = "hidden"
-
-# default_theme = "dark"
+name = "灵犀AI - 社区智能体 - 用户端"
+default_theme = "light"
 
 # layout = "wide"
 
@@ -77,11 +74,11 @@ cot = "hidden"
 # description = ""
 
 # Chain of Thought (CoT) display mode. Can be "hidden", "tool_call" or "full".
-# cot = "full"
+cot = "full"
 
 # Specify a CSS file that can be used to customize the user interface.
 # The CSS file can be served from the public directory or via an external link.
-# custom_css = "/public/test.css"
+custom_css = "/public/custom.css"
 
 # Specify additional attributes for a custom CSS file
 # custom_css_attributes = "media=\"print\""
@@ -97,7 +94,7 @@ alert_style = "classic"
 # custom_js_attributes = "async type = \"module\""
 
 # Custom login page image, relative to public directory or external URL
-# login_page_image = "/public/custom-background.jpg"
+login_page_image = "/public/background_big1.png"
 
 # Custom login page image filter (Tailwind internal filters, no dark/light variants)
 # login_page_image_filter = "brightness-50 grayscale"
