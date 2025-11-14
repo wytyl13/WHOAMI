@@ -158,13 +158,14 @@ class SocketServerManager(ProducerConsumerManager):
             "132C1C9D100040711117959C07",
             "13331C9D100040711117950407",
             "13311C9D100040711117956907",
-            "13301C9D100040711117953507"
+            "13301C9D100040711117953507",
+            "13D2F34920008071211195A907"
         ]
         for item in device_sn_list:
             
             if item not in ["13D7F349200080712111150807", "13301C9D100040711117953507"]:
                 self.monitor_dict[item] = RealTimeStateMonitor(
-                    off_bed_threshold=0.05,          # 离床阈值
+                    off_bed_threshold=0.1,          # 离床阈值
                     apnea_threshold=0.1,            # 呼吸暂停阈值
                     activation_threshold=1.0,       # 峰值检测激活阈值
                     device_sn=item
@@ -184,11 +185,11 @@ class SocketServerManager(ProducerConsumerManager):
                 # )
                 self.monitor_dict[item] = RealTimeStateMonitor(
                     normal_duration=5,
-                    off_bed_threshold=0.05,          # 离床阈值
+                    off_bed_threshold=0.1,          # 离床阈值
                     apnea_threshold=0.1,            # 呼吸暂停阈值
-                    rise_factor=1.3,
-                    peak_factor=1.8,
-                    fall_factor=1.2,
+                    rise_factor=2.5,
+                    peak_factor=3.5,
+                    fall_factor=2.5,
                     baseline_alpha=0.02,
                     variance_beta=0.1,
                     activation_threshold=0.5,
@@ -872,10 +873,10 @@ if __name__ == '__main__':
         max_consumers=15,      # 最大消费者数量
         production_queue_size=500,  # 生产队列大小
         consumer_tool_pool=consumer_tool_pool,
-        injected_data=all_injected_data 
+        # injected_data=all_injected_data 
     )
 
-    socket_server_manager.start_socket_server(port=5001, backlog=5)
+    socket_server_manager.start_socket_server(port=8888, backlog=5)
     
     try:
         # 让服务器运行一段时间
@@ -883,7 +884,7 @@ if __name__ == '__main__':
         time.sleep(3600)  # 运行1小时
     finally:
         # 停止特定端口的服务器
-        socket_server_manager.stop_socket_server(port=5001)
+        socket_server_manager.stop_socket_server(port=8888)
         
         # 或者关闭整个管理器及其所有服务器
         socket_server_manager.shutdown()

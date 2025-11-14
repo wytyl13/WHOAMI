@@ -62,7 +62,7 @@ class RealTimeStateMonitor:
         
         # 添加这个参数
         use_fixed_baseline: bool = False,      # 是否使用固定基线
-        fixed_baseline_value: float = 10.0,     # 固定基线值
+        fixed_baseline_value: float = 20.0,     # 固定基线值
 
         baseline_alpha: float = 0.1,           # 基线适应速度
         variance_beta: float = 0.2,            # 方差适应速度
@@ -201,6 +201,7 @@ class RealTimeStateMonitor:
             downward_sensitivity=0.05,    # 更保守：对下降极其不敏感
         )
         self.device_sn = device_sn
+
 
     def _initialize_model(self):
         """延迟初始化深度学习模型"""
@@ -651,7 +652,9 @@ class RealTimeStateMonitor:
         
         
         # 2. 峰值进行中的状态判断 - 新增
-        if peak_state in [PeakState.RISING, PeakState.PEAK, PeakState.FALLING]:
+        # 是否在峰值下降的时候判定为异常情况
+        # if peak_state in [PeakState.RISING, PeakState.PEAK, PeakState.FALLING]:
+        if peak_state in [PeakState.RISING, PeakState.PEAK]:
             if self.current_peak_max > self.dynamic_threshold:  # 使用当前峰值的最大值判断
                 # 根据当前的state统计值判断
                 current_state_value = self._calculate_state_statistics(self.last_update_time)

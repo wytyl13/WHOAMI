@@ -537,8 +537,13 @@ class SocketServer:
 
 if __name__ == '__main__':
     
+    def print_(x):
+        print(x)
+    
+    
     server_8000 = SocketServer(
-        port=8000,
+        port=8888,
+        data_callback=print_
     )
     server_8000.start()
     # server_8000.stop()

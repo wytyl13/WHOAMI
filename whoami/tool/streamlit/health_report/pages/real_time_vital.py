@@ -434,11 +434,11 @@ def get_shared_socket_manager():
         model=SxDeviceWavveVitalSignLog, 
         sql_config_path="/work/ai/WHOAMI/whoami/scripts/health_report/sql_config.yaml",
     )
-    result = sql_provider_test.get_record_by_condition(
-        condition={"device_sn": "13D2F34920008071211195A907"},
-        fields=["create_time", "breath_bpm", "breath_line", "heart_bpm", "heart_line", "distance", "signal_intensity", "state", "body_move_data", "device_sn"],
-        date_range={"date_field": "create_time", "start_date": "2025-6-29 21:00:00", "end_date": "2025-6-30 07:00:00"}
-    )
+    # result = sql_provider_test.get_record_by_condition(
+    #     condition={"device_sn": "13D2F34920008071211195A907"},
+    #     fields=["create_time", "breath_bpm", "breath_line", "heart_bpm", "heart_line", "distance", "signal_intensity", "state", "body_move_data", "device_sn"],
+    #     date_range={"date_field": "create_time", "start_date": "2025-6-29 21:00:00", "end_date": "2025-6-30 07:00:00"}
+    # )
     # print(result[0])
     
     from datetime import datetime, timedelta
@@ -505,25 +505,25 @@ def get_shared_socket_manager():
         
         return processed_records
     
-    result = preprocess_query_results_safe(result)
+    # result = preprocess_query_results_safe(result)
 
-    injected_data = []
-    for item in result:
-        tuple_data = (
-            item.get('create_time', 0),           # 位置0: timestamp
-            item.get('breath_bpm', 0),            # 位置1: breath_bpm
-            item.get('breath_line', 0),           # 位置2: breath_line
-            item.get('heart_bpm', 0),             # 位置3: heart_bpm
-            item.get('heart_line', 0),            # 位置4: heart_line
-            item.get('distance', 0),              # 位置5: target_distance
-            item.get('signal_intensity', 0),      # 位置6: signal_strength
-            item.get('state', 0),                 # 位置7: state
-            item.get('body_move_data', 0),        # 位置8: body_move_energy (缺失字段)
-            0,                                    # 位置9: body_move_range (缺失字段)
-            0,                                    # 位置10: in_bed 
-            item.get('device_sn', '00000001')     # 位置11: device_id
-        )
-        injected_data.append(tuple_data)
+    # injected_data = []
+    # for item in result:
+    #     tuple_data = (
+    #         item.get('create_time', 0),           # 位置0: timestamp
+    #         item.get('breath_bpm', 0),            # 位置1: breath_bpm
+    #         item.get('breath_line', 0),           # 位置2: breath_line
+    #         item.get('heart_bpm', 0),             # 位置3: heart_bpm
+    #         item.get('heart_line', 0),            # 位置4: heart_line
+    #         item.get('distance', 0),              # 位置5: target_distance
+    #         item.get('signal_intensity', 0),      # 位置6: signal_strength
+    #         item.get('state', 0),                 # 位置7: state
+    #         item.get('body_move_data', 0),        # 位置8: body_move_energy (缺失字段)
+    #         0,                                    # 位置9: body_move_range (缺失字段)
+    #         0,                                    # 位置10: in_bed 
+    #         item.get('device_sn', '00000001')     # 位置11: device_id
+    #     )
+    #     injected_data.append(tuple_data)
     
     
     

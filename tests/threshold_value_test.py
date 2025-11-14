@@ -1,3 +1,12 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+@Time    : 2025/01/06 09:40
+@Author  : weiyutao
+@File    : threshold_value_test.py
+"""
+
+
 import pytest
 from typing import (
     AsyncGenerator,
@@ -44,7 +53,7 @@ def test_threshold(
     model,
     device_sn
 ):
-    query_date = "2025-8-26"
+    query_date = "2025-11-06"
     
     realtime_sql_provider = SqlProvider(sql_config_path=sql_config_path, sql_config=sql_config, model=SxDeviceWavveVitalSignLogRealTime)
     device_sn_ = realtime_sql_provider.get_record_by_condition({}, fields=["device_sn"])
